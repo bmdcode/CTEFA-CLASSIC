@@ -1,0 +1,16 @@
+{
+  "name": "CTEFA-CLASSIC",
+  "short_name": "CTEFA",
+  "description": "Gestion d'école : élèves, classes, notes, moyennes, rangs, bulletins et décisions de passage.",
+  "lang": "fr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f5",
+  "theme_color": "#1d4a7a",
+  "icons": [
+    { "src": "icons/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
