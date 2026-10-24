@@ -1,40 +1,1288 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="CTEFA-CLASSIC : élèves, classes, notes, moyennes, rangs, bulletins bilingues et décisions de passage.">
-  <title>CTEFA-CLASSIC</title>
-  <meta name="theme-color" content="#1d4a7a">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icons/favicon-32.png">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="css/style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CTEFA-CLASSIC Web</title>
+<meta name="description" content="Gestion scolaire multi-utilisateurs : comptes, droits, école, référentiels, synchronisation en temps réel.">
+<meta name="theme-color" content="#153A62">
+<style>
+/* =====================================================================
+ *  CTEFA-CLASSIC Web — étape 1 : socle (comptes, droits, journal, école,
+ *  référentiels, synchronisation en temps réel, sauvegarde/restauration)
+ * ===================================================================== */
+:root {
+  --bleu: #153A62; --ambre: #BF8F00; --vert: #277740; --gris: #595959; --rouge: #B3261E;
+  --fond: #F3F5F8; --carte: #FFFFFF; --texte: #1F2328; --doux: #5B6470; --bord: #D9DEE5; --survol: #EEF3F9; --entete: #153A62;
+  --champ: #FFFFFF; --info: #E8F0FA; --attention: #FFF4D6; --ok: #E6F3EA; --ko: #FCE8E6;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #12161C; --carte: #1B2129; --texte: #E6E9ED; --doux: #A3ACB8; --bord: #2E3743; --survol: #232B36; --entete: #0E2742;
+  --champ: #151A21; --info: #1A2A3D; --attention: #3A3115; --ok: #17301F; --ko: #3B1D1B; } }
+:root[data-theme="dark"] {
+  --fond: #12161C; --carte: #1B2129; --texte: #E6E9ED; --doux: #A3ACB8; --bord: #2E3743; --survol: #232B36; --entete: #0E2742;
+  --champ: #151A21; --info: #1A2A3D; --attention: #3A3115; --ok: #17301F; --ko: #3B1D1B; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--fond); color: var(--texte); }
+a { color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.entete { background: var(--entete); color: #fff; position: sticky; top: 0; z-index: 20; }
+.entete-haut { display: flex; align-items: center; gap: 10px; padding: 10px 16px; flex-wrap: wrap; }
+.entete h1 { font-size: 1.05rem; margin: 0; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.etat-sync { font-size: .78rem; border-radius: 999px; padding: 3px 10px; background: rgba(255,255,255,.15); white-space: nowrap; border: 0; color: #fff; cursor: pointer; }
+.etat-sync[data-c="ok"] { background: #277740; } .etat-sync[data-c="att"] { background: #BF8F00; } .etat-sync[data-c="ko"] { background: #B3261E; }
+.btn-entete { background: transparent; border: 1px solid rgba(255,255,255,.35); color: #fff; border-radius: 8px; padding: 4px 9px; cursor: pointer; font-size: .82rem; }
+.nav { display: flex; gap: 2px; overflow-x: auto; padding: 0 10px; scrollbar-width: none; }
+.nav::-webkit-scrollbar { display: none; }
+.nav a { color: #DCE6F2; text-decoration: none; padding: 9px 10px; white-space: nowrap; border-bottom: 3px solid transparent; font-size: .92rem; }
+.nav a.actif { color: #fff; border-bottom-color: var(--ambre); font-weight: 600; }
+main { max-width: 1180px; margin: 0 auto; padding: 16px; }
+h2 { font-size: 1.25rem; margin: 4px 0 14px; }
+h3 { font-size: 1rem; margin: 0; }
+.carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 12px; margin-bottom: 16px; }
+.carte-tete { padding: 12px 16px; border-bottom: 1px solid var(--bord); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.carte-tete h3 { flex: 1 1 auto; }
+.carte-corps { padding: 14px 16px; }
+.carte-pied { padding: 10px 16px; border-top: 1px solid var(--bord); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.grille > * { min-width: 0; }
+.tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.tuile { background: var(--carte); border: 1px solid var(--bord); border-radius: 12px; padding: 12px 14px; }
+.tuile .lib { font-size: .8rem; color: var(--doux); }
+.tuile .val { font-size: 1.5rem; font-weight: 700; color: var(--bleu); }
+:root[data-theme="dark"] .tuile .val { color: #8FB8E8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tuile .val { color: #8FB8E8; } }
+label { display: block; font-size: .82rem; color: var(--doux); margin: 0 0 4px; }
+.champ { margin-bottom: 10px; }
+input, select, textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--bord); border-radius: 8px; background: var(--champ); min-height: 40px; }
+input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
+input:focus, select:focus, textarea:focus { outline: 2px solid #5C8FCB; outline-offset: 0; }
+.aide { font-size: .82rem; color: var(--doux); }
+.ligne { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.ligne > * { flex: 1 1 160px; min-width: 0; }
+.ligne > .fixe { flex: 0 0 auto; }
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--bleu); color: var(--bleu); background: transparent; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-weight: 600; text-decoration: none; min-height: 40px; }
+:root[data-theme="dark"] .btn { color: #8FB8E8; border-color: #8FB8E8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn { color: #8FB8E8; border-color: #8FB8E8; } }
+.btn.plein { background: var(--bleu); color: #fff; border-color: var(--bleu); }
+.btn.vert { background: var(--vert); border-color: var(--vert); color: #fff; }
+.btn.danger { border-color: var(--rouge); color: var(--rouge); }
+.btn.petit { padding: 4px 9px; min-height: 32px; font-size: .85rem; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.table-defil { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 7px 9px; border-bottom: 1px solid var(--bord); text-align: left; vertical-align: middle; }
+th { font-size: .76rem; text-transform: uppercase; letter-spacing: .3px; color: var(--doux); background: var(--survol); }
+td input, td select { min-height: 34px; padding: 5px 7px; }
+.c { text-align: center; } .d { text-align: right; }
+.pastille { display: inline-block; font-size: .74rem; border-radius: 999px; padding: 1px 8px; background: var(--info); }
+.pastille.ok { background: var(--ok); } .pastille.ko { background: var(--ko); } .pastille.att { background: var(--attention); }
+.alerte { border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; background: var(--info); border: 1px solid var(--bord); }
+.alerte.att { background: var(--attention); } .alerte.ko { background: var(--ko); }
+.onglets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.onglets a { text-decoration: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--bord); background: var(--carte); font-size: .9rem; }
+.onglets a.actif { background: var(--bleu); color: #fff; border-color: var(--bleu); }
+.liste-simple { list-style: none; margin: 0; padding: 0; }
+.liste-simple li { padding: 7px 0; border-bottom: 1px solid var(--bord); }
+.liste-simple li:last-child { border-bottom: 0; }
+.point { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--vert); margin-right: 6px; }
+.voile { position: fixed; inset: 0; background: rgba(10,20,35,.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+.boite { background: var(--carte); border-radius: 14px; width: 100%; max-width: 440px; max-height: 92vh; overflow: auto; padding: 18px; }
+.boite.large { max-width: 720px; }
+.boite h2 { margin-top: 0; }
+.ecran-accueil { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--entete); }
+.ecran-accueil .boite { box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+.marque { color: var(--bleu); font-weight: 800; letter-spacing: .5px; }
+#toasts { position: fixed; bottom: 16px; right: 16px; left: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; z-index: 60; pointer-events: none; }
+.toast { background: #2B3440; color: #fff; padding: 10px 14px; border-radius: 10px; max-width: 420px; pointer-events: auto; }
+.toast.ok { background: var(--vert); } .toast.ko { background: var(--rouge); }
+.bandeau { padding: 8px 16px; text-align: center; font-size: .9rem; }
+.bandeau.maint { background: var(--ambre); color: #000; }
+.bandeau.lecture { background: var(--gris); color: #fff; }
+.droits { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 10px; }
+.droits label { display: flex; gap: 6px; align-items: center; color: var(--texte); font-size: .88rem; margin: 0; }
+.vignette { max-width: 120px; max-height: 80px; border: 1px solid var(--bord); border-radius: 6px; background: #fff; }
+.pied { text-align: center; font-size: .8rem; color: var(--doux); padding: 10px 16px 24px; }
+.cache { display: none !important; }
+@media (max-width: 600px) { .mm { display: none; } main { padding: 12px; } }
+@media print { .entete, .nav, .carte-pied, #toasts, .pas-imprimer { display: none !important; } body { background: #fff; } .carte { border: 0; } }
+</style>
 </head>
 <body>
-  <header class="entete">
-    <div class="entete-haut">
-      <h1 id="nom-ecole">CTEFA-CLASSIC</h1>
-      <span class="sous-titre" id="info-annee"></span>
-    </div>
-    <nav class="nav" id="nav">
-      <a href="#tableau">Tableau de bord</a>
-      <a href="#eleves">Élèves</a>
-      <a href="#classes">Classes</a>
-      <a href="#notes">Notes</a>
-      <a href="#resultats">Résultats</a>
-      <a href="#bulletins">Bulletins</a>
-      <a href="#decisions">Décisions</a>
-      <a href="#parametres">Paramètres</a>
-    </nav>
-  </header>
-  <main id="vue"></main>
-  <div id="impression"></div>
-  <p class="pied no-print">CTEFA-CLASSIC Web · données enregistrées dans ce navigateur · exportez une sauvegarde régulièrement.</p>
-  <div id="toasts" aria-live="polite"></div>
-  <noscript><p style="padding:20px">Cette application nécessite JavaScript.</p></noscript>
-  <script src="js/niveaux.js"></script>
-  <script src="js/ecole.js"></script>
-  <script src="js/app.js"></script>
+<div id="racine"></div>
+<div id="toasts" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-auth-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* Référentiels de départ repris de CTEFA-CLASSIC V3.4 (PARAM_NIVEAUX, PARAM_MATIERES, PARAM_LISTES, PARAM_TARIFS) */
+var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAIRE","ordre":1,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":"MS","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"MS","nom":"Moyenne section","cycle":"PRESCOLAIRE","ordre":2,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":"GS","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"GS","nom":"Grande section","cycle":"PRESCOLAIRE","ordre":3,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":"CI","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"CI","nom":"CI","cycle":"ELEMENTAIRE","ordre":4,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":"CP","suivant_alt":null,"format":"EFA","fusion":null},{"code":"CP","nom":"CP","cycle":"ELEMENTAIRE","ordre":5,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":"CE1","suivant_alt":null,"format":"EFA","fusion":null},{"code":"CE1","nom":"CE1","cycle":"ELEMENTAIRE","ordre":6,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":"CE2","suivant_alt":null,"format":"EFA","fusion":null},{"code":"CE2","nom":"CE2","cycle":"ELEMENTAIRE","ordre":7,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":"CM1","suivant_alt":null,"format":"EFA","fusion":null},{"code":"CM1","nom":"CM1","cycle":"ELEMENTAIRE","ordre":8,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":"CM2","suivant_alt":null,"format":"EFA","fusion":null},{"code":"CM2","nom":"CM2","cycle":"ELEMENTAIRE","ordre":9,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":null,"suivant_alt":null,"format":"EFA","fusion":null},{"code":"MAJ1","nom":"Majaalis 1","cycle":"ELEMENTAIRE","ordre":10,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":"CE1","suivant_alt":null,"format":"EFA","fusion":"CI+CP"},{"code":"MAJ2","nom":"Majaalis 2","cycle":"ELEMENTAIRE","ordre":11,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":"MAJ3","suivant_alt":null,"format":"EFA","fusion":null},{"code":"MAJ3","nom":"Majaalis 3","cycle":"ELEMENTAIRE","ordre":12,"base":10,"seuil_redoublement":5.0,"seuil_passage":5.0,"suivant":null,"suivant_alt":null,"format":"EFA","fusion":null},{"code":"6E","nom":"6e","cycle":"MOYEN","ordre":13,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":"5E","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"5E","nom":"5e","cycle":"MOYEN","ordre":14,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":"4E","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"4E","nom":"4e","cycle":"MOYEN","ordre":15,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":"3E","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"3E","nom":"3e","cycle":"MOYEN","ordre":16,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":"2ND-S","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"2ND-L","nom":"2nde L","cycle":"SECONDAIRE","ordre":17,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":"1RE-L1","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"2ND-S","nom":"2nde S","cycle":"SECONDAIRE","ordre":18,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":"1RE-S1","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"1RE-L1","nom":"1re L1","cycle":"SECONDAIRE","ordre":19,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":"TLE-L1","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"1RE-L2","nom":"1re L2","cycle":"SECONDAIRE","ordre":20,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":"TLE-L2","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"1RE-S1","nom":"1re S1","cycle":"SECONDAIRE","ordre":21,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":"TLE-S1","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"1RE-S2","nom":"1re S2","cycle":"SECONDAIRE","ordre":22,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":"TLE-S2","suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"TLE-L1","nom":"Tle L1","cycle":"SECONDAIRE","ordre":23,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":null,"suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"TLE-L2","nom":"Tle L2","cycle":"SECONDAIRE","ordre":24,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":null,"suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"TLE-S1","nom":"Tle S1","cycle":"SECONDAIRE","ordre":25,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":null,"suivant_alt":null,"format":"CLASSIQUE","fusion":null},{"code":"TLE-S2","nom":"Tle S2","cycle":"SECONDAIRE","ordre":26,"base":20,"seuil_redoublement":10.0,"seuil_passage":10.0,"suivant":null,"suivant_alt":null,"format":"CLASSIQUE","fusion":null}],"matieres":[{"niveau":"CI","langue":"FR","matiere":"Découverte du Monde","rubrique":"IST (Initiation Scientifique et Technologique)","baremes":[10,10,10],"ordre":14,"coef":1},{"niveau":"CI","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Le Coran (القرآن الكريم)","baremes":[10,10,10],"ordre":16,"coef":1},{"niveau":"CI","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Hadith (الحديث)","baremes":[10,10,10],"ordre":17,"coef":1},{"niveau":"CI","langue":"FR","matiere":"EPSA","rubrique":"EPSA","baremes":[10,10,10],"ordre":15,"coef":1},{"niveau":"CI","langue":"FR","matiere":"Mathématiques","rubrique":"Activité Numérique","baremes":[10,10,10],"ordre":1,"coef":1},{"niveau":"CI","langue":"LN","matiere":"Wolof","rubrique":"C. Audition","baremes":[10,10,10],"ordre":2,"coef":1},{"niveau":"CI","langue":"LN","matiere":"Wolof","rubrique":"Fluidité","baremes":[10,10,10],"ordre":9,"coef":1},{"niveau":"CI","langue":"LN","matiere":"Wolof","rubrique":"L. Graphèmes","baremes":[10,10,10],"ordre":3,"coef":1},{"niveau":"CI","langue":"LN","matiere":"Wolof","rubrique":"L. Mots Familiers","baremes":[10,10,10],"ordre":5,"coef":1},{"niveau":"CI","langue":"LN","matiere":"Wolof","rubrique":"L. Mots Familiers","baremes":[10,10,10],"ordre":6,"coef":1},{"niveau":"CI","langue":"LN","matiere":"Wolof","rubrique":"L. Mots Familiers","baremes":[10,10,10],"ordre":7,"coef":1},{"niveau":"CI","langue":"LN","matiere":"Wolof","rubrique":"L. Mots Familiers","baremes":[10,10,10],"ordre":8,"coef":1},{"niveau":"CI","langue":"LN","matiere":"Wolof","rubrique":"L. Mots Inventés","baremes":[10,10,10],"ordre":4,"coef":1},{"niveau":"CI","langue":"LN","matiere":"Wolof","rubrique":"Vocabulaire","baremes":[10,10,10],"ordre":11,"coef":1},{"niveau":"CP","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Calligraphie (الخط)","baremes":[10,10,10],"ordre":8,"coef":1},{"niveau":"CP","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Lecture (القراءة)","baremes":[10,10,10],"ordre":7,"coef":1},{"niveau":"CP","langue":"FR","matiere":"Découverte du Monde","rubrique":"Géographie","baremes":[10,10,10],"ordre":4,"coef":1},{"niveau":"CP","langue":"FR","matiere":"Découverte du Monde","rubrique":"Histoire","baremes":[10,10,10],"ordre":3,"coef":1},{"niveau":"CP","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Hadith (الحديث)","baremes":[10,10,10],"ordre":5,"coef":1},{"niveau":"CP","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Le Coran (القرآن الكريم)","baremes":[10,10,10],"ordre":6,"coef":1},{"niveau":"CP","langue":"FR","matiere":"EPSA","rubrique":"EPSA","baremes":[10,10,10],"ordre":9,"coef":1},{"niveau":"CP","langue":"FR","matiere":"Langue et Communication","rubrique":"Compréhension","baremes":[10,10,10],"ordre":1,"coef":1},{"niveau":"CP","langue":"FR","matiere":"Langue et Communication","rubrique":"Ecriture","baremes":[10,10,10],"ordre":2,"coef":1},{"niveau":"CP","langue":"FR","matiere":"Récitations","rubrique":"Récitations","baremes":[10,10,10],"ordre":10,"coef":1},{"niveau":"CE1","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Lecture (القراءة)","baremes":[10,10,10],"ordre":6,"coef":1},{"niveau":"CE1","langue":"FR","matiere":"Découverte du Monde","rubrique":"Histoire","baremes":[10,10,10],"ordre":3,"coef":1},{"niveau":"CE1","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Le Coran (القرآن الكريم)","baremes":[10,10,10],"ordre":5,"coef":1},{"niveau":"CE1","langue":"FR","matiere":"EPSA","rubrique":"EPSA","baremes":[10,10,10],"ordre":4,"coef":1},{"niveau":"CE1","langue":"FR","matiere":"Langue et Communication","rubrique":"Ecriture","baremes":[10,10,10],"ordre":2,"coef":1},{"niveau":"CE1","langue":"FR","matiere":"Langue et Communication","rubrique":"Orthographe","baremes":[10,10,10],"ordre":1,"coef":1},{"niveau":"CE2","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Calligraphie (الخط)","baremes":[10,10,10],"ordre":9,"coef":1},{"niveau":"CE2","langue":"FR","matiere":"Découverte du Monde","rubrique":"Géographie","baremes":[10,10,10],"ordre":5,"coef":1},{"niveau":"CE2","langue":"FR","matiere":"Découverte du Monde","rubrique":"Géographie","baremes":[10,10,10],"ordre":6,"coef":1},{"niveau":"CE2","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Le Coran (القرآن الكريم)","baremes":[10,10,10],"ordre":8,"coef":1},{"niveau":"CE2","langue":"FR","matiere":"EPSA","rubrique":"EPSA","baremes":[10,10,10],"ordre":7,"coef":1},{"niveau":"CE2","langue":"FR","matiere":"Langue et Communication","rubrique":"Vocabulaire","baremes":[10,10,10],"ordre":1,"coef":1},{"niveau":"CE2","langue":"FR","matiere":"Mathématiques","rubrique":"Ressources","baremes":[10,10,10],"ordre":2,"coef":1},{"niveau":"CE2","langue":"FR","matiere":"Mathématiques","rubrique":"Activité Mesure","baremes":[10,10,10],"ordre":4,"coef":1},{"niveau":"CE2","langue":"FR","matiere":"Mathématiques","rubrique":"Activité Numérique","baremes":[10,10,10],"ordre":3,"coef":1},{"niveau":"CM1","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Lecture (القراءة)","baremes":[10,10,10],"ordre":6,"coef":1},{"niveau":"CM1","langue":"FR","matiere":"Découverte du Monde","rubrique":"Géographie","baremes":[10,10,10],"ordre":3,"coef":1},{"niveau":"CM1","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Le Coran (القرآن الكريم)","baremes":[10,10,10],"ordre":5,"coef":1},{"niveau":"CM1","langue":"FR","matiere":"EPSA","rubrique":"EPSA","baremes":[10,10,10],"ordre":4,"coef":1},{"niveau":"CM1","langue":"FR","matiere":"Langue et Communication","rubrique":"Principe Alphabétique","baremes":[10,10,10],"ordre":1,"coef":1},{"niveau":"CM1","langue":"FR","matiere":"Mathématiques","rubrique":"Activité Numérique","baremes":[10,10,10],"ordre":2,"coef":1},{"niveau":"CM2","langue":"AR","matiere":"Arabe","rubrique":"Arabe","baremes":[10,10,10],"ordre":10,"coef":1},{"niveau":"CM2","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Production écrite (الإنتاج الكتابي)","baremes":[10,10,10],"ordre":14,"coef":1},{"niveau":"CM2","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Ressources (موارد)","baremes":[10,10,10],"ordre":13,"coef":1},{"niveau":"CM2","langue":"FR","matiere":"Découverte du Monde","rubrique":"Compétences","baremes":[10,10,10],"ordre":6,"coef":1},{"niveau":"CM2","langue":"FR","matiere":"Découverte du Monde","rubrique":"Ressources","baremes":[10,10,10],"ordre":5,"coef":1},{"niveau":"CM2","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Compétences (كفاءات)","baremes":[10,10,10],"ordre":12,"coef":1},{"niveau":"CM2","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Ressources (موارد)","baremes":[10,10,10],"ordre":11,"coef":1},{"niveau":"CM2","langue":"FR","matiere":"Éducation au Développement Durable","rubrique":"Compétences","baremes":[10,10,10],"ordre":8,"coef":1},{"niveau":"CM2","langue":"FR","matiere":"Éducation au Développement Durable","rubrique":"Ressources","baremes":[10,10,10],"ordre":7,"coef":1},{"niveau":"CM2","langue":"FR","matiere":"EPSA","rubrique":"EPSA","baremes":[10,10,10],"ordre":9,"coef":1},{"niveau":"CM2","langue":"FR","matiere":"Langue et Communication","rubrique":"Compétences","baremes":[10,10,10],"ordre":2,"coef":1},{"niveau":"CM2","langue":"FR","matiere":"Langue et Communication","rubrique":"Ressources","baremes":[10,10,10],"ordre":1,"coef":1},{"niveau":"CM2","langue":"FR","matiere":"Mathématiques","rubrique":"Compétences","baremes":[10,10,10],"ordre":4,"coef":1},{"niveau":"CM2","langue":"FR","matiere":"Mathématiques","rubrique":"Ressources","baremes":[10,10,10],"ordre":3,"coef":1},{"niveau":"MAJ1","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Calligraphie (الخط)","baremes":[10,10,10],"ordre":10,"coef":1},{"niveau":"MAJ1","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Lecture (القراءة)","baremes":[10,10,10],"ordre":9,"coef":1},{"niveau":"MAJ1","langue":"FR","matiere":"Découverte du Monde","rubrique":"Géographie","baremes":[10,10,10],"ordre":12,"coef":1},{"niveau":"MAJ1","langue":"FR","matiere":"Découverte du Monde","rubrique":"Histoire","baremes":[10,10,10],"ordre":11,"coef":1},{"niveau":"MAJ1","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Hadith (الحديث)","baremes":[10,10,10],"ordre":6,"coef":1},{"niveau":"MAJ1","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Hadith (الحديث)","baremes":[10,10,10],"ordre":5,"coef":1},{"niveau":"MAJ1","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Hadith (الحديث)","baremes":[10,10,10],"ordre":8,"coef":1},{"niveau":"MAJ1","langue":"FR","matiere":"EPSA","rubrique":"EPSA","baremes":[10,10,10],"ordre":13,"coef":1},{"niveau":"MAJ1","langue":"FR","matiere":"Langue et Communication","rubrique":"Compréhension","baremes":[10,10,10],"ordre":1,"coef":1},{"niveau":"MAJ1","langue":"FR","matiere":"Langue et Communication","rubrique":"Ecriture","baremes":[10,10,10],"ordre":3,"coef":1},{"niveau":"MAJ1","langue":"FR","matiere":"Langue et Communication","rubrique":"Vocabulaire","baremes":[10,10,10],"ordre":2,"coef":1},{"niveau":"MAJ1","langue":"FR","matiere":"Mathématiques","rubrique":"Activité Numérique","baremes":[10,10,10],"ordre":4,"coef":1},{"niveau":"MAJ1","langue":"FR","matiere":"Récitations","rubrique":"Récitations","baremes":[10,10,10],"ordre":14,"coef":1},{"niveau":"MAJ1","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Le Coran (القرآن الكريم)","baremes":[10,10,10],"ordre":7,"coef":1},{"niveau":"MAJ2","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Calligraphie (الخط)","baremes":[10,10,10],"ordre":9,"coef":1},{"niveau":"MAJ2","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Lecture (القراءة)","baremes":[10,10,10],"ordre":8,"coef":1},{"niveau":"MAJ2","langue":"FR","matiere":"Découverte du Monde","rubrique":"Géographie","baremes":[10,10,10],"ordre":11,"coef":1},{"niveau":"MAJ2","langue":"FR","matiere":"Découverte du Monde","rubrique":"Histoire","baremes":[10,10,10],"ordre":10,"coef":1},{"niveau":"MAJ2","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Hadith (الحديث)","baremes":[10,10,10],"ordre":6,"coef":1},{"niveau":"MAJ2","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Hadith (الحديث)","baremes":[10,10,10],"ordre":5,"coef":1},{"niveau":"MAJ2","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Le Coran (القرآن الكريم)","baremes":[10,10,10],"ordre":7,"coef":1},{"niveau":"MAJ2","langue":"FR","matiere":"EPSA","rubrique":"EPSA","baremes":[10,10,10],"ordre":12,"coef":1},{"niveau":"MAJ2","langue":"FR","matiere":"Langue et Communication","rubrique":"Compréhension","baremes":[10,10,10],"ordre":1,"coef":1},{"niveau":"MAJ2","langue":"FR","matiere":"Langue et Communication","rubrique":"Ecriture","baremes":[10,10,10],"ordre":3,"coef":1},{"niveau":"MAJ2","langue":"FR","matiere":"Langue et Communication","rubrique":"Vocabulaire","baremes":[10,10,10],"ordre":2,"coef":1},{"niveau":"MAJ2","langue":"FR","matiere":"Mathématiques","rubrique":"Activité Numérique","baremes":[10,10,10],"ordre":4,"coef":1},{"niveau":"MAJ2","langue":"FR","matiere":"Récitations","rubrique":"Récitations","baremes":[10,10,10],"ordre":13,"coef":1},{"niveau":"MAJ3","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Grammaire (النحو)","baremes":[10,10,10],"ordre":17,"coef":1},{"niveau":"MAJ3","langue":"AR","matiere":"Arabe L&C (اللغة العربية)","rubrique":"Lecture (القراءة)","baremes":[10,10,10],"ordre":16,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Découverte du Monde","rubrique":"Géographie","baremes":[10,10,10],"ordre":12,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Découverte du Monde","rubrique":"Histoire","baremes":[10,10,10],"ordre":11,"coef":1},{"niveau":"MAJ3","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Hadith (الحديث)","baremes":[10,10,10],"ordre":15,"coef":1},{"niveau":"MAJ3","langue":"AR","matiere":"Éduc. Religieuse (التربية الدينية)","rubrique":"Le Coran (القرآن الكريم)","baremes":[10,10,10],"ordre":14,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"EPSA","rubrique":"EPSA","baremes":[10,10,10],"ordre":13,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Langue et Communication","rubrique":"Compétences","baremes":[10,10,10],"ordre":6,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Langue et Communication","rubrique":"Compréhension","baremes":[10,10,10],"ordre":4,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Langue et Communication","rubrique":"Ecriture","baremes":[10,10,10],"ordre":5,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Langue et Communication","rubrique":"Identification de mots","baremes":[10,10,10],"ordre":1,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Langue et Communication","rubrique":"Ressources","baremes":[10,10,10],"ordre":2,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Langue et Communication","rubrique":"Vocabulaire","baremes":[10,10,10],"ordre":3,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Mathématiques","rubrique":"Activité Géométrique","baremes":[10,10,10],"ordre":10,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Mathématiques","rubrique":"Activité Mesure","baremes":[10,10,10],"ordre":9,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Mathématiques","rubrique":"Activité Numérique","baremes":[10,10,10],"ordre":8,"coef":1},{"niveau":"MAJ3","langue":"FR","matiere":"Mathématiques","rubrique":"Résolution de Problème","baremes":[10,10,10],"ordre":7,"coef":1},{"niveau":"6E","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":2},{"niveau":"6E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":2},{"niveau":"6E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":2},{"niveau":"6E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":2},{"niveau":"6E","langue":"FR","matiere":"Éducation civique","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":1},{"niveau":"6E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":1},{"niveau":"6E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":1},{"niveau":"6E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":1},{"niveau":"6E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":1},{"niveau":"6E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":1},{"niveau":"6E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":1},{"niveau":"6E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":1},{"niveau":"6E","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":3},{"niveau":"6E","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":3},{"niveau":"6E","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":3},{"niveau":"6E","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":3},{"niveau":"6E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":2},{"niveau":"6E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":2},{"niveau":"6E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":2},{"niveau":"6E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":2},{"niveau":"6E","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":3},{"niveau":"6E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":3},{"niveau":"6E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":3},{"niveau":"6E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":3},{"niveau":"6E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"6E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"6E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"6E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Éducation civique","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":1},{"niveau":"5E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":1},{"niveau":"5E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":1},{"niveau":"5E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":1},{"niveau":"5E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":1},{"niveau":"5E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":1},{"niveau":"5E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":1},{"niveau":"5E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":1},{"niveau":"5E","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":3},{"niveau":"5E","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":3},{"niveau":"5E","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":3},{"niveau":"5E","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":3},{"niveau":"5E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":3},{"niveau":"5E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":3},{"niveau":"5E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":3},{"niveau":"5E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":3},{"niveau":"5E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"5E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Éducation civique","rubrique":"Composition","baremes":[20,20,20],"ordre":32,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":29,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":30,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":31,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":36,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":33,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":34,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":35,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":3},{"niveau":"4E","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":3},{"niveau":"4E","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":3},{"niveau":"4E","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":3},{"niveau":"4E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Langue vivante 2","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":1},{"niveau":"4E","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":3},{"niveau":"4E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":3},{"niveau":"4E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":3},{"niveau":"4E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":3},{"niveau":"4E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Sciences physiques","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"4E","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Éducation civique","rubrique":"Composition","baremes":[20,20,20],"ordre":32,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":29,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":30,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Éducation civique","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":31,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":36,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":33,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":34,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":35,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":3},{"niveau":"3E","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":3},{"niveau":"3E","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":3},{"niveau":"3E","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":3},{"niveau":"3E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Langue vivante 2","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":1},{"niveau":"3E","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":3},{"niveau":"3E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":3},{"niveau":"3E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":3},{"niveau":"3E","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":3},{"niveau":"3E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Sciences physiques","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"3E","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":32,"coef":1},{"niveau":"2ND-L","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":29,"coef":1},{"niveau":"2ND-L","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":30,"coef":1},{"niveau":"2ND-L","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":31,"coef":1},{"niveau":"2ND-L","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":4},{"niveau":"2ND-L","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":4},{"niveau":"2ND-L","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":4},{"niveau":"2ND-L","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":4},{"niveau":"2ND-L","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Langue vivante 2","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":3},{"niveau":"2ND-L","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Sciences physiques","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":2},{"niveau":"2ND-L","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":2},{"niveau":"2ND-S","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"2ND-S","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"2ND-S","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"2ND-S","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"2ND-S","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":32,"coef":1},{"niveau":"2ND-S","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":29,"coef":1},{"niveau":"2ND-S","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":30,"coef":1},{"niveau":"2ND-S","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":31,"coef":1},{"niveau":"2ND-S","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":3},{"niveau":"2ND-S","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":3},{"niveau":"2ND-S","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":3},{"niveau":"2ND-S","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":3},{"niveau":"2ND-S","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":2},{"niveau":"2ND-S","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":2},{"niveau":"2ND-S","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":2},{"niveau":"2ND-S","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":2},{"niveau":"2ND-S","langue":"FR","matiere":"Langue vivante 2","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":1},{"niveau":"2ND-S","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":1},{"niveau":"2ND-S","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":1},{"niveau":"2ND-S","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":1},{"niveau":"2ND-S","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":4},{"niveau":"2ND-S","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":4},{"niveau":"2ND-S","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":4},{"niveau":"2ND-S","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":4},{"niveau":"2ND-S","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":3},{"niveau":"2ND-S","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":3},{"niveau":"2ND-S","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":3},{"niveau":"2ND-S","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":3},{"niveau":"2ND-S","langue":"FR","matiere":"Sciences physiques","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":4},{"niveau":"2ND-S","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":4},{"niveau":"2ND-S","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":4},{"niveau":"2ND-S","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":1},{"niveau":"1RE-L1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":1},{"niveau":"1RE-L1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":1},{"niveau":"1RE-L1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":1},{"niveau":"1RE-L1","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":5},{"niveau":"1RE-L1","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":5},{"niveau":"1RE-L1","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":5},{"niveau":"1RE-L1","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":5},{"niveau":"1RE-L1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Langue vivante 2","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":4},{"niveau":"1RE-L1","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"1RE-L1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"1RE-L1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"1RE-L1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"1RE-L1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":2},{"niveau":"1RE-L1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":2},{"niveau":"1RE-L1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":2},{"niveau":"1RE-L1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":2},{"niveau":"1RE-L2","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":1},{"niveau":"1RE-L2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":1},{"niveau":"1RE-L2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":1},{"niveau":"1RE-L2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":1},{"niveau":"1RE-L2","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":5},{"niveau":"1RE-L2","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":5},{"niveau":"1RE-L2","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":5},{"niveau":"1RE-L2","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":5},{"niveau":"1RE-L2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Langue vivante 2","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":4},{"niveau":"1RE-L2","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"1RE-L2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"1RE-L2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"1RE-L2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"1RE-L2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":2},{"niveau":"1RE-L2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":2},{"niveau":"1RE-L2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":2},{"niveau":"1RE-L2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":1},{"niveau":"1RE-S1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":1},{"niveau":"1RE-S1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":1},{"niveau":"1RE-S1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":1},{"niveau":"1RE-S1","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":3},{"niveau":"1RE-S1","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":3},{"niveau":"1RE-S1","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":3},{"niveau":"1RE-S1","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":3},{"niveau":"1RE-S1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":5},{"niveau":"1RE-S1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":5},{"niveau":"1RE-S1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":5},{"niveau":"1RE-S1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":5},{"niveau":"1RE-S1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":2},{"niveau":"1RE-S1","langue":"FR","matiere":"Sciences physiques","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":5},{"niveau":"1RE-S1","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":5},{"niveau":"1RE-S1","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":5},{"niveau":"1RE-S1","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":5},{"niveau":"1RE-S2","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"1RE-S2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"1RE-S2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"1RE-S2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"1RE-S2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":1},{"niveau":"1RE-S2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":1},{"niveau":"1RE-S2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":1},{"niveau":"1RE-S2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":1},{"niveau":"1RE-S2","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":3},{"niveau":"1RE-S2","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":3},{"niveau":"1RE-S2","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":3},{"niveau":"1RE-S2","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":3},{"niveau":"1RE-S2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":2},{"niveau":"1RE-S2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":2},{"niveau":"1RE-S2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":2},{"niveau":"1RE-S2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":2},{"niveau":"1RE-S2","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":4},{"niveau":"1RE-S2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":4},{"niveau":"1RE-S2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":4},{"niveau":"1RE-S2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":4},{"niveau":"1RE-S2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":4},{"niveau":"1RE-S2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":4},{"niveau":"1RE-S2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":4},{"niveau":"1RE-S2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":4},{"niveau":"1RE-S2","langue":"FR","matiere":"Sciences physiques","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":4},{"niveau":"1RE-S2","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":4},{"niveau":"1RE-S2","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":4},{"niveau":"1RE-S2","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":1},{"niveau":"TLE-L1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":1},{"niveau":"TLE-L1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":1},{"niveau":"TLE-L1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":1},{"niveau":"TLE-L1","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Langue vivante 2","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":4},{"niveau":"TLE-L1","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":2},{"niveau":"TLE-L1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":2},{"niveau":"TLE-L1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":2},{"niveau":"TLE-L1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":2},{"niveau":"TLE-L1","langue":"FR","matiere":"Philosophie","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":5},{"niveau":"TLE-L1","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":5},{"niveau":"TLE-L1","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":5},{"niveau":"TLE-L1","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":5},{"niveau":"TLE-L2","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":1},{"niveau":"TLE-L2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":1},{"niveau":"TLE-L2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":1},{"niveau":"TLE-L2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":1},{"niveau":"TLE-L2","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Langue vivante 2","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Langue vivante 2","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":4},{"niveau":"TLE-L2","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":2},{"niveau":"TLE-L2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":2},{"niveau":"TLE-L2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":2},{"niveau":"TLE-L2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":2},{"niveau":"TLE-L2","langue":"FR","matiere":"Philosophie","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":5},{"niveau":"TLE-L2","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":5},{"niveau":"TLE-L2","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":5},{"niveau":"TLE-L2","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":5},{"niveau":"TLE-S1","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":32,"coef":1},{"niveau":"TLE-S1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":29,"coef":1},{"niveau":"TLE-S1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":30,"coef":1},{"niveau":"TLE-S1","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":31,"coef":1},{"niveau":"TLE-S1","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":6},{"niveau":"TLE-S1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":6},{"niveau":"TLE-S1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":6},{"niveau":"TLE-S1","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":6},{"niveau":"TLE-S1","langue":"FR","matiere":"Philosophie","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":2},{"niveau":"TLE-S1","langue":"FR","matiere":"Sciences physiques","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":6},{"niveau":"TLE-S1","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":6},{"niveau":"TLE-S1","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":6},{"niveau":"TLE-S1","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":6},{"niveau":"TLE-S2","langue":"FR","matiere":"Anglais","rubrique":"Composition","baremes":[20,20,20],"ordre":24,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":21,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":22,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Anglais","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":23,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Composition","baremes":[20,20,20],"ordre":32,"coef":1},{"niveau":"TLE-S2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":29,"coef":1},{"niveau":"TLE-S2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":30,"coef":1},{"niveau":"TLE-S2","langue":"FR","matiere":"Éducation physique et sportive","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":31,"coef":1},{"niveau":"TLE-S2","langue":"FR","matiere":"Français","rubrique":"Composition","baremes":[20,20,20],"ordre":20,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Français","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":17,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Français","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":18,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Français","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":19,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Composition","baremes":[20,20,20],"ordre":28,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":25,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":26,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Histoire-Géographie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":27,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Mathématiques","rubrique":"Composition","baremes":[20,20,20],"ordre":4,"coef":5},{"niveau":"TLE-S2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":1,"coef":5},{"niveau":"TLE-S2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":2,"coef":5},{"niveau":"TLE-S2","langue":"FR","matiere":"Mathématiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":3,"coef":5},{"niveau":"TLE-S2","langue":"FR","matiere":"Philosophie","rubrique":"Composition","baremes":[20,20,20],"ordre":16,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":13,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":14,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Philosophie","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":15,"coef":2},{"niveau":"TLE-S2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Composition","baremes":[20,20,20],"ordre":12,"coef":5},{"niveau":"TLE-S2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":9,"coef":5},{"niveau":"TLE-S2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":10,"coef":5},{"niveau":"TLE-S2","langue":"FR","matiere":"Sciences de la vie et de la Terre","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":11,"coef":5},{"niveau":"TLE-S2","langue":"FR","matiere":"Sciences physiques","rubrique":"Composition","baremes":[20,20,20],"ordre":8,"coef":5},{"niveau":"TLE-S2","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 1","baremes":[20,20,20],"ordre":5,"coef":5},{"niveau":"TLE-S2","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 2","baremes":[20,20,20],"ordre":6,"coef":5},{"niveau":"TLE-S2","langue":"FR","matiere":"Sciences physiques","rubrique":"Devoir 3","baremes":[20,20,20],"ordre":7,"coef":5}],"listes":{"mois":["Octobre","Novembre","Décembre","Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre"],"types_eleve":["Externe","Interne","Demi-pension","Cas social"],"statuts":["Actif","Inactif"],"motifs_sortie":["Abandon","Transfert","Exclusion"],"comptes":["CGE","Caisse","Banque","Épargne","ECOLE"],"periodicites":["Unique","Mensuel"],"categories_caisse":[{"sens":"ENTREE","categorie":"Inscription"},{"sens":"ENTREE","categorie":"Mensualité"},{"sens":"ENTREE","categorie":"Blouse"},{"sens":"ENTREE","categorie":"Cotisation fin d'année"},{"sens":"ENTREE","categorie":"Remboursement de prêt"},{"sens":"SORTIE","categorie":"Avance sur salaire"},{"sens":"SORTIE","categorie":"Salaire"},{"sens":"SORTIE","categorie":"Prêt accordé"},{"sens":"SORTIE","categorie":"Dépense diverse"},{"sens":"SORTIE","categorie":"Achat fournitures"},{"sens":"SORTIE","categorie":"Travaux/Infrastructure"},{"sens":"ENTREE","categorie":"TRANSPORT"},{"sens":"ENTREE","categorie":"Arriéré"},{"sens":"ENTREE","categorie":"Cantine"},{"sens":"ENTREE","categorie":"Informatique"},{"sens":"ENTREE","categorie":"Tenue EPS"},{"sens":"ENTREE","categorie":"Petit-déjeuner"},{"sens":"ENTREE","categorie":"Dons"},{"sens":"ENTREE","categorie":"Avance élève"},{"sens":"SORTIE","categorie":"TRANSPORT"}]},"tarifs":[{"categorie":"Blouse","periodicite":"Unique","obligatoire":false},{"categorie":"Cantine","periodicite":"Mensuel","obligatoire":false},{"categorie":"Cotisation fin d'année","periodicite":"Unique","obligatoire":true},{"categorie":"Informatique","periodicite":"Mensuel","obligatoire":false},{"categorie":"Inscription","periodicite":"Unique","obligatoire":true},{"categorie":"Mensualité","periodicite":"Mensuel","obligatoire":true},{"categorie":"Petit-déjeuner","periodicite":"Mensuel","obligatoire":false},{"categorie":"Remboursement de prêt","periodicite":"Unique","obligatoire":false},{"categorie":"Tenue EPS","periodicite":"Unique","obligatoire":false}]};
+</script>
+<script>
+(function () {
+  'use strict';
+
+  /* ===================================================================
+   *  1. CONFIGURATION
+   *  La configuration Firebase de l'école peut être écrite ici, ou collée
+   *  au premier lancement, ou transmise par un lien d'installation.
+   * =================================================================== */
+  var CONFIG_INTEGREE = null; /* ex. { apiKey: "...", authDomain: "...", projectId: "...", appId: "..." } */
+  var CLE_CONFIG = 'ctefa.firebase', CLE_THEME = 'ctefa.theme', CLE_ECHECS = 'ctefa.echecs';
+  var ESPACE = 'ecoles/principale';
+  var VERSION_APP = '1.0 (étape 1)';
+  var ASSISTANCE = 'Baye Modou DIOP — 78 295 80 96 / 76 518 55 48';
+
+  function lireLocal(k) { try { return localStorage.getItem(k); } catch (x) { return null; } }
+  function ecrireLocal(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (x) { /* navigation privée */ } }
+
+  (function theme() { var t = lireLocal(CLE_THEME); if (t) document.documentElement.dataset.theme = t; })();
+
+  function configDepuisLien() {
+    var m = location.hash.match(/config=([A-Za-z0-9+/=_-]+)/);
+    if (!m) return null;
+    try {
+      var c = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
+      if (c && c.apiKey && c.projectId) { ecrireLocal(CLE_CONFIG, JSON.stringify(c)); history.replaceState(null, '', location.pathname); return c; }
+    } catch (x) { /* lien abîmé */ }
+    return null;
+  }
+  function configuration() {
+    var c = CONFIG_INTEGREE || configDepuisLien();
+    if (c) return c;
+    try { return JSON.parse(lireLocal(CLE_CONFIG) || 'null'); } catch (x) { return null; }
+  }
+  /** Accepte le bloc copié depuis la console Firebase (const firebaseConfig = {...}) */
+  function lireBlocConfig(texte) {
+    var t = String(texte || ''), o = {};
+    ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'].forEach(function (k) {
+      var m = t.match(new RegExp(k + '\\s*["\']?\\s*:\\s*["\']([^"\']+)["\']'));
+      if (m) o[k] = m[1];
+    });
+    return o.apiKey && o.projectId && o.appId ? o : null;
+  }
+  function lienInstallation(c) {
+    var b = btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_');
+    return location.origin + location.pathname + '#config=' + b;
+  }
+
+  /* ===================================================================
+   *  2. RÔLES ET DROITS
+   * =================================================================== */
+  var DROITS = {
+    NOTES: 'Saisie des notes', BULLETINS: 'Bulletins et résultats', ELEVES: 'Élèves', DOCUMENTS: 'Documents', LISTES: 'Listes et éditions',
+    CAISSE: 'Caisse', FINANCES: 'Finances', PERSONNEL: 'Personnel', PARAMETRES: 'Paramètres et référentiels', UTILISATEURS: 'Utilisateurs',
+    MIGRATION: 'Migration annuelle', DEVERROUILLER: 'Déverrouiller', ECOLE: 'Programmation de l\'école', ASSISTANT: 'Assistant de configuration', MISEAJOUR: 'Mise à jour / reprise'
+  };
+  var ROLES = {
+    ADMIN_PRINCIPAL: { nom: 'Administrateur principal', rang: 7, droits: Object.keys(DROITS) },
+    ADMIN_SECONDAIRE: { nom: 'Administrateur secondaire', rang: 6, droits: ['NOTES', 'BULLETINS', 'ELEVES', 'DOCUMENTS', 'LISTES', 'CAISSE', 'FINANCES', 'PERSONNEL', 'PARAMETRES', 'UTILISATEURS', 'MIGRATION', 'DEVERROUILLER', 'ASSISTANT'] },
+    SECRETAIRE: { nom: 'Secrétaire', rang: 4, droits: ['ELEVES', 'DOCUMENTS', 'LISTES', 'PERSONNEL', 'BULLETINS'] },
+    CAISSIER: { nom: 'Caissier', rang: 4, droits: ['CAISSE', 'FINANCES', 'LISTES'] },
+    ENSEIGNANT: { nom: 'Enseignant', rang: 3, droits: ['NOTES', 'BULLETINS', 'LISTES'] },
+    CONSULTATION: { nom: 'Consultation', rang: 2, droits: [] },
+    DEMONSTRATION: { nom: 'Démonstration', rang: 1, droits: ['NOTES', 'BULLETINS', 'ELEVES', 'DOCUMENTS', 'LISTES', 'CAISSE', 'FINANCES', 'PERSONNEL', 'PARAMETRES'] }
+  };
+  var CYCLES = { PRESCOLAIRE: 'Préscolaire', ELEMENTAIRE: 'Élémentaire et Majaalis', MOYEN: 'Moyen (CEM)', SECONDAIRE: 'Secondaire (lycée)' };
+  var LANGUES = { FR: 'Français', AR: 'Arabe', LN: 'Langue nationale' };
+
+  /* ===================================================================
+   *  3. OUTILS
+   * =================================================================== */
+  function e(v) { return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function maintenant() { return new Date().toISOString(); }
+  function heure(iso) { if (!iso) return ''; var d = new Date(iso); return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); }
+  function ilya(iso) {
+    if (!iso) return '';
+    var s = Math.round((Date.now() - Date.parse(iso)) / 1000);
+    if (s < 60) return 'il y a ' + Math.max(s, 0) + ' s';
+    if (s < 3600) return 'il y a ' + Math.round(s / 60) + ' min';
+    if (s < 86400) return 'il y a ' + Math.round(s / 3600) + ' h';
+    return 'le ' + new Date(iso).toLocaleDateString('fr-FR');
+  }
+  function toast(msg, type) {
+    var t = document.createElement('div'); t.className = 'toast ' + (type || ''); t.textContent = msg;
+    var z = $('#toasts'); while (z.children.length >= 3) z.firstChild.remove(); z.appendChild(t);
+    setTimeout(function () { t.remove(); }, type === 'ko' ? 7000 : 3500);
+  }
+  function Erreur(msg) { this.message = msg; } Erreur.prototype = Object.create(Error.prototype);
+  function trier(obj, fn) { return Object.keys(obj).map(function (k) { return obj[k]; }).sort(fn); }
+  function telecharger(contenu, nom, type) {
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([contenu], { type: type })); a.download = nom;
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  }
+  function identifiantValide(id) { return /^[a-z0-9][a-z0-9._-]{2,29}$/.test(id); }
+  function emailDe(id) { return String(id).toLowerCase() + '@' + CFG.projectId + '.firebaseapp.com'; }
+  function messageAuth(err) {
+    var c = err && err.code || '';
+    if (/wrong-password|invalid-credential|user-not-found|invalid-login/.test(c)) return 'Identifiant ou mot de passe incorrect.';
+    if (/too-many-requests/.test(c)) return 'Trop d\'essais : le compte est bloqué quelques minutes par sécurité.';
+    if (/network/.test(c)) return 'Pas de connexion internet.';
+    if (/weak-password/.test(c)) return 'Mot de passe trop faible : au moins 8 caractères.';
+    if (/email-already-in-use/.test(c)) return 'Cet identifiant existe déjà.';
+    if (/operation-not-allowed/.test(c)) return 'La connexion par mot de passe n\'est pas activée dans Firebase (Authentication).';
+    if (/permission-denied/.test(c)) return 'Action refusée par les règles de sécurité de la base.';
+    return (err && err.message) || 'Erreur inconnue.';
+  }
+  function motDePasseValide(m) { return String(m).length >= 8 && /\d/.test(m) && /[a-zA-Z]/.test(m); }
+
+  /* ===================================================================
+   *  4. FIREBASE
+   * =================================================================== */
+  var CFG = configuration(), db = null, auth = null, appli = null;
+  var S = {   /* données en mémoire, tenues à jour par les écoutes */
+    ecole: null, utilisateurs: {}, niveaux: {}, classes: {}, matieres: {}, tarifs: {}, listes: {}, presence: {}, activite: [], journal: [],
+    moi: null, profil: null, pret: false, enLigne: navigator.onLine, attente: 0, derniereSync: null, depuisCache: true
+  };
+  var ecoutes = [], minuteurPresence = null;
+
+  function demarrerFirebase() {
+    appli = firebase.initializeApp(CFG);
+    auth = firebase.auth(); db = firebase.firestore();
+    db.enablePersistence({ synchronizeTabs: true }).catch(function () { /* un autre onglet ou navigateur ancien */ });
+    window.addEventListener('online', function () { S.enLigne = true; majEtat(); });
+    window.addEventListener('offline', function () { S.enLigne = false; majEtat(); });
+    auth.onAuthStateChanged(surAuth);
+  }
+  function col(nom) { return db.collection(ESPACE + '/' + nom); }
+  function docEcole() { return db.doc(ESPACE); }
+
+  /* ---------- écriture avec suivi des envois en attente ---------- */
+  function suivre(promesse) {
+    S.attente++; majEtat();
+    return promesse.then(function (r) { S.attente--; S.derniereSync = maintenant(); majEtat(); return r; },
+      function (err) { S.attente--; majEtat(); throw err; });
+  }
+  function meta(nouveau) {
+    var m = { modifie_par: S.profil ? S.profil.identifiant : '?', modifie_le: maintenant() };
+    if (nouveau) { m.cree_par = m.modifie_par; m.cree_le = m.modifie_le; m.version = 1; }
+    return m;
+  }
+  function verifierEcriture(droit) {
+    if (enMaintenancePourMoi()) throw new Erreur('Maintenance en cours par ' + S.ecole.maintenance.nom + ' : lecture seule pour le moment.');
+    if (droit && !peut(droit)) throw new Erreur('Votre compte n\'a pas le droit « ' + DROITS[droit] + ' ».');
+  }
+  /** Crée un document ; renvoie son id */
+  function creer(nom, data, droit, id) {
+    verifierEcriture(droit);
+    var ref = id ? col(nom).doc(id) : col(nom).doc();
+    suivre(ref.set(Object.assign({}, data, meta(true)))).catch(erreurEcriture);
+    return ref.id;
+  }
+  /**
+   * Modifie avec verrouillage optimiste : si quelqu'un a enregistré entre-temps
+   * (version différente de celle affichée), on propose de recharger ou d'écraser.
+   */
+  function modifier(nom, id, changements, versionLue, droit) {
+    verifierEcriture(droit);
+    var ref = col(nom).doc(id);
+    if (!S.enLigne) {   /* hors ligne : écriture mise en file, version incrémentée */
+      suivre(ref.update(Object.assign({}, changements, meta(), { version: (versionLue || 0) + 1 }))).catch(erreurEcriture);
+      return Promise.resolve(true);
+    }
+    return suivre(db.runTransaction(function (tx) {
+      return tx.get(ref).then(function (snap) {
+        if (!snap.exists) throw new Erreur('Cet élément a été supprimé par quelqu\'un d\'autre.');
+        var d = snap.data();
+        if (versionLue !== undefined && d.version !== versionLue) { var c = new Erreur('conflit'); c.conflit = d; throw c; }
+        tx.update(ref, Object.assign({}, changements, meta(), { version: (d.version || 0) + 1 }));
+      });
+    })).then(function () { return true; }, function (err) {
+      if (err.conflit) {
+        var d = err.conflit;
+        var ecraser = confirm('Modifié par ' + d.modifie_par + ' ' + ilya(d.modifie_le) + ' pendant que vous travailliez.\n\n' +
+                              'OK = écraser avec vos changements\nAnnuler = garder leur version (l\'écran se recharge)');
+        if (ecraser) return modifier(nom, id, changements, d.version, droit);
+        rendre(); return false;
+      }
+      erreurEcriture(err); return false;
+    });
+  }
+  function supprimer(nom, id, droit) {
+    verifierEcriture(droit);
+    return suivre(col(nom).doc(id).delete()).catch(erreurEcriture);
+  }
+  /** Compteur atomique (matricule, pièce de caisse, document) : jamais deux fois le même numéro */
+  function prochainNumero(nom) {
+    var ref = col('compteurs').doc(nom);
+    return suivre(db.runTransaction(function (tx) {
+      return tx.get(ref).then(function (s) {
+        var n = (s.exists ? s.data().valeur : 0) + 1;
+        tx.set(ref, Object.assign({ valeur: n }, meta(!s.exists)));
+        return n;
+      });
+    }));
+  }
+  function erreurEcriture(err) {
+    if (err instanceof Erreur) toast(err.message, 'ko');
+    else { console.error(err); toast('Enregistrement refusé : ' + messageAuth(err), 'ko'); }
+  }
+  function activite(texte) {
+    if (!S.profil) return;
+    col('activite').add({ texte: texte, par: S.profil.identifiant, nom: S.profil.nom, le: maintenant() }).catch(function () {});
+  }
+  function journal(evenement, detail, identifiant) {
+    col('journal_acces').add({ le: maintenant(), identifiant: identifiant || (S.profil && S.profil.identifiant) || '?', evenement: evenement,
+      detail: detail || '', poste: navigator.userAgent.replace(/^.*?\(([^)]*)\).*$/, '$1').slice(0, 60) }).catch(function () {});
+  }
+
+  /* ---------- droits ---------- */
+  function droitsDe(p) {
+    if (!p) return [];
+    if (p.role === 'ADMIN_PRINCIPAL') return Object.keys(DROITS);
+    return Array.isArray(p.droits) ? p.droits : (ROLES[p.role] || {}).droits || [];
+  }
+  function peut(d) { return droitsDe(S.profil).indexOf(d) >= 0; }
+  function rang(role) { return (ROLES[role] || {}).rang || 0; }
+  function enMaintenancePourMoi() { var m = S.ecole && S.ecole.maintenance; return !!(m && m.uid !== (S.moi && S.moi.uid)); }
+
+  /* ===================================================================
+   *  5. CONNEXION ET SESSION
+   * =================================================================== */
+  function surAuth(u) {
+    arreterEcoutes();
+    S.moi = u; S.profil = null; S.pret = false;
+    if (!u) { if (!ecranCreation) ecranConnexion(); return; }
+    if (ecranCreation) return;   /* la création de l'école gère la suite */
+    col('utilisateurs').doc(u.uid).get().then(function (s) {
+      if (!s.exists) { journal('REFUS', 'Compte sans fiche utilisateur', u.email.split('@')[0]); return refuser('Ce compte n\'est pas autorisé dans cette école.'); }
+      var p = s.data(); p.uid = u.uid;
+      if (!p.actif) { journal('REFUS', 'Compte désactivé', p.identifiant); return refuser('Ce compte est désactivé. Adressez-vous à l\'administrateur.'); }
+      if (p.expire_ms && Date.now() > p.expire_ms) { journal('REFUS', 'Compte de démonstration expiré', p.identifiant); return refuser('Ce compte de démonstration a expiré.'); }
+      S.profil = p;
+      ecrireLocal(CLE_ECHECS + '.' + p.identifiant, null);
+      col('utilisateurs').doc(u.uid).update({ derniere_connexion: maintenant() }).catch(function () {});
+      if (p.doit_changer) return ecranChangerMdp(true);
+      ouvrirSession();
+    }).catch(function (err) {
+      if (/offline|unavailable/.test(err.code || '')) return refuser('Pas de connexion internet pour vérifier votre compte. Réessayez avec du réseau.');
+      refuser(messageAuth(err));
+    });
+  }
+  function refuser(msg) { auth.signOut(); ecranConnexion(msg); }
+
+  function ouvrirSession() {
+    journal('CONNEXION', ROLES[S.profil.role].nom);
+    ecouter();
+    presence();
+    minuteurPresence = setInterval(presence, 30000);
+    rendreCadre();
+  }
+  function deconnexion() {
+    if (S.attente && !confirm(S.attente + ' enregistrement(s) pas encore envoyé(s). Se déconnecter quand même ?')) return;
+    journal('DECONNEXION', '');
+    col('presence').doc(S.moi.uid).delete().catch(function () {});
+    clearInterval(minuteurPresence);
+    setTimeout(function () { auth.signOut(); }, 300);
+  }
+
+  /* ---------- écoutes en temps réel ---------- */
+  function ecouter() {
+    var premier = {};
+    function suivreCollection(nom, cible, requete) {
+      premier[nom] = false;
+      ecoutes.push((requete || col(nom)).onSnapshot({ includeMetadataChanges: true }, function (snap) {
+        if (Array.isArray(S[cible])) S[cible] = snap.docs.map(function (d) { var x = d.data(); x.id = d.id; return x; });
+        else {
+          snap.docChanges().forEach(function (c) {
+            if (c.type === 'removed') delete S[cible][c.doc.id];
+            else { var x = c.doc.data(); x.id = c.doc.id; S[cible][c.doc.id] = x; }
+          });
+        }
+        S.depuisCache = snap.metadata.fromCache;
+        if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites) S.derniereSync = maintenant();
+        premier[nom] = true;
+        if (Object.keys(premier).every(function (k) { return premier[k]; })) S.pret = true;
+        rendrePlusTard();
+      }, function (err) { console.warn(nom, err); toast('Lecture refusée (' + nom + ') : ' + messageAuth(err), 'ko'); }));
+    }
+    ecoutes.push(docEcole().onSnapshot({ includeMetadataChanges: true }, function (s) {
+      S.ecole = s.exists ? s.data() : null; majEtat(); rendrePlusTard();
+    }));
+    ['utilisateurs', 'niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'presence'].forEach(function (n) { suivreCollection(n, n); });
+    suivreCollection('activite', 'activite', col('activite').orderBy('le', 'desc').limit(30));
+    if (peut('UTILISATEURS')) suivreCollection('journal_acces', 'journal', col('journal_acces').orderBy('le', 'desc').limit(300));
+    ecoutes.push(col('utilisateurs').doc(S.moi.uid).onSnapshot(function (s) {   /* compte modifié ou désactivé à distance */
+      if (!s.exists || !s.data().actif) { toast('Votre compte a été désactivé.', 'ko'); auth.signOut(); return; }
+      var p = s.data(); p.uid = S.moi.uid; S.profil = p; rendrePlusTard();
+    }));
+  }
+  function arreterEcoutes() { ecoutes.forEach(function (f) { try { f(); } catch (x) { /* déjà arrêtée */ } }); ecoutes = []; clearInterval(minuteurPresence); }
+  function presence() {
+    if (!S.moi || !S.profil) return;
+    col('presence').doc(S.moi.uid).set({ identifiant: S.profil.identifiant, nom: S.profil.nom, role: S.profil.role, ecran: TITRES[vueCourante()] || '', vu: maintenant() }).catch(function () {});
+  }
+  function connectes() {
+    return trier(S.presence, function (a, b) { return a.nom.localeCompare(b.nom); }).filter(function (p) { return Date.now() - Date.parse(p.vu) < 75000; });
+  }
+
+  /* ===================================================================
+   *  6. ÉCRANS HORS SESSION
+   * =================================================================== */
+  var ecranCreation = false;
+  function plein(html) { $('#racine').innerHTML = '<div class="ecran-accueil">' + html + '</div>'; }
+
+  function ecranConfig(msg) {
+    plein('<form class="boite" id="f-config"><p class="marque">CTEFA-CLASSIC Web</p><h2>Relier l\'application à la base de l\'école</h2>' +
+      (msg ? '<div class="alerte ko">' + e(msg) + '</div>' : '') +
+      '<p class="aide">Ouvrez le lien d\'installation envoyé par l\'administrateur de l\'école. Ou, si vous êtes l\'administrateur, collez ici le bloc <code>firebaseConfig</code> de votre projet Firebase (console Firebase → Paramètres du projet → Vos applications).</p>' +
+      '<textarea name="cfg" rows="8" placeholder="const firebaseConfig = { apiKey: &quot;…&quot;, … };"></textarea>' +
+      '<p><button class="btn plein">Enregistrer et continuer</button></p><p class="aide">Assistance : ' + ASSISTANCE + '</p></form>');
+    $('#f-config').onsubmit = function (ev) {
+      ev.preventDefault();
+      var c = lireBlocConfig(this.cfg.value);
+      if (!c) return ecranConfig('Bloc non reconnu : il doit contenir apiKey, projectId et appId.');
+      ecrireLocal(CLE_CONFIG, JSON.stringify(c)); location.reload();
+    };
+  }
+
+  function bloqueJusqua(id) { var t = Number(lireLocal(CLE_ECHECS + '.' + id + '.bloque')) || 0; return t > Date.now() ? t : 0; }
+  function noterEchec(id) {
+    var k = CLE_ECHECS + '.' + id, n = (Number(lireLocal(k)) || 0) + 1;
+    ecrireLocal(k, String(n));
+    if (n >= 5) { ecrireLocal(k + '.bloque', String(Date.now() + 15 * 60000)); ecrireLocal(k, null); }
+    return n;
+  }
+
+  function ecranConnexion(msg) {
+    plein('<form class="boite" id="f-cnx" autocomplete="on"><p class="marque">CTEFA-CLASSIC Web</p><h2>Connexion</h2>' +
+      (msg ? '<div class="alerte ko">' + e(msg) + '</div>' : '') +
+      '<div class="champ"><label>Identifiant</label><input name="ident" autocomplete="username" autocapitalize="none" required></div>' +
+      '<div class="champ"><label>Mot de passe</label><input name="mdp" type="password" autocomplete="current-password" required></div>' +
+      '<p><button class="btn plein" style="width:100%;justify-content:center">Se connecter</button></p>' +
+      '<p class="aide">Mot de passe oublié : demandez à l\'administrateur de l\'école de vous créer un nouvel accès.</p>' +
+      '<details><summary class="aide">Nouvelle école, ou autre base</summary><p style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
+      '<button type="button" class="btn petit" id="b-creer">Premier démarrage : créer l\'école</button>' +
+      '<button type="button" class="btn petit" id="b-autre">Changer de base</button></p></details>' +
+      '<p class="aide">Assistance : ' + ASSISTANCE + '</p></form>');
+    $('#f-cnx').onsubmit = function (ev) {
+      ev.preventDefault();
+      var id = this.ident.value.trim().toLowerCase(), mdp = this.mdp.value, b = bloqueJusqua(id);
+      if (b) return ecranConnexion('Compte bloqué jusqu\'à ' + new Date(b).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' après 5 mots de passe faux sur cet appareil.');
+      this.querySelector('button').disabled = true;
+      auth.signInWithEmailAndPassword(emailDe(id), mdp).catch(function (err) {
+        var n = /wrong-password|invalid-credential|user-not-found|invalid-login/.test(err.code || '') ? noterEchec(id) : 0;
+        ecranConnexion(messageAuth(err) + (n && n < 5 ? ' (' + (5 - n) + ' essai(s) restant(s))' : n >= 5 ? ' Compte bloqué 15 minutes sur cet appareil.' : ''));
+      });
+    };
+    $('#b-creer').onclick = ecranCreerEcole;
+    $('#b-autre').onclick = function () { if (confirm('Oublier la base actuelle sur cet appareil ?')) { ecrireLocal(CLE_CONFIG, null); location.reload(); } };
+  }
+
+  /* ---------- premier démarrage : assistant de création ---------- */
+  function ecranCreerEcole(msg) {
+    var cyc = Object.keys(CYCLES).map(function (k) { return '<label style="display:flex;gap:8px;align-items:center;color:var(--texte)"><input type="checkbox" name="cycle" value="' + k + '"' + (k === 'ELEMENTAIRE' ? ' checked' : '') + '> ' + CYCLES[k] + '</label>'; }).join('');
+    plein('<form class="boite large" id="f-creer"><p class="marque">CTEFA-CLASSIC Web · premier démarrage</p><h2>Créer l\'école et l\'administrateur principal</h2>' +
+      (msg ? '<div class="alerte ko">' + e(msg) + '</div>' : '') +
+      '<div class="grille"><div><h3 style="margin-bottom:8px">1. L\'école</h3>' +
+      '<div class="champ"><label>Nom de l\'école</label><input name="nom" required></div>' +
+      '<div class="champ"><label>Type</label><select name="type"><option value="PUBLIQUE">Publique</option><option value="PRIVEE">Privée</option></select></div>' +
+      '<div class="champ"><label>Nature</label><select name="nature"><option value="FRANCO_ARABE">Franco-arabe</option><option value="CLASSIQUE">Classique (français)</option></select></div>' +
+      '<div class="champ"><label>Année scolaire</label><input name="annee" required value="' + anneeScolaire() + '"></div>' +
+      '<div class="champ"><label>Cycles</label>' + cyc + '</div>' +
+      '<label style="display:flex;gap:8px;align-items:center;color:var(--texte)"><input type="checkbox" name="classes" checked> Créer une classe par niveau</label></div>' +
+      '<div><h3 style="margin-bottom:8px">2. Administrateur principal</h3>' +
+      '<div class="champ"><label>Nom complet</label><input name="nomadmin" required></div>' +
+      '<div class="champ"><label>Identifiant (minuscules, sans espace)</label><input name="ident" required autocapitalize="none" placeholder="admin"></div>' +
+      '<div class="champ"><label>Mot de passe (8 caractères, lettres et chiffres)</label><input name="mdp" type="password" required autocomplete="new-password"></div>' +
+      '<div class="champ"><label>Confirmer le mot de passe</label><input name="mdp2" type="password" required autocomplete="new-password"></div>' +
+      '<p class="aide">Notez ces informations et gardez-les en lieu sûr. Pensez ensuite à créer un 2e administrateur principal (compte de secours).</p></div></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn plein">Créer l\'école</button><button type="button" class="btn" id="b-ret">Retour</button></div></form>');
+    $('#b-ret').onclick = function () { ecranConnexion(); };
+    $('#f-creer').onsubmit = function (ev) {
+      ev.preventDefault();
+      var f = this, id = f.ident.value.trim().toLowerCase(), cycles = $$('[name=cycle]:checked', f).map(function (c) { return c.value; });
+      if (!identifiantValide(id)) return ecranCreerEcole('Identifiant : 3 à 30 caractères, lettres minuscules, chiffres, point ou tiret.');
+      if (!motDePasseValide(f.mdp.value)) return ecranCreerEcole('Mot de passe : au moins 8 caractères, avec des lettres et des chiffres.');
+      if (f.mdp.value !== f.mdp2.value) return ecranCreerEcole('Les deux mots de passe ne sont pas identiques.');
+      if (!cycles.length) return ecranCreerEcole('Cochez au moins un cycle.');
+      var info = { nom: f.nom.value.trim(), type: f.type.value, nature: f.nature.value, annee: f.annee.value.trim(), cycles: cycles,
+                   nomadmin: f.nomadmin.value.trim(), id: id, classes: f.classes.checked };
+      plein('<div class="boite"><h2>Création en cours…</h2><p id="etape-creation">Création du compte administrateur</p></div>');
+      creerEcole(info, f.mdp.value).catch(function (err) {
+        ecranCreation = false;
+        if (auth.currentUser) auth.signOut();
+        ecranCreerEcole(/permission/.test(err.code || '') ? 'Cette base contient déjà une école : connectez-vous avec un compte existant.' : messageAuth(err));
+      });
+    };
+  }
+  function etape(t) { var p = $('#etape-creation'); if (p) p.textContent = t; }
+  function anneeScolaire() { var d = new Date(), a = d.getFullYear(); return d.getMonth() >= 8 ? a + '-' + (a + 1) : (a - 1) + '-' + a; }
+
+  function creerEcole(info, mdp) {
+    ecranCreation = true;
+    var uid;
+    return auth.createUserWithEmailAndPassword(emailDe(info.id), mdp).then(function (c) {
+      uid = c.user.uid;
+      etape('Enregistrement de l\'école');
+      return docEcole().set({ nom: info.nom, nom_ar: '', type: info.type, nature: info.nature, annee: info.annee, cycles: info.cycles,
+        ia: '', ief: '', code: '', adresse: '', telephone: '', lieu: '', signataire: info.nomadmin, qualite: 'Le Directeur', logo: '', cachet: '', cachet_actif: true,
+        licence: { jusqu_au: null }, maintenance: null, fondateur: uid, cree_le: maintenant(), version: 1, modifie_par: info.id, modifie_le: maintenant() });
+    }).then(function () {
+      return col('utilisateurs').doc(uid).set({ identifiant: info.id, nom: info.nomadmin, role: 'ADMIN_PRINCIPAL', droits: ROLES.ADMIN_PRINCIPAL.droits, actif: true,
+        doit_changer: false, expire_ms: null, cree_par: info.id, cree_le: maintenant(), modifie_par: info.id, modifie_le: maintenant(), version: 1 });
+    }).then(function () {
+      S.profil = { identifiant: info.id, nom: info.nomadmin, role: 'ADMIN_PRINCIPAL', uid: uid }; S.moi = auth.currentUser;
+      etape('Mise en place des référentiels (niveaux, matières, listes, tarifs)');
+      return semer(info.cycles, info.classes, true);
+    }).then(function () {
+      journal('CREATION_ECOLE', info.nom);
+      ecranCreation = false;
+      surAuth(auth.currentUser);
+    });
+  }
+
+  /** Crée les référentiels manquants pour les cycles choisis (création ou « Réparer ») */
+  function semer(cycles, avecClasses, complet) {
+    var ops = [], mt = meta(true);
+    var niveauxExistants = {}, matExist = {};
+    Object.keys(S.niveaux).forEach(function (k) { niveauxExistants[S.niveaux[k].code] = true; });
+    Object.keys(S.matieres).forEach(function (k) { var m = S.matieres[k]; matExist[m.niveau + '|' + m.ordre] = true; });
+    SEMENCE.niveaux.filter(function (n) { return cycles.indexOf(n.cycle) >= 0; }).forEach(function (n) {
+      if (!niveauxExistants[n.code]) ops.push([col('niveaux').doc(n.code), Object.assign({}, n, mt)]);
+      if (avecClasses && !Object.keys(S.classes).some(function (k) { return S.classes[k].niveau === n.code; }))
+        ops.push([col('classes').doc(), Object.assign({ code: n.code, nom: n.nom, niveau: n.code, effectif_max: 50, salle: '', titulaire_fr: '', titulaire_ar: '' }, mt)]);
+    });
+    SEMENCE.matieres.filter(function (m) { var n = SEMENCE.niveaux.find(function (x) { return x.code === m.niveau; }); return n && cycles.indexOf(n.cycle) >= 0 && !matExist[m.niveau + '|' + m.ordre]; })
+      .forEach(function (m) { ops.push([col('matieres').doc(), Object.assign({}, m, mt)]); });
+    var L = SEMENCE.listes;
+    [['mois', L.mois], ['types_eleve', L.types_eleve], ['statuts', L.statuts], ['motifs_sortie', L.motifs_sortie], ['comptes', L.comptes], ['periodicites', L.periodicites], ['categories_caisse', L.categories_caisse]]
+      .forEach(function (x) { if (complet || !S.listes[x[0]]) ops.push([col('listes').doc(x[0]), Object.assign({ valeurs: x[1] }, mt)]); });
+    SEMENCE.tarifs.forEach(function (t) {
+      var idt = t.categorie.replace(/[^A-Za-z0-9]+/g, '_');
+      if (complet || !S.tarifs[idt]) ops.push([col('tarifs').doc(idt), Object.assign({ categorie: t.categorie, periodicite: t.periodicite, obligatoire: t.obligatoire, montants: {} }, mt)]);
+    });
+    var lots = [];
+    for (var i = 0; i < ops.length; i += 400) {
+      var b = db.batch(); ops.slice(i, i + 400).forEach(function (o) { b.set(o[0], o[1]); }); lots.push(suivre(b.commit()));
+    }
+    return Promise.all(lots).then(function () { return ops.length; });
+  }
+
+  function ecranChangerMdp(oblige) {
+    var html = '<form class="boite" id="f-mdp"><h2>' + (oblige ? 'Choisissez votre mot de passe' : 'Changer mon mot de passe') + '</h2>' +
+      (oblige ? '<p class="aide">Première connexion : remplacez le mot de passe provisoire donné par l\'administrateur.</p>' : '') +
+      '<div class="champ"><label>Mot de passe actuel</label><input name="ancien" type="password" required autocomplete="current-password"></div>' +
+      '<div class="champ"><label>Nouveau mot de passe (8 caractères, lettres et chiffres)</label><input name="mdp" type="password" required autocomplete="new-password"></div>' +
+      '<div class="champ"><label>Confirmer</label><input name="mdp2" type="password" required autocomplete="new-password"></div>' +
+      '<p class="alerte ko cache" id="mdp-err"></p><div style="display:flex;gap:8px"><button class="btn plein">Enregistrer</button>' +
+      (oblige ? '<button type="button" class="btn" id="b-quit">Se déconnecter</button>' : '<button type="button" class="btn" id="b-quit">Annuler</button>') + '</div></form>';
+    if (oblige) plein(html); else ouvrirBoite(html);
+    var f = $('#f-mdp'), err = function (m) { var p = $('#mdp-err'); p.textContent = m; p.classList.remove('cache'); };
+    $('#b-quit').onclick = function () { if (oblige) auth.signOut(); else fermerBoite(); };
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      if (!motDePasseValide(f.mdp.value)) return err('Au moins 8 caractères, avec des lettres et des chiffres.');
+      if (f.mdp.value !== f.mdp2.value) return err('Les deux mots de passe ne sont pas identiques.');
+      var cred = firebase.auth.EmailAuthProvider.credential(S.moi.email, f.ancien.value);
+      S.moi.reauthenticateWithCredential(cred).then(function () { return S.moi.updatePassword(f.mdp.value); }).then(function () {
+        return col('utilisateurs').doc(S.moi.uid).update({ doit_changer: false, modifie_le: maintenant(), modifie_par: S.profil.identifiant });
+      }).then(function () {
+        journal('MOT_DE_PASSE', 'Changé par l\'utilisateur'); toast('Mot de passe changé.', 'ok');
+        if (oblige) { S.profil.doit_changer = false; ouvrirSession(); } else fermerBoite();
+      }).catch(function (x) { err(messageAuth(x)); });
+    };
+  }
+  /** Redemande le mot de passe avant une action sensible */
+  function confirmerMdp(raison) {
+    return new Promise(function (ok, ko) {
+      ouvrirBoite('<form class="boite" id="f-re"><h2>Confirmez votre mot de passe</h2><p>' + e(raison) + '</p>' +
+        '<div class="champ"><input name="mdp" type="password" required autocomplete="current-password"></div><p class="alerte ko cache" id="re-err"></p>' +
+        '<div style="display:flex;gap:8px"><button class="btn plein">Confirmer</button><button type="button" class="btn" id="re-ann">Annuler</button></div></form>');
+      $('#re-ann').onclick = function () { fermerBoite(); ko(new Erreur('Action annulée.')); };
+      $('#f-re').onsubmit = function (ev) {
+        ev.preventDefault();
+        S.moi.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(S.moi.email, this.mdp.value))
+          .then(function () { fermerBoite(); ok(); }, function (x) { var p = $('#re-err'); p.textContent = messageAuth(x); p.classList.remove('cache'); });
+      };
+    });
+  }
+  function ouvrirBoite(html) { fermerBoite(); var v = document.createElement('div'); v.className = 'voile'; v.id = 'voile'; v.innerHTML = html; document.body.appendChild(v); var i = v.querySelector('input,select,textarea'); if (i) i.focus(); }
+  function fermerBoite() { var v = $('#voile'); if (v) v.remove(); }
+
+  /* ===================================================================
+   *  7. CADRE DE L'APPLICATION ET NAVIGATION
+   * =================================================================== */
+  var TITRES = { accueil: 'Accueil', ecole: 'École', referentiels: 'Référentiels', utilisateurs: 'Utilisateurs', journal: 'Journal', sauvegarde: 'Sauvegarde', aide: 'Aide' };
+  var MENU = [
+    ['accueil', null], ['ecole', null], ['referentiels', null], ['utilisateurs', 'UTILISATEURS'], ['journal', 'UTILISATEURS'], ['sauvegarde', 'PARAMETRES'], ['aide', null]
+  ];
+  function vueCourante() { var v = (location.hash.slice(1) || 'accueil').split('/')[0]; return TITRES[v] && autorisee(v) ? v : 'accueil'; }
+  function sousVue() { return location.hash.slice(1).split('/')[1] || ''; }
+  function autorisee(v) { var m = MENU.find(function (x) { return x[0] === v; }); return !m || !m[1] || peut(m[1]); }
+
+  function rendreCadre() {
+    $('#racine').innerHTML = '<header class="entete"><div class="entete-haut"><h1 id="titre-ecole"></h1>' +
+      '<button class="etat-sync" id="etat-sync" title="État de la synchronisation"></button>' +
+      '<button class="btn-entete" id="b-qui" title="Qui est connecté"></button>' +
+      '<button class="btn-entete" id="b-theme" title="Mode clair / sombre">◐</button>' +
+      '<button class="btn-entete" id="b-moi"></button></div><nav class="nav" id="nav"></nav></header>' +
+      '<div id="bandeaux"></div><main id="vue"></main><p class="pied">CTEFA-CLASSIC Web ' + VERSION_APP + ' · Assistance : ' + ASSISTANCE + '</p>';
+    $('#b-theme').onclick = function () {
+      var r = document.documentElement, sombre = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+      r.dataset.theme = sombre ? 'light' : 'dark'; ecrireLocal(CLE_THEME, r.dataset.theme);
+    };
+    $('#b-moi').onclick = menuMoi;
+    $('#b-qui').onclick = function () { location.hash = '#accueil'; };
+    $('#etat-sync').onclick = function () {
+      toast(S.enLigne ? (S.attente ? S.attente + ' enregistrement(s) en cours d\'envoi.' : 'Tout est enregistré en ligne' + (S.derniereSync ? ' (' + ilya(S.derniereSync) + ')' : '') + '.')
+                      : 'Hors ligne : vos saisies sont gardées sur cet appareil et partiront au retour du réseau.');
+    };
+    rendre();
+  }
+  function menuMoi() {
+    ouvrirBoite('<div class="boite"><h2>' + e(S.profil.nom) + '</h2><p>' + e(S.profil.identifiant) + ' · ' + ROLES[S.profil.role].nom + '</p>' +
+      '<p style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="m-mdp">Changer mon mot de passe</button><button class="btn danger" id="m-sortir">Se déconnecter</button>' +
+      '<button class="btn" id="m-fermer">Fermer</button></p></div>');
+    $('#m-mdp').onclick = function () { ecranChangerMdp(false); };
+    $('#m-sortir').onclick = function () { fermerBoite(); deconnexion(); };
+    $('#m-fermer').onclick = fermerBoite;
+  }
+  function majEtat() {
+    var b = $('#etat-sync'); if (!b) return;
+    var t, c;
+    if (!S.enLigne) { t = '📴 Hors ligne' + (S.attente ? ' · ' + S.attente + ' en attente' : ''); c = 'att'; }
+    else if (S.attente) { t = '⏳ Envoi… (' + S.attente + ')'; c = 'att'; }
+    else if (!S.pret) { t = '⏳ Chargement'; c = 'att'; }
+    else { t = '● En ligne' + (S.derniereSync ? ' · ' + ilya(S.derniereSync).replace('il y a ', '') : ''); c = 'ok'; }
+    b.textContent = t; b.dataset.c = c;
+  }
+  setInterval(majEtat, 10000);
+
+  var minuteurRendu = null;
+  function rendrePlusTard() { clearTimeout(minuteurRendu); minuteurRendu = setTimeout(rendreSiLibre, 120); }
+  function rendreSiLibre() {
+    var a = document.activeElement;
+    if ($('#voile') || (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.closest('#vue'))) { majCadre(); minuteurRendu = setTimeout(rendreSiLibre, 1500); return; }
+    rendre();
+  }
+  function majCadre() {
+    if (!$('#nav')) return;
+    $('#titre-ecole').textContent = (S.ecole && S.ecole.nom) || 'CTEFA-CLASSIC';
+    var v = vueCourante();
+    $('#nav').innerHTML = MENU.filter(function (m) { return !m[1] || peut(m[1]); }).map(function (m) {
+      return '<a href="#' + m[0] + '"' + (m[0] === v ? ' class="actif"' : '') + '>' + TITRES[m[0]] + '</a>';
+    }).join('');
+    $('#b-qui').textContent = '👥 ' + connectes().length;
+    $('#b-moi').textContent = S.profil.identifiant;
+    var bd = '';
+    if (S.ecole && S.ecole.maintenance) bd += '<div class="bandeau maint">🛠 Maintenance en cours par ' + e(S.ecole.maintenance.nom) + (enMaintenancePourMoi() ? ' : lecture seule jusqu\'à la fin.' : ' (vous). Les autres comptes sont en lecture seule.') + '</div>';
+    if (S.profil.role === 'CONSULTATION') bd += '<div class="bandeau lecture">Compte de consultation : lecture seule.</div>';
+    if (S.profil.expire_ms) bd += '<div class="bandeau lecture">Compte de démonstration valable jusqu\'au ' + new Date(S.profil.expire_ms).toLocaleDateString('fr-FR') + '.</div>';
+    $('#bandeaux').innerHTML = bd;
+    majEtat();
+  }
+  function rendre() {
+    if (!$('#vue') || !S.profil) return;
+    majCadre();
+    var v = vueCourante();
+    if (!S.pret || !S.ecole) { $('#vue').innerHTML = '<p class="aide">Chargement des données de l\'école…</p>'; return; }
+    $('#vue').innerHTML = VUES[v]();
+    if (VUES[v].apres) VUES[v].apres();
+  }
+  window.addEventListener('hashchange', function () { rendre(); presence(); window.scrollTo(0, 0); });
+
+  /* ===================================================================
+   *  8. VUES
+   * =================================================================== */
+  var VUES = {};
+  function carte(titre, corps, pied, outils) {
+    return '<section class="carte"><div class="carte-tete"><h3>' + titre + '</h3>' + (outils || '') + '</div><div class="carte-corps">' + corps + '</div>' + (pied ? '<div class="carte-pied">' + pied + '</div>' : '') + '</section>';
+  }
+  function tuile(lib, val) { return '<div class="tuile"><div class="lib">' + e(lib) + '</div><div class="val">' + e(val) + '</div></div>'; }
+  function niveauxEcole() {
+    var cyc = (S.ecole && S.ecole.cycles) || [];
+    return trier(S.niveaux, function (a, b) { return a.ordre - b.ordre; }).filter(function (n) { return cyc.indexOf(n.cycle) >= 0; });
+  }
+  function nomNiveau(code) { var n = S.niveaux[code]; return n ? n.nom : code; }
+
+  /* ---------- Accueil ---------- */
+  VUES.accueil = function () {
+    var cl = trier(S.classes, function (a, b) { return (S.niveaux[a.niveau] || {}).ordre - (S.niveaux[b.niveau] || {}).ordre || a.nom.localeCompare(b.nom); });
+    var alertes = [];
+    cl.forEach(function (c) { if (!c.titulaire_fr && !c.titulaire_ar) alertes.push('Classe ' + c.nom + ' sans titulaire.'); });
+    var principaux = trier(S.utilisateurs, function () { return 0; }).filter(function (u) { return u.role === 'ADMIN_PRINCIPAL' && u.actif; });
+    if (principaux.length < 2 && peut('UTILISATEURS')) alertes.push('Un seul administrateur principal actif : créez un compte de secours.');
+    if (!S.ecole.logo) alertes.push('Logo de l\'école non chargé (École).');
+    var h = '<h2>Bonjour ' + e(S.profil.nom.split(' ')[0]) + '</h2>' +
+      '<div class="tuiles">' + tuile('Classes', cl.length) + tuile('Niveaux', niveauxEcole().length) + tuile('Comptes actifs', trier(S.utilisateurs, function () { return 0; }).filter(function (u) { return u.actif; }).length) +
+      tuile('Connectés maintenant', connectes().length) + '</div>';
+    if (alertes.length && peut('PARAMETRES')) h += '<div class="alerte att"><strong>À faire</strong><ul style="margin:6px 0 0;padding-left:18px">' + alertes.slice(0, 6).map(function (a) { return '<li>' + e(a) + '</li>'; }).join('') + '</ul></div>';
+    h += '<div class="grille">' + carte('Qui est connecté', '<ul class="liste-simple">' + (connectes().map(function (p) {
+      return '<li><span class="point"></span><strong>' + e(p.nom) + '</strong> <span class="aide">· ' + e((ROLES[p.role] || {}).nom) + ' · ' + e(p.ecran) + '</span></li>';
+    }).join('') || '<li class="aide">Personne d\'autre.</li>') + '</ul>') +
+      carte('Activité récente', '<ul class="liste-simple">' + (S.activite.map(function (a) {
+        return '<li>' + e(a.texte) + '<br><span class="aide">' + e(a.nom || a.par) + ' · ' + ilya(a.le) + '</span></li>';
+      }).join('') || '<li class="aide">Aucune activité pour l\'instant.</li>') + '</ul>') + '</div>';
+    h += carte('Classes de l\'école', '<div class="table-defil"><table><thead><tr><th>Classe</th><th>Niveau</th><th class="c">Effectif max</th><th class="mm">Titulaires</th></tr></thead><tbody>' +
+      (cl.map(function (c) { return '<tr><td><strong>' + e(c.nom) + '</strong></td><td>' + e(nomNiveau(c.niveau)) + '</td><td class="c">' + e(c.effectif_max) + '</td><td class="mm">' + e([c.titulaire_fr, c.titulaire_ar].filter(Boolean).join(' · ') || '—') + '</td></tr>'; }).join('') ||
+       '<tr><td colspan="4" class="aide">Aucune classe.</td></tr>') + '</tbody></table></div><p class="aide">Les effectifs, les finances et les alertes sur les notes s\'ajouteront avec les étapes suivantes.</p>');
+    return h;
+  };
+
+  /* ---------- École ---------- */
+  VUES.ecole = function () {
+    var ec = S.ecole, lec = !peut('PARAMETRES') ? ' disabled' : '';
+    var ch = function (n, lib, ph, attrs) { return '<div class="champ"><label>' + lib + '</label><input name="' + n + '" value="' + e(ec[n]) + '"' + (ph ? ' placeholder="' + ph + '"' : '') + (attrs || '') + lec + '></div>'; };
+    var cyc = Object.keys(CYCLES).map(function (k) {
+      return '<label style="display:flex;gap:8px;align-items:center;color:var(--texte)"><input type="checkbox" name="cycle" value="' + k + '"' + ((ec.cycles || []).indexOf(k) >= 0 ? ' checked' : '') +
+        (peut('ECOLE') ? '' : ' disabled') + '> ' + CYCLES[k] + '</label>';
+    }).join('');
+    return '<h2>Fiche de l\'école</h2><form id="f-ecole" data-version="' + ec.version + '"><div class="grille">' +
+      carte('Identité', ch('nom', 'Nom de l\'école') + ch('nom_ar', 'Nom en arabe', '', ' dir="rtl"') + ch('code', 'Code de l\'école') + ch('ia', 'IA', 'Diourbel') + ch('ief', 'IEF', 'Mbacké') +
+        '<div class="champ"><label>Type</label><select name="type"' + lec + '><option value="PUBLIQUE"' + (ec.type === 'PUBLIQUE' ? ' selected' : '') + '>Publique</option><option value="PRIVEE"' + (ec.type === 'PRIVEE' ? ' selected' : '') + '>Privée</option></select></div>' +
+        '<div class="champ"><label>Nature</label><select name="nature"' + lec + '><option value="FRANCO_ARABE"' + (ec.nature === 'FRANCO_ARABE' ? ' selected' : '') + '>Franco-arabe</option><option value="CLASSIQUE"' + (ec.nature === 'CLASSIQUE' ? ' selected' : '') + '>Classique</option></select></div>') +
+      carte('Coordonnées et documents', ch('annee', 'Année scolaire') + ch('adresse', 'Adresse') + ch('telephone', 'Téléphone', '77 000 00 00', ' inputmode="tel"') + ch('lieu', 'Lieu des documents', 'Yassi') +
+        ch('signataire', 'Signataire des documents') + ch('qualite', 'Qualité du signataire', 'Le Directeur') +
+        '<div class="champ"><label>Cycles de l\'école</label>' + cyc + (peut('ECOLE') ? '' : '<p class="aide">Modifiable par l\'administrateur principal.</p>') + '</div>') +
+      carte('Logo et cachet', '<div class="ligne"><div><label>Logo</label>' + (ec.logo ? '<img class="vignette" src="' + e(ec.logo) + '" alt="Logo">' : '<p class="aide">Aucun</p>') +
+        (lec ? '' : '<input type="file" accept="image/*" id="logo"><button type="button" class="btn petit" data-act="sans-logo">Retirer</button>') + '</div>' +
+        '<div><label>Cachet</label>' + (ec.cachet ? '<img class="vignette" src="' + e(ec.cachet) + '" alt="Cachet">' : '<p class="aide">Aucun</p>') +
+        (lec ? '' : '<input type="file" accept="image/*" id="cachet"><button type="button" class="btn petit" data-act="sans-cachet">Retirer</button>') + '</div></div>' +
+        '<label style="display:flex;gap:8px;align-items:center;color:var(--texte);margin-top:8px"><input type="checkbox" name="cachet_actif"' + (ec.cachet_actif ? ' checked' : '') + lec + '> Apposer le cachet sur les documents</label>' +
+        '<p class="aide">Les images sont réduites automatiquement (moins de 150 Ko).</p>') +
+      '</div>' + (lec ? '' : '<p><button class="btn plein">Enregistrer la fiche</button> <span class="aide">Dernière modification : ' + e(ec.modifie_par) + ' · ' + ilya(ec.modifie_le) + '</span></p>') + '</form>';
+  };
+  VUES.ecole.apres = function () {
+    var f = $('#f-ecole'); if (!f) return;
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var ch = {};
+      ['nom', 'nom_ar', 'code', 'ia', 'ief', 'type', 'nature', 'annee', 'adresse', 'telephone', 'lieu', 'signataire', 'qualite'].forEach(function (k) { ch[k] = f[k].value.trim(); });
+      ch.cachet_actif = f.cachet_actif.checked;
+      if (!ch.nom) return toast('Le nom de l\'école est obligatoire.', 'ko');
+      if (ch.telephone && !telephoneValide(ch.telephone)) return toast('Téléphone : 9 chiffres commençant par 77, 78, 76, 70, 75 ou 33.', 'ko');
+      if (peut('ECOLE')) {
+        ch.cycles = $$('[name=cycle]:checked', f).map(function (c) { return c.value; });
+        if (!ch.cycles.length) return toast('Cochez au moins un cycle.', 'ko');
+      }
+      ecrireEcole(ch, Number(f.dataset.version), 'Fiche de l\'école modifiée').then(function (ok) {
+        if (ok && ch.cycles) semer(ch.cycles, false, false).then(function (n) { if (n) toast(n + ' référentiel(s) ajouté(s) pour les nouveaux cycles.', 'ok'); });
+      });
+    };
+    ['logo', 'cachet'].forEach(function (k) {
+      var i = $('#' + k); if (!i) return;
+      i.onchange = function () { if (i.files[0]) reduireImage(i.files[0], 420).then(function (url) { var ch = {}; ch[k] = url; ecrireEcole(ch, S.ecole.version, (k === 'logo' ? 'Logo' : 'Cachet') + ' de l\'école mis à jour'); }); };
+    });
+  };
+  function ecrireEcole(ch, version, texteActivite) {
+    try { verifierEcriture('PARAMETRES'); } catch (x) { toast(x.message, 'ko'); return Promise.resolve(false); }
+    var ref = docEcole();
+    return suivre(db.runTransaction(function (tx) {
+      return tx.get(ref).then(function (s) {
+        var d = s.data();
+        if (version !== undefined && d.version !== version) { var c = new Erreur('conflit'); c.conflit = d; throw c; }
+        tx.update(ref, Object.assign({}, ch, meta(), { version: d.version + 1 }));
+      });
+    })).then(function () { toast('Enregistré.', 'ok'); if (texteActivite) activite(texteActivite); return true; }, function (err) {
+      if (err.conflit && confirm('Fiche modifiée par ' + err.conflit.modifie_par + ' ' + ilya(err.conflit.modifie_le) + '.\nOK = écraser, Annuler = garder leur version.')) return ecrireEcole(ch, err.conflit.version, texteActivite);
+      if (!err.conflit) erreurEcriture(err); rendre(); return false;
+    });
+  }
+  function telephoneValide(t) { var n = String(t).replace(/[\s.-]/g, '').replace(/^(\+221|00221)/, ''); return /^(77|78|76|70|75|33)\d{7}$/.test(n); }
+  function reduireImage(fichier, max) {
+    return new Promise(function (ok, ko) {
+      var r = new FileReader();
+      r.onload = function () {
+        var img = new Image();
+        img.onload = function () {
+          var k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+          c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          var url = c.toDataURL('image/png'); if (url.length > 200000) url = c.toDataURL('image/jpeg', .8);
+          ok(url);
+        };
+        img.onerror = ko; img.src = r.result;
+      };
+      r.readAsDataURL(fichier);
+    });
+  }
+
+  /* ---------- Référentiels ---------- */
+  var ONGLETS_REF = { niveaux: 'Niveaux', classes: 'Classes', matieres: 'Matières', tarifs: 'Tarifs', listes: 'Listes' };
+  var refNiveau = null;
+  VUES.referentiels = function () {
+    var o = ONGLETS_REF[sousVue()] ? sousVue() : 'classes';
+    var h = '<h2>Référentiels</h2><nav class="onglets">' + Object.keys(ONGLETS_REF).map(function (k) { return '<a href="#referentiels/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_REF[k] + '</a>'; }).join('') + '</nav>';
+    if (!peut('PARAMETRES')) h += '<div class="alerte">Lecture seule : votre compte n\'a pas le droit « Paramètres ».</div>';
+    return h + REF[o]();
+  };
+  VUES.referentiels.apres = function () { var o = ONGLETS_REF[sousVue()] ? sousVue() : 'classes'; if (REF[o].apres) REF[o].apres(); };
+  var REF = {};
+  function lectureSeule() { return !peut('PARAMETRES') || enMaintenancePourMoi(); }
+
+  REF.niveaux = function () {
+    var ro = lectureSeule() ? ' disabled' : '', niv = niveauxEcole();
+    var opts = function (choisi) { return '<option value="">—</option>' + niv.map(function (n) { return '<option value="' + n.code + '"' + (n.code === choisi ? ' selected' : '') + '>' + e(n.nom) + '</option>'; }).join(''); };
+    return carte('Niveaux de l\'école', '<p class="aide" style="margin-top:0">Seuls les niveaux des cycles cochés dans la fiche de l\'école apparaissent. Les seuils servent aux propositions de passage.</p>' +
+      '<div class="table-defil"><table><thead><tr><th>Niveau</th><th>Cycle</th><th>Notes sur</th><th>Seuil redoublement</th><th>Seuil passage</th><th>Niveau suivant</th><th class="mm">Suivant alternatif</th><th class="mm">Bulletin</th><th></th></tr></thead><tbody>' +
+      niv.map(function (n) {
+        return '<tr data-id="' + n.id + '" data-version="' + n.version + '"><td><strong>' + e(n.nom) + '</strong></td><td class="aide">' + CYCLES[n.cycle] + '</td>' +
+          '<td><select name="base"' + ro + '><option' + (n.base === 10 ? ' selected' : '') + '>10</option><option' + (n.base === 20 ? ' selected' : '') + '>20</option></select></td>' +
+          '<td><input name="seuil_redoublement" type="number" step="0.25" min="0" value="' + e(n.seuil_redoublement) + '"' + ro + '></td>' +
+          '<td><input name="seuil_passage" type="number" step="0.25" min="0" value="' + e(n.seuil_passage) + '"' + ro + '></td>' +
+          '<td><select name="suivant"' + ro + '>' + opts(n.suivant) + '</select></td><td class="mm"><select name="suivant_alt"' + ro + '>' + opts(n.suivant_alt) + '</select></td>' +
+          '<td class="mm"><select name="format"' + ro + '><option' + (n.format === 'EFA' ? ' selected' : '') + '>EFA</option><option' + (n.format === 'CLASSIQUE' ? ' selected' : '') + '>CLASSIQUE</option></select></td>' +
+          '<td>' + (ro ? '' : '<button class="btn petit" data-act="niv-enr">Enregistrer</button>') + '</td></tr>';
+      }).join('') + '</tbody></table></div>', ro ? '' : '<button class="btn" data-act="reparer">🔧 Réparer les référentiels</button><span class="aide">Recrée les niveaux, matières, listes et tarifs manquants, sans toucher à vos modifications.</span>');
+  };
+  REF.classes = function () {
+    var ro = lectureSeule() ? ' disabled' : '';
+    var cl = trier(S.classes, function (a, b) { return ((S.niveaux[a.niveau] || {}).ordre || 0) - ((S.niveaux[b.niveau] || {}).ordre || 0) || a.nom.localeCompare(b.nom); });
+    var optsN = function (ch) { return niveauxEcole().map(function (n) { return '<option value="' + n.code + '"' + (n.code === ch ? ' selected' : '') + '>' + e(n.nom) + '</option>'; }).join(''); };
+    return carte('Classes', '<div class="table-defil"><table><thead><tr><th>Code</th><th>Nom affiché</th><th>Niveau</th><th>Effectif max</th><th class="mm">Salle</th><th class="mm">Titulaire FR</th><th class="mm">Titulaire AR</th><th></th></tr></thead><tbody>' +
+      cl.map(function (c) {
+        return '<tr data-id="' + c.id + '" data-version="' + c.version + '"><td><input name="code" value="' + e(c.code) + '"' + ro + ' style="min-width:70px"></td><td><input name="nom" value="' + e(c.nom) + '"' + ro + ' style="min-width:90px"></td>' +
+          '<td><select name="niveau"' + ro + '>' + optsN(c.niveau) + '</select></td><td><input name="effectif_max" type="number" min="1" value="' + e(c.effectif_max) + '"' + ro + ' style="width:80px"></td>' +
+          '<td class="mm"><input name="salle" value="' + e(c.salle) + '"' + ro + '></td><td class="mm"><input name="titulaire_fr" value="' + e(c.titulaire_fr) + '"' + ro + '></td>' +
+          '<td class="mm"><input name="titulaire_ar" dir="auto" value="' + e(c.titulaire_ar) + '"' + ro + '></td>' +
+          '<td style="white-space:nowrap">' + (ro ? '' : '<button class="btn petit" data-act="cl-enr">Enregistrer</button> <button class="btn petit danger" data-act="cl-suppr" title="Supprimer">✕</button>') + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      (ro ? '' : '<form id="f-classe" class="ligne" style="margin-top:14px"><div><label>Code</label><input name="code" required placeholder="CM2A"></div><div><label>Nom affiché</label><input name="nom" required placeholder="CM2 A"></div>' +
+        '<div><label>Niveau</label><select name="niveau" required>' + optsN() + '</select></div><div><label>Effectif max</label><input name="effectif_max" type="number" min="1" value="50"></div>' +
+        '<div class="fixe"><button class="btn plein">Ajouter la classe</button></div></form>'),
+      '', '<span class="aide">' + cl.length + ' classe(s)</span>');
+  };
+  REF.matieres = function () {
+    var ro = lectureSeule() ? ' disabled' : '', niv = niveauxEcole();
+    if (!niv.length) return carte('Matières', '<p>Aucun niveau.</p>');
+    if (!niv.some(function (n) { return n.code === refNiveau; })) refNiveau = (niv.find(function (n) { return n.cycle !== 'PRESCOLAIRE'; }) || niv[0]).code;
+    var mats = trier(S.matieres, function (a, b) { return a.ordre - b.ordre; }).filter(function (m) { return m.niveau === refNiveau; });
+    var optsL = function (ch) { return Object.keys(LANGUES).map(function (k) { return '<option value="' + k + '"' + (k === ch ? ' selected' : '') + '>' + k + '</option>'; }).join(''); };
+    var base = (S.niveaux[refNiveau] || {}).base || 10;
+    return '<div class="carte"><div class="carte-corps ligne"><div><label>Niveau</label><select id="ref-niveau">' + niv.map(function (n) { return '<option value="' + n.code + '"' + (n.code === refNiveau ? ' selected' : '') + '>' + e(n.nom) + '</option>'; }).join('') + '</select></div>' +
+      (ro ? '' : '<div><label>Copier les matières de ce niveau vers</label><div style="display:flex;gap:6px"><select id="copie-vers">' + niv.filter(function (n) { return n.code !== refNiveau; }).map(function (n) { return '<option value="' + n.code + '">' + e(n.nom) + '</option>'; }).join('') +
+        '</select><button class="btn" data-act="copier-mat">Copier</button></div></div>') + '</div></div>' +
+      carte('Matières de ' + e(nomNiveau(refNiveau)) + ' · ' + mats.length + ' rubrique(s)', '<div class="table-defil"><table><thead><tr><th>Ordre</th><th>Langue</th><th>Matière</th><th>Rubrique / composante</th><th>Barème C1</th><th>C2</th><th>C3</th><th>Coef</th><th></th></tr></thead><tbody>' +
+        mats.map(function (m) {
+          return '<tr data-id="' + m.id + '" data-version="' + m.version + '"><td><input name="ordre" type="number" value="' + e(m.ordre) + '"' + ro + ' style="width:60px"></td><td><select name="langue"' + ro + '>' + optsL(m.langue) + '</select></td>' +
+            '<td><input name="matiere" dir="auto" value="' + e(m.matiere) + '"' + ro + ' style="min-width:150px"></td><td><input name="rubrique" dir="auto" value="' + e(m.rubrique) + '"' + ro + ' style="min-width:150px"></td>' +
+            [0, 1, 2].map(function (i) { return '<td><input name="b' + i + '" type="number" min="1" max="100" value="' + e(m.baremes[i]) + '"' + ro + ' style="width:64px"></td>'; }).join('') +
+            '<td><input name="coef" type="number" min="0" step="0.5" value="' + e(m.coef) + '"' + ro + ' style="width:60px"></td>' +
+            '<td style="white-space:nowrap">' + (ro ? '' : '<button class="btn petit" data-act="mat-enr">Enregistrer</button> <button class="btn petit danger" data-act="mat-suppr">✕</button>') + '</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        (ro ? '' : '<form id="f-matiere" class="ligne" style="margin-top:14px"><div class="fixe"><label>Langue</label><select name="langue">' + optsL('FR') + '</select></div><div><label>Matière</label><input name="matiere" required dir="auto"></div>' +
+          '<div><label>Rubrique</label><input name="rubrique" required dir="auto"></div><div class="fixe"><label>Barème</label><input name="bareme" type="number" min="1" value="' + base + '" style="width:80px"></div>' +
+          '<div class="fixe"><label>Coef</label><input name="coef" type="number" min="0" step="0.5" value="1" style="width:70px"></div><div class="fixe"><button class="btn plein">Ajouter</button></div></form>'));
+  };
+  REF.tarifs = function () {
+    var ro = lectureSeule() ? ' disabled' : '', niv = niveauxEcole(), tf = trier(S.tarifs, function (a, b) { return a.categorie.localeCompare(b.categorie); });
+    var prive = S.ecole.type === 'PRIVEE';
+    return carte('Grille des frais par niveau (' + (prive ? 'tarif privé' : 'tarif public') + ', en F CFA)', '<p class="aide" style="margin-top:0">Saisissez 0 pour une catégorie non utilisée. La grille servira au guichet d\'encaissement (étape 4).</p>' +
+      '<div class="table-defil"><table><thead><tr><th>Catégorie</th><th>Périodicité</th>' + niv.map(function (n) { return '<th class="c">' + e(n.nom) + '</th>'; }).join('') + '<th></th></tr></thead><tbody>' +
+      tf.map(function (t) {
+        return '<tr data-id="' + t.id + '" data-version="' + t.version + '"><td><strong>' + e(t.categorie) + '</strong>' + (t.obligatoire ? ' <span class="pastille">obligatoire</span>' : '') + '</td><td class="aide">' + e(t.periodicite) + '</td>' +
+          niv.map(function (n) { return '<td><input name="m_' + n.code + '" type="number" min="0" step="50" value="' + e((t.montants || {})[n.code] || 0) + '"' + ro + ' style="width:90px"></td>'; }).join('') +
+          '<td>' + (ro ? '' : '<button class="btn petit" data-act="tf-enr">Enregistrer</button>') + '</td></tr>';
+      }).join('') + '</tbody></table></div>');
+  };
+  var NOMS_LISTES = { mois: 'Mois de l\'année scolaire', types_eleve: 'Types d\'élèves', statuts: 'Statuts', motifs_sortie: 'Motifs de sortie', comptes: 'Comptes', periodicites: 'Périodicités' };
+  REF.listes = function () {
+    var ro = lectureSeule() ? ' disabled' : '';
+    var h = '<div class="grille">' + Object.keys(NOMS_LISTES).map(function (k) {
+      var l = S.listes[k] || { valeurs: [], version: 0 };
+      return carte(NOMS_LISTES[k], '<form class="f-liste" data-id="' + k + '" data-version="' + l.version + '"><textarea name="v" rows="6"' + ro + '>' + e((l.valeurs || []).join('\n')) + '</textarea>' +
+        '<p class="aide">Une valeur par ligne, dans l\'ordre.</p>' + (ro ? '' : '<button class="btn petit">Enregistrer</button>') + '</form>');
+    }).join('') + '</div>';
+    var cc = S.listes.categories_caisse || { valeurs: [], version: 0 };
+    h += carte('Catégories de caisse', '<form class="f-liste" data-id="categories_caisse" data-version="' + cc.version + '"><textarea name="v" rows="10"' + ro + '>' +
+      e((cc.valeurs || []).map(function (x) { return x.sens + ' ; ' + x.categorie; }).join('\n')) + '</textarea><p class="aide">Une ligne par catégorie : ENTREE ou SORTIE ; nom.</p>' +
+      (ro ? '' : '<button class="btn petit">Enregistrer</button>') + '</form>');
+    return h;
+  };
+  REF.niveaux.apres = REF.classes.apres = REF.matieres.apres = REF.tarifs.apres = REF.listes.apres = function () {};
+  function ligneValeurs(tr) { var o = {}; $$('input,select', tr).forEach(function (i) { o[i.name] = i.value; }); return o; }
+
+  /* ---------- Utilisateurs ---------- */
+  VUES.utilisateurs = function () {
+    var monRang = rang(S.profil.role);
+    var us = trier(S.utilisateurs, function (a, b) { return rang(b.role) - rang(a.role) || a.nom.localeCompare(b.nom); });
+    var rolesCreables = Object.keys(ROLES).filter(function (r) { return S.profil.role === 'ADMIN_PRINCIPAL' || rang(r) < monRang; });
+    var t = '<div class="table-defil"><table><thead><tr><th>Nom</th><th>Identifiant</th><th>Rôle</th><th>État</th><th class="mm">Dernière connexion</th><th></th></tr></thead><tbody>' +
+      us.map(function (u) {
+        var gerable = u.id !== S.moi.uid && (S.profil.role === 'ADMIN_PRINCIPAL' || rang(u.role) < monRang);
+        return '<tr><td><strong>' + e(u.nom) + '</strong></td><td>' + e(u.identifiant) + '</td><td>' + e((ROLES[u.role] || {}).nom) + '</td>' +
+          '<td>' + (u.actif ? '<span class="pastille ok">Actif</span>' : '<span class="pastille ko">Désactivé</span>') + (u.doit_changer ? ' <span class="pastille att">mdp provisoire</span>' : '') +
+          (u.expire_ms ? ' <span class="pastille">jusqu\'au ' + new Date(u.expire_ms).toLocaleDateString('fr-FR') + '</span>' : '') + '</td>' +
+          '<td class="mm">' + (u.derniere_connexion ? heure(u.derniere_connexion) : '—') + '</td>' +
+          '<td>' + (gerable ? '<button class="btn petit" data-act="u-modif" data-id="' + u.id + '">Modifier</button>' : (u.id === S.moi.uid ? '<span class="aide">vous</span>' : '')) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+    var f = '<form id="f-util"><div class="grille"><div class="champ"><label>Nom complet</label><input name="nom" required></div>' +
+      '<div class="champ"><label>Identifiant</label><input name="ident" required autocapitalize="none" placeholder="prenom.nom"></div>' +
+      '<div class="champ"><label>Rôle</label><select name="role">' + rolesCreables.map(function (r) { return '<option value="' + r + '"' + (r === 'ENSEIGNANT' ? ' selected' : '') + '>' + ROLES[r].nom + '</option>'; }).join('') + '</select></div>' +
+      '<div class="champ"><label>Mot de passe provisoire</label><input name="mdp" required autocomplete="new-password" value="' + mdpProvisoire() + '"></div>' +
+      '<div class="champ cache" id="champ-expire"><label>Valable jusqu\'au (démonstration)</label><input name="expire" type="date"></div></div>' +
+      '<p class="aide">La personne devra choisir son propre mot de passe à la première connexion. Communiquez-lui l\'identifiant et le mot de passe provisoire.</p><button class="btn plein">Créer le compte</button></form>';
+    return '<h2>Utilisateurs et droits</h2>' + carte('Comptes de l\'école', t) + carte('Nouveau compte', f) +
+      carte('Mot de passe oublié', '<p style="margin-top:0">Une page sans serveur ne peut pas changer le mot de passe d\'un autre compte. Si quelqu\'un a oublié le sien : <strong>désactivez son compte</strong> et créez-lui un <strong>nouvel identifiant</strong>. ' +
+        'Pour l\'administrateur principal, gardez un 2e compte principal de secours, ou supprimez le compte dans la console Firebase (Authentication) puis recréez-le.</p>');
+  };
+  VUES.utilisateurs.apres = function () {
+    var f = $('#f-util'); if (!f) return;
+    var exp = function () { $('#champ-expire').classList.toggle('cache', f.role.value !== 'DEMONSTRATION'); };
+    f.role.onchange = exp; exp();
+    f.onsubmit = function (ev) { ev.preventDefault(); creerCompte(f); };
+  };
+  function mdpProvisoire() { var c = 'abcdefghjkmnpqrstuvwxyz', s = ''; var a = new Uint32Array(6); crypto.getRandomValues(a); for (var i = 0; i < 6; i++) s += c[a[i] % c.length]; return s + (10 + a[0] % 90); }
+  function creerCompte(f) {
+    try { verifierEcriture('UTILISATEURS'); } catch (x) { return toast(x.message, 'ko'); }
+    var id = f.ident.value.trim().toLowerCase(), role = f.role.value, nom = f.nom.value.trim(), mdp = f.mdp.value;
+    if (!identifiantValide(id)) return toast('Identifiant : 3 à 30 caractères, minuscules, chiffres, point ou tiret.', 'ko');
+    if (trier(S.utilisateurs, function () { return 0; }).some(function (u) { return u.identifiant === id; })) return toast('Cet identifiant existe déjà.', 'ko');
+    if (S.profil.role !== 'ADMIN_PRINCIPAL' && rang(role) >= rang(S.profil.role)) return toast('Vous ne pouvez créer que des rôles inférieurs au vôtre.', 'ko');
+    if (String(mdp).length < 8) return toast('Mot de passe provisoire : au moins 8 caractères.', 'ko');
+    var expire = role === 'DEMONSTRATION' ? (f.expire.value ? Date.parse(f.expire.value + 'T23:59:59') : Date.now() + 14 * 86400000) : null;
+    f.querySelector('button').disabled = true;
+    /* Une 2e instance Firebase crée le compte sans déconnecter l'administrateur */
+    var sec = firebase.apps.find(function (a) { return a.name === 'creation'; }) || firebase.initializeApp(CFG, 'creation');
+    sec.auth().createUserWithEmailAndPassword(emailDe(id), mdp).then(function (c) {
+      var uid = c.user.uid;
+      return sec.auth().signOut().then(function () {
+        return suivre(col('utilisateurs').doc(uid).set(Object.assign({ identifiant: id, nom: nom, role: role, droits: ROLES[role].droits.slice(), actif: true, doit_changer: true, expire_ms: expire }, meta(true))));
+      });
+    }).then(function () {
+      journal('COMPTE_CREE', id + ' (' + ROLES[role].nom + ')'); activite('Compte créé : ' + nom + ' (' + ROLES[role].nom + ')');
+      ouvrirBoite('<div class="boite"><h2>Compte créé</h2><p>Transmettez ces informations à <strong>' + e(nom) + '</strong> :</p>' +
+        '<p style="font-size:1.1rem">Identifiant : <strong>' + e(id) + '</strong><br>Mot de passe provisoire : <strong>' + e(mdp) + '</strong></p>' +
+        '<p class="aide">Lien de l\'application : ' + e(location.origin + location.pathname) + '</p><button class="btn plein" id="ok-cpt">Fermer</button></div>');
+      $('#ok-cpt').onclick = function () { fermerBoite(); rendre(); };
+    }).catch(function (err) { toast(messageAuth(err), 'ko'); rendre(); });
+  }
+  function boiteModifCompte(uid) {
+    var u = S.utilisateurs[uid], monRang = rang(S.profil.role);
+    var roles = Object.keys(ROLES).filter(function (r) { return S.profil.role === 'ADMIN_PRINCIPAL' || rang(r) < monRang; });
+    var dr = droitsDe(u);
+    ouvrirBoite('<form class="boite large" id="f-umod"><h2>' + e(u.nom) + ' <span class="aide">(' + e(u.identifiant) + ')</span></h2>' +
+      '<div class="grille"><div class="champ"><label>Nom complet</label><input name="nom" value="' + e(u.nom) + '"></div><div class="champ"><label>Rôle</label><select name="role">' +
+      roles.map(function (r) { return '<option value="' + r + '"' + (r === u.role ? ' selected' : '') + '>' + ROLES[r].nom + '</option>'; }).join('') + '</select></div>' +
+      '<div class="champ"><label>État</label><select name="actif"><option value="1"' + (u.actif ? ' selected' : '') + '>Actif</option><option value="0"' + (!u.actif ? ' selected' : '') + '>Désactivé</option></select></div>' +
+      '<div class="champ"><label>Valable jusqu\'au (vide = sans limite)</label><input name="expire" type="date" value="' + (u.expire_ms ? new Date(u.expire_ms).toISOString().slice(0, 10) : '') + '"></div></div>' +
+      '<label>Droits (cochez ou décochez pour personnaliser ce compte)</label><div class="droits">' + Object.keys(DROITS).map(function (d) {
+        var interdit = (d === 'ECOLE' || d === 'MISEAJOUR') && S.profil.role !== 'ADMIN_PRINCIPAL';
+        return '<label><input type="checkbox" name="droit" value="' + d + '"' + (dr.indexOf(d) >= 0 ? ' checked' : '') + (interdit ? ' disabled' : '') + '> ' + DROITS[d] + '</label>';
+      }).join('') + '</div><p><button type="button" class="btn petit" id="droits-defaut">Droits par défaut du rôle</button></p>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn plein">Enregistrer</button><button type="button" class="btn" id="umod-ann">Annuler</button></div></form>');
+    var f = $('#f-umod');
+    $('#umod-ann').onclick = fermerBoite;
+    $('#droits-defaut').onclick = function () { var d = ROLES[f.role.value].droits; $$('[name=droit]', f).forEach(function (c) { c.checked = d.indexOf(c.value) >= 0; }); };
+    f.role.onchange = $('#droits-defaut').onclick;
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var ch = { nom: f.nom.value.trim(), role: f.role.value, actif: f.actif.value === '1', expire_ms: f.expire.value ? Date.parse(f.expire.value + 'T23:59:59') : null,
+                 droits: $$('[name=droit]:checked', f).map(function (c) { return c.value; }) };
+      if (u.role === 'ADMIN_PRINCIPAL' && (ch.role !== 'ADMIN_PRINCIPAL' || !ch.actif)) {
+        var autres = trier(S.utilisateurs, function () { return 0; }).filter(function (x) { return x.id !== uid && x.role === 'ADMIN_PRINCIPAL' && x.actif; });
+        if (!autres.length) return toast('Impossible : l\'école doit toujours avoir un administrateur principal actif.', 'ko');
+      }
+      if (ch.role === 'ADMIN_PRINCIPAL') ch.droits = Object.keys(DROITS);
+      modifier('utilisateurs', uid, ch, u.version, 'UTILISATEURS').then(function (ok) {
+        if (!ok) return;
+        fermerBoite(); toast('Compte modifié.', 'ok');
+        journal('COMPTE_MODIFIE', u.identifiant + ' : ' + ROLES[ch.role].nom + (ch.actif ? '' : ', désactivé'));
+      });
+    };
+  }
+
+  /* ---------- Journal ---------- */
+  VUES.journal = function () {
+    var ev = { CONNEXION: 'Connexion', DECONNEXION: 'Déconnexion', REFUS: 'Refus', COMPTE_CREE: 'Compte créé', COMPTE_MODIFIE: 'Compte modifié', MOT_DE_PASSE: 'Mot de passe',
+               CREATION_ECOLE: 'Création de l\'école', SAUVEGARDE: 'Sauvegarde', RESTAURATION: 'Restauration', MAINTENANCE: 'Maintenance', REFERENTIELS: 'Référentiels' };
+    return '<h2>Journal des accès</h2>' + carte('300 derniers événements', '<div class="table-defil"><table><thead><tr><th>Date</th><th>Compte</th><th>Événement</th><th>Détail</th><th class="mm">Poste</th></tr></thead><tbody>' +
+      (S.journal.map(function (j) {
+        return '<tr><td style="white-space:nowrap">' + heure(j.le) + '</td><td>' + e(j.identifiant) + '</td><td><span class="pastille' + (j.evenement === 'REFUS' ? ' ko' : '') + '">' + e(ev[j.evenement] || j.evenement) + '</span></td><td>' + e(j.detail) + '</td><td class="mm aide">' + e(j.poste) + '</td></tr>';
+      }).join('') || '<tr><td colspan="5" class="aide">Vide.</td></tr>') + '</tbody></table></div>', '<button class="btn" data-act="journal-csv">⬇ Exporter (CSV)</button>');
+  };
+
+  /* ---------- Sauvegarde, restauration, maintenance ---------- */
+  var COLLECTIONS = ['utilisateurs', 'niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'compteurs', 'journal_acces', 'activite',
+                     'eleves', 'personnel', 'affectations', 'notes', 'decisions', 'caisse', 'restes_dus', 'documents_registre', 'presences', 'pointages', 'quantum', 'stock'];
+  VUES.sauvegarde = function () {
+    var m = S.ecole.maintenance, princ = S.profil.role === 'ADMIN_PRINCIPAL';
+    return '<h2>Sauvegarde et restauration</h2><div class="grille">' +
+      carte('Sauvegarder maintenant', '<p style="margin-top:0">Télécharge toute la base de l\'école dans un fichier .json. Gardez-le hors du téléphone (clé USB, e-mail, WhatsApp à vous-même).</p>' +
+        '<p class="aide">Une copie est aussi faite automatiquement avant chaque restauration.</p>', '<button class="btn plein" data-act="sauver">⬇ Sauvegarder maintenant</button>') +
+      carte('Restaurer', princ ? '<p style="margin-top:0">Remplace TOUTE la base par le contenu d\'un fichier de sauvegarde. Les autres comptes passent en lecture seule pendant l\'opération.</p>' +
+        '<input type="file" id="f-restaurer" accept=".json,application/json">' : '<p class="aide">Réservé à l\'administrateur principal.</p>') +
+      carte('Mode maintenance', '<p style="margin-top:0">' + (m ? 'Activé par <strong>' + e(m.nom) + '</strong> ' + ilya(m.depuis) + '.' : 'Désactivé.') + ' Pendant la maintenance, seuls vous pouvez modifier les données.</p>',
+        princ ? (m ? '<button class="btn" data-act="maint-off">Terminer la maintenance</button>' : '<button class="btn" data-act="maint-on">Activer la maintenance</button>') : '') + '</div>';
+  };
+  VUES.sauvegarde.apres = function () {
+    var i = $('#f-restaurer');
+    if (i) i.onchange = function () { if (i.files[0]) restaurer(i.files[0]); };
+  };
+  function exporterBase() {
+    var res = { application: 'CTEFA-CLASSIC Web', version: 1, exporte_le: maintenant(), exporte_par: S.profil.identifiant, ecole: null, collections: {} };
+    return docEcole().get().then(function (s) {
+      res.ecole = s.data();
+      return Promise.all(COLLECTIONS.map(function (n) { return col(n).get().then(function (q) { res.collections[n] = q.docs.map(function (d) { return { id: d.id, data: d.data() }; }); }); }));
+    }).then(function () { return res; });
+  }
+  function nomFichier() { return 'ctefa_' + String(S.ecole.nom).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') + '_' + new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '') + '.json'; }
+  function sauver() {
+    toast('Préparation de la sauvegarde…');
+    return exporterBase().then(function (b) {
+      var json = JSON.stringify(b);
+      telecharger(json, nomFichier(), 'application/json');
+      journal('SAUVEGARDE', Math.round(json.length / 1024) + ' Ko'); toast('Sauvegarde téléchargée.', 'ok');
+      return b;
+    }).catch(erreurEcriture);
+  }
+  function maintenance(on) {
+    return suivre(docEcole().update({ maintenance: on ? { uid: S.moi.uid, nom: S.profil.nom, depuis: maintenant() } : null })).then(function () {
+      journal('MAINTENANCE', on ? 'Début' : 'Fin');
+    });
+  }
+  function restaurer(fichier) {
+    var r = new FileReader();
+    r.onload = function () {
+      var b;
+      try { b = JSON.parse(r.result); } catch (x) { return toast('Fichier illisible.', 'ko'); }
+      if (!b || b.application !== 'CTEFA-CLASSIC Web' || !b.collections || !b.ecole) return toast('Ce fichier n\'est pas une sauvegarde CTEFA-CLASSIC Web.', 'ko');
+      var nb = Object.keys(b.collections).reduce(function (s, k) { return s + b.collections[k].length; }, 0);
+      if (!confirm('Restaurer la sauvegarde du ' + heure(b.exporte_le) + ' (' + e(b.ecole.nom) + ', ' + nb + ' enregistrements) ?\n\nTOUTES les données actuelles seront remplacées.')) return;
+      confirmerMdp('La restauration remplace toute la base de l\'école.').then(function () {
+        toast('Copie de sécurité de la base actuelle…');
+        return maintenance(true).then(sauver);
+      }).then(function () {
+        var ops = [];
+        return Promise.all(COLLECTIONS.map(function (n) { return col(n).get(); })).then(function (snaps) {
+          snaps.forEach(function (q, i) {
+            var n = COLLECTIONS[i], gardes = {};
+            (b.collections[n] || []).forEach(function (d) { gardes[d.id] = true; ops.push(['set', col(n).doc(d.id), d.data]); });
+            q.docs.forEach(function (d) { if (!gardes[d.id] && !(n === 'utilisateurs' && d.id === S.moi.uid)) ops.push(['del', d.ref]); });
+          });
+          /* l'administrateur qui restaure reste toujours principal et actif */
+          ops.push(['set', col('utilisateurs').doc(S.moi.uid), Object.assign({}, S.profil, { uid: undefined, role: 'ADMIN_PRINCIPAL', actif: true, droits: Object.keys(DROITS) })]);
+          var lots = [];
+          for (var k = 0; k < ops.length; k += 400) {
+            var bt = db.batch();
+            ops.slice(k, k + 400).forEach(function (o) { if (o[0] === 'set') bt.set(o[1], JSON.parse(JSON.stringify(o[2]))); else bt.delete(o[1]); });
+            lots.push(suivre(bt.commit()));
+          }
+          return Promise.all(lots);
+        }).then(function () {
+          var ec = Object.assign({}, b.ecole, { maintenance: null, fondateur: S.ecole.fondateur, version: (S.ecole.version || 0) + 1, modifie_par: S.profil.identifiant, modifie_le: maintenant() });
+          return suivre(docEcole().set(ec));
+        }).then(function () {
+          journal('RESTAURATION', 'Sauvegarde du ' + heure(b.exporte_le) + ', ' + ops.length + ' opérations'); activite('Base restaurée depuis une sauvegarde');
+          toast('Restauration terminée.', 'ok');
+        });
+      }).catch(function (err) { maintenance(false).catch(function () {}); if (!(err instanceof Erreur && err.message === 'Action annulée.')) erreurEcriture(err); });
+    };
+    r.readAsText(fichier);
+  }
+
+  /* ---------- Aide ---------- */
+  VUES.aide = function () {
+    var lien = CFG ? lienInstallation(CFG) : '';
+    return '<h2>Aide</h2><div class="grille">' +
+      carte('Installer sur un autre téléphone', '<p style="margin-top:0">Envoyez ce lien (WhatsApp, SMS) à chaque membre de l\'équipe. Il relie l\'application à la base de l\'école ; ensuite chacun se connecte avec son identifiant.</p>' +
+        '<textarea rows="3" readonly id="lien-install">' + e(lien) + '</textarea>', '<button class="btn" data-act="copier-lien">Copier le lien</button>' +
+        '<a class="btn" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent('CTEFA-CLASSIC — ouvrez ce lien pour installer l\'application de l\'école : ' + lien) + '">Envoyer par WhatsApp</a>') +
+      carte('Règles de sécurité de la base', '<p style="margin-top:0">À coller une fois dans la console Firebase → Firestore Database → Règles → Publier. Elles vérifient côté serveur le rôle et les droits de chaque compte.</p>' +
+        '<textarea rows="8" readonly id="regles">' + e(REGLES) + '</textarea>', '<button class="btn" data-act="copier-regles">Copier les règles</button>') +
+      carte('Ce que fait cette étape', '<ul class="liste-simple"><li>Comptes (7 rôles, droits personnalisables), journal des accès, blocage après 5 erreurs.</li><li>Fiche de l\'école, logo, cachet, cycles.</li>' +
+        '<li>Référentiels : niveaux, classes, matières (copie entre niveaux), tarifs, listes.</li><li>Synchronisation en temps réel, travail hors ligne, qui est connecté, activité.</li>' +
+        '<li>Sauvegarde, restauration, mode maintenance.</li></ul><p class="aide">Élèves, personnel, notes, caisse et documents arrivent aux étapes suivantes.</p>') +
+      carte('Limites à connaître', '<ul class="liste-simple"><li>La sécurité repose sur les règles de la base (à publier) et sur la connexion Firebase ; l\'affichage seul ne protège rien.</li>' +
+        '<li>Un administrateur ne peut pas changer le mot de passe d\'un autre compte : il le désactive et en crée un nouveau.</li>' +
+        '<li>Le blocage après 5 erreurs vaut pour l\'appareil ; Firebase bloque aussi les essais répétés de son côté.</li>' +
+        '<li>Prévu pour une école (jusqu\'à environ 1 500 élèves et 10 connexions simultanées). Plusieurs écoles dans une même base demandent un vrai serveur.</li></ul>') +
+      carte('Assistance', '<p style="margin-top:0">' + ASSISTANCE + '</p>') + '</div>';
+  };
+
+  /* ===================================================================
+   *  9. ACTIONS
+   * =================================================================== */
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    var act = b.dataset.act, tr = b.closest('tr');
+    try {
+      switch (act) {
+        case 'sans-logo': ecrireEcole({ logo: '' }, S.ecole.version); break;
+        case 'sans-cachet': ecrireEcole({ cachet: '' }, S.ecole.version); break;
+        case 'reparer':
+          verifierEcriture('PARAMETRES');
+          semer(S.ecole.cycles || [], false, false).then(function (n) { toast(n ? n + ' élément(s) recréé(s).' : 'Rien à réparer : les référentiels sont complets.', 'ok'); if (n) journal('REFERENTIELS', 'Réparation : ' + n + ' élément(s)'); });
+          break;
+        case 'niv-enr': {
+          var v = ligneValeurs(tr), sr = Number(v.seuil_redoublement), sp = Number(v.seuil_passage), bs = Number(v.base);
+          if (!(sr >= 0 && sr <= bs && sp >= 0 && sp <= bs)) throw new Erreur('Les seuils doivent être compris entre 0 et ' + bs + '.');
+          modifier('niveaux', tr.dataset.id, { base: bs, seuil_redoublement: sr, seuil_passage: sp, suivant: v.suivant || null, suivant_alt: v.suivant_alt || null, format: v.format }, Number(tr.dataset.version), 'PARAMETRES')
+            .then(function (ok) { if (ok) { toast('Niveau enregistré.', 'ok'); activite('Niveau ' + nomNiveau(tr.dataset.id) + ' modifié'); } });
+          break;
+        }
+        case 'cl-enr': {
+          var c = ligneValeurs(tr);
+          controleClasse(c, tr.dataset.id);
+          modifier('classes', tr.dataset.id, { code: c.code.trim().toUpperCase(), nom: c.nom.trim(), niveau: c.niveau, effectif_max: Number(c.effectif_max) || 50, salle: c.salle.trim(), titulaire_fr: c.titulaire_fr.trim(), titulaire_ar: c.titulaire_ar.trim() },
+            Number(tr.dataset.version), 'PARAMETRES').then(function (ok) { if (ok) { toast('Classe enregistrée.', 'ok'); activite('Classe ' + c.nom + ' modifiée'); } });
+          break;
+        }
+        case 'cl-suppr': {
+          var cl = S.classes[tr.dataset.id];
+          if (confirm('Supprimer la classe ' + cl.nom + ' ?')) supprimer('classes', tr.dataset.id, 'PARAMETRES').then(function () { activite('Classe ' + cl.nom + ' supprimée'); });
+          break;
+        }
+        case 'mat-enr': {
+          var m = ligneValeurs(tr), bar = [Number(m.b0), Number(m.b1), Number(m.b2)];
+          if (!m.matiere.trim() || !m.rubrique.trim()) throw new Erreur('Matière et rubrique sont obligatoires.');
+          if (bar.some(function (x) { return !(x > 0 && x <= 100); })) throw new Erreur('Barème : un nombre entre 1 et 100 pour chaque composition.');
+          modifier('matieres', tr.dataset.id, { ordre: Number(m.ordre) || 0, langue: m.langue, matiere: m.matiere.trim(), rubrique: m.rubrique.trim(), baremes: bar, coef: Number(m.coef) || 0 },
+            Number(tr.dataset.version), 'PARAMETRES').then(function (ok) { if (ok) toast('Rubrique enregistrée.', 'ok'); });
+          break;
+        }
+        case 'mat-suppr': if (confirm('Supprimer cette rubrique ?')) supprimer('matieres', tr.dataset.id, 'PARAMETRES'); break;
+        case 'copier-mat': copierMatieres(refNiveau, $('#copie-vers').value); break;
+        case 'tf-enr': {
+          var t = ligneValeurs(tr), mt = {};
+          Object.keys(t).forEach(function (k) { if (k.indexOf('m_') === 0) { var x = Number(t[k]); if (!(x >= 0)) throw new Erreur('Montant invalide.'); mt[k.slice(2)] = x; } });
+          modifier('tarifs', tr.dataset.id, { montants: Object.assign({}, S.tarifs[tr.dataset.id].montants, mt) }, Number(tr.dataset.version), 'PARAMETRES')
+            .then(function (ok) { if (ok) { toast('Tarifs enregistrés.', 'ok'); activite('Tarifs « ' + S.tarifs[tr.dataset.id].categorie + ' » modifiés'); } });
+          break;
+        }
+        case 'u-modif': boiteModifCompte(b.dataset.id); break;
+        case 'journal-csv': {
+          var rows = [['Date', 'Compte', 'Événement', 'Détail', 'Poste']].concat(S.journal.map(function (j) { return [heure(j.le), j.identifiant, j.evenement, j.detail, j.poste]; }));
+          telecharger('\ufeff' + rows.map(function (r) { return r.map(function (x) { return '"' + String(x || '').replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n'), 'journal_acces.csv', 'text/csv');
+          break;
+        }
+        case 'sauver': sauver(); break;
+        case 'maint-on': confirmerMdp('Activer la maintenance met les autres comptes en lecture seule.').then(function () { return maintenance(true); }).catch(function () {}); break;
+        case 'maint-off': maintenance(false); break;
+        case 'copier-lien': copier($('#lien-install').value); break;
+        case 'copier-regles': copier(REGLES); break;
+      }
+    } catch (err) { erreurEcriture(err); }
+  });
+  function copier(t) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('Copié.', 'ok'); }, function () { toast('Copie impossible : sélectionnez le texte à la main.', 'ko'); }); }
+  function controleClasse(c, idExclu) {
+    if (!c.code.trim() || !c.nom.trim()) throw new Erreur('Code et nom de la classe sont obligatoires.');
+    if (!S.niveaux[c.niveau]) throw new Erreur('Choisissez un niveau.');
+    var code = c.code.trim().toUpperCase();
+    if (trier(S.classes, function () { return 0; }).some(function (k) { return k.id !== idExclu && String(k.code).toUpperCase() === code; })) throw new Erreur('Le code ' + code + ' est déjà utilisé.');
+  }
+  function copierMatieres(de, vers) {
+    verifierEcriture('PARAMETRES');
+    var src = trier(S.matieres, function (a, b) { return a.ordre - b.ordre; }).filter(function (m) { return m.niveau === de; });
+    var exist = trier(S.matieres, function () { return 0; }).filter(function (m) { return m.niveau === vers; });
+    if (!src.length) throw new Erreur('Ce niveau n\'a aucune matière à copier.');
+    if (exist.length && !confirm(nomNiveau(vers) + ' a déjà ' + exist.length + ' rubrique(s). Les remplacer par les ' + src.length + ' de ' + nomNiveau(de) + ' ?')) return;
+    var b = db.batch(), mt = meta(true);
+    exist.forEach(function (m) { b.delete(col('matieres').doc(m.id)); });
+    src.forEach(function (m) { b.set(col('matieres').doc(), { niveau: vers, langue: m.langue, matiere: m.matiere, rubrique: m.rubrique, baremes: m.baremes.slice(), ordre: m.ordre, coef: m.coef, cree_par: mt.cree_par, cree_le: mt.cree_le, modifie_par: mt.modifie_par, modifie_le: mt.modifie_le, version: 1 }); });
+    suivre(b.commit()).then(function () { toast(src.length + ' rubrique(s) copiée(s) vers ' + nomNiveau(vers) + '.', 'ok'); activite('Matières de ' + nomNiveau(de) + ' copiées vers ' + nomNiveau(vers)); }).catch(erreurEcriture);
+  }
+
+  document.addEventListener('change', function (ev) {
+    if (ev.target.id === 'ref-niveau') { refNiveau = ev.target.value; rendre(); }
+  });
+  document.addEventListener('submit', function (ev) {
+    var f = ev.target;
+    try {
+      if (f.id === 'f-classe') {
+        ev.preventDefault();
+        var c = { code: f.code.value, nom: f.nom.value, niveau: f.niveau.value };
+        controleClasse(c);
+        creer('classes', { code: c.code.trim().toUpperCase(), nom: c.nom.trim(), niveau: c.niveau, effectif_max: Number(f.effectif_max.value) || 50, salle: '', titulaire_fr: '', titulaire_ar: '' }, 'PARAMETRES');
+        toast('Classe ajoutée.', 'ok'); activite('Classe ' + c.nom.trim() + ' créée');
+      } else if (f.id === 'f-matiere') {
+        ev.preventDefault();
+        var bar = Number(f.bareme.value), ordre = trier(S.matieres, function () { return 0; }).filter(function (m) { return m.niveau === refNiveau; }).reduce(function (x, m) { return Math.max(x, m.ordre || 0); }, 0) + 1;
+        if (!(bar > 0 && bar <= 100)) throw new Erreur('Barème entre 1 et 100.');
+        creer('matieres', { niveau: refNiveau, langue: f.langue.value, matiere: f.matiere.value.trim(), rubrique: f.rubrique.value.trim(), baremes: [bar, bar, bar], ordre: ordre, coef: Number(f.coef.value) || 0 }, 'PARAMETRES');
+        toast('Rubrique ajoutée.', 'ok');
+      } else if (f.classList.contains('f-liste')) {
+        ev.preventDefault();
+        var lignes = f.v.value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean), val = lignes;
+        if (f.dataset.id === 'categories_caisse') val = lignes.map(function (l) {
+          var p = l.split(';').map(function (x) { return x.trim(); });
+          if (p.length < 2 || !/^(ENTREE|SORTIE)$/i.test(p[0])) throw new Erreur('Ligne « ' + l + ' » : écrivez ENTREE ou SORTIE ; nom.');
+          return { sens: p[0].toUpperCase(), categorie: p[1] };
+        });
+        if (!val.length) throw new Erreur('La liste ne peut pas être vide.');
+        var idl = f.dataset.id;
+        (S.listes[idl] ? modifier('listes', idl, { valeurs: val }, Number(f.dataset.version), 'PARAMETRES') : Promise.resolve(creer('listes', { valeurs: val }, 'PARAMETRES', idl)))
+          .then(function (ok) { if (ok) toast('Liste enregistrée.', 'ok'); });
+      }
+    } catch (err) { erreurEcriture(err); }
+  });
+
+  /* ===================================================================
+   *  10. RÈGLES DE SÉCURITÉ FIRESTORE (à publier dans la console)
+   * =================================================================== */
+  var REGLES = [
+    "rules_version = '2';",
+    "// CTEFA-CLASSIC Web : règles de sécurité (étape 1)",
+    "service cloud.firestore {",
+    "  match /databases/{database}/documents {",
+    "    match /ecoles/{ecole} {",
+    "      function chemin() { return /databases/$(database)/documents/ecoles/$(ecole); }",
+    "      function moi() { return get(/databases/$(database)/documents/ecoles/$(ecole)/utilisateurs/$(request.auth.uid)).data; }",
+    "      function membre() { return request.auth != null",
+    "        && exists(/databases/$(database)/documents/ecoles/$(ecole)/utilisateurs/$(request.auth.uid))",
+    "        && moi().actif == true && (moi().expire_ms == null || request.time.toMillis() < moi().expire_ms); }",
+    "      function principal() { return membre() && moi().role == 'ADMIN_PRINCIPAL'; }",
+    "      function droit(d) { return membre() && (moi().role == 'ADMIN_PRINCIPAL' || d in moi().droits); }",
+    "      function rang(r) { return {'ADMIN_PRINCIPAL': 7, 'ADMIN_SECONDAIRE': 6, 'SECRETAIRE': 4, 'CAISSIER': 4, 'ENSEIGNANT': 3, 'CONSULTATION': 2, 'DEMONSTRATION': 1}[r]; }",
+    "      function libre() { return get(chemin()).data.maintenance == null || get(chemin()).data.maintenance.uid == request.auth.uid; }",
+    "",
+    "      allow read: if membre();",
+    "      allow create: if request.auth != null && request.resource.data.fondateur == request.auth.uid;",
+    "      allow update: if (droit('PARAMETRES') && libre()",
+    "                        && (droit('ECOLE') || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['cycles', 'fondateur', 'licence'])))",
+    "                    || (principal() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['maintenance']));",
+    "",
+    "      match /utilisateurs/{uid} {",
+    "        allow read: if membre();",
+    "        // premier démarrage : le fondateur crée sa propre fiche d'administrateur principal",
+    "        allow create: if (request.auth != null && request.auth.uid == uid && get(chemin()).data.fondateur == uid",
+    "                          && request.resource.data.role == 'ADMIN_PRINCIPAL')",
+    "                      || (droit('UTILISATEURS') && libre() && (principal() || rang(request.resource.data.role) < rang(moi().role)));",
+    "        allow update: if (droit('UTILISATEURS') && libre() && uid != request.auth.uid",
+    "                          && (principal() || (rang(resource.data.role) < rang(moi().role) && rang(request.resource.data.role) < rang(moi().role))))",
+    "                      || (request.auth != null && uid == request.auth.uid",
+    "                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doit_changer', 'derniere_connexion', 'modifie_le', 'modifie_par']))",
+    "                      || (principal() && uid == request.auth.uid);",
+    "        allow delete: if principal();",
+    "      }",
+    "      match /journal_acces/{id} {",
+    "        allow read: if droit('UTILISATEURS');",
+    "        allow create: if membre() || (request.auth != null && request.resource.data.evenement == 'REFUS');",
+    "      }",
+    "      match /{nom}/{id} {",
+    "        allow read: if membre();",
+    "        allow create, update: if membre() && libre() && peutEcrire(nom);",
+    "        allow delete: if membre() && libre() && peutEcrire(nom) && nom != 'caisse' && nom != 'journal_acces';",
+    "      }",
+    "      function peutEcrire(nom) {",
+    "        return (nom in ['niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'sauvegardes'] && droit('PARAMETRES'))",
+    "          || (nom == 'eleves' && droit('ELEVES'))",
+    "          || (nom == 'notes' && droit('NOTES'))",
+    "          || (nom in ['decisions', 'resultats'] && droit('BULLETINS'))",
+    "          || (nom in ['caisse', 'restes_dus', 'stock'] && droit('CAISSE'))",
+    "          || (nom in ['personnel', 'affectations'] && droit('PERSONNEL'))",
+    "          || (nom == 'documents_registre' && droit('DOCUMENTS'))",
+    "          || (nom in ['presences', 'pointages', 'quantum'] && droit('LISTES'))",
+    "          || (nom in ['presence', 'activite', 'compteurs', 'verrous'] && membre())",
+    "          || principal();",
+    "      }",
+    "    }",
+    "  }",
+    "}"
+  ].join('\n');
+
+  /* ===================================================================
+   *  11. DÉMARRAGE
+   * =================================================================== */
+  window.CtefaDebug = { S: S, prochainNumero: prochainNumero, modifier: modifier };
+  if (!window.firebase) { plein('<div class="boite"><h2>Connexion internet nécessaire</h2><p>Le premier chargement de l\'application demande internet.</p><p><button class="btn plein" onclick="location.reload()">Réessayer</button></p></div>'); return; }
+  if (!CFG) ecranConfig(); else demarrerFirebase();
+})();
+</script>
 </body>
 </html>

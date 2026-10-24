@@ -1,0 +1,58 @@
+rules_version = '2';
+// CTEFA-CLASSIC Web : règles de sécurité (étape 1)
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /ecoles/{ecole} {
+      function chemin() { return /databases/$(database)/documents/ecoles/$(ecole); }
+      function moi() { return get(/databases/$(database)/documents/ecoles/$(ecole)/utilisateurs/$(request.auth.uid)).data; }
+      function membre() { return request.auth != null
+        && exists(/databases/$(database)/documents/ecoles/$(ecole)/utilisateurs/$(request.auth.uid))
+        && moi().actif == true && (moi().expire_ms == null || request.time.toMillis() < moi().expire_ms); }
+      function principal() { return membre() && moi().role == 'ADMIN_PRINCIPAL'; }
+      function droit(d) { return membre() && (moi().role == 'ADMIN_PRINCIPAL' || d in moi().droits); }
+      function rang(r) { return {'ADMIN_PRINCIPAL': 7, 'ADMIN_SECONDAIRE': 6, 'SECRETAIRE': 4, 'CAISSIER': 4, 'ENSEIGNANT': 3, 'CONSULTATION': 2, 'DEMONSTRATION': 1}[r]; }
+      function libre() { return get(chemin()).data.maintenance == null || get(chemin()).data.maintenance.uid == request.auth.uid; }
+
+      allow read: if membre();
+      allow create: if request.auth != null && request.resource.data.fondateur == request.auth.uid;
+      allow update: if (droit('PARAMETRES') && libre()
+                        && (droit('ECOLE') || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['cycles', 'fondateur', 'licence'])))
+                    || (principal() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['maintenance']));
+
+      match /utilisateurs/{uid} {
+        allow read: if membre();
+        // premier démarrage : le fondateur crée sa propre fiche d'administrateur principal
+        allow create: if (request.auth != null && request.auth.uid == uid && get(chemin()).data.fondateur == uid
+                          && request.resource.data.role == 'ADMIN_PRINCIPAL')
+                      || (droit('UTILISATEURS') && libre() && (principal() || rang(request.resource.data.role) < rang(moi().role)));
+        allow update: if (droit('UTILISATEURS') && libre() && uid != request.auth.uid
+                          && (principal() || (rang(resource.data.role) < rang(moi().role) && rang(request.resource.data.role) < rang(moi().role))))
+                      || (request.auth != null && uid == request.auth.uid
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doit_changer', 'derniere_connexion', 'modifie_le', 'modifie_par']))
+                      || (principal() && uid == request.auth.uid);
+        allow delete: if principal();
+      }
+      match /journal_acces/{id} {
+        allow read: if droit('UTILISATEURS');
+        allow create: if membre() || (request.auth != null && request.resource.data.evenement == 'REFUS');
+      }
+      match /{nom}/{id} {
+        allow read: if membre();
+        allow create, update: if membre() && libre() && peutEcrire(nom);
+        allow delete: if membre() && libre() && peutEcrire(nom) && nom != 'caisse' && nom != 'journal_acces';
+      }
+      function peutEcrire(nom) {
+        return (nom in ['niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'sauvegardes'] && droit('PARAMETRES'))
+          || (nom == 'eleves' && droit('ELEVES'))
+          || (nom == 'notes' && droit('NOTES'))
+          || (nom in ['decisions', 'resultats'] && droit('BULLETINS'))
+          || (nom in ['caisse', 'restes_dus', 'stock'] && droit('CAISSE'))
+          || (nom in ['personnel', 'affectations'] && droit('PERSONNEL'))
+          || (nom == 'documents_registre' && droit('DOCUMENTS'))
+          || (nom in ['presences', 'pointages', 'quantum'] && droit('LISTES'))
+          || (nom in ['presence', 'activite', 'compteurs', 'verrous'] && membre())
+          || principal();
+      }
+    }
+  }
+}
