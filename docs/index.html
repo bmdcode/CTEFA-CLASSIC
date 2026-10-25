@@ -106,6 +106,40 @@ td input, td select { min-height: 34px; padding: 5px 7px; }
 .pied { text-align: center; font-size: .8rem; color: var(--doux); padding: 10px 16px 24px; }
 .cache { display: none !important; }
 @media (max-width: 600px) { .mm { display: none; } main { padding: 12px; } }
+/* grille de saisie des notes */
+.grille-notes { max-height: 70vh; overflow: auto; }
+table.notes th { position: sticky; top: 0; z-index: 2; font-size: .7rem; line-height: 1.2; vertical-align: bottom; min-width: 62px; text-transform: none; letter-spacing: 0; }
+table.notes th small { font-weight: 400; }
+table.notes .fixe-g { position: sticky; left: 0; background: var(--carte); z-index: 1; white-space: nowrap; min-width: 150px; font-size: .88rem; }
+table.notes thead .fixe-g { z-index: 3; background: var(--survol); }
+table.notes td.cn { padding: 2px; }
+input.note, input.note-essai { width: 58px; min-height: 36px; text-align: center; padding: 4px; }
+input.note.ok, input.note-essai.ok { background: var(--ok); }
+input.note.faux, input.note-essai.faux { background: var(--ko); border-color: var(--rouge); }
+input.note.distant { outline: 2px solid var(--ambre); }
+td.moy { font-weight: 700; }
+.lg { display: inline-block; font-size: .62rem; border-radius: 4px; padding: 0 4px; color: #fff; background: #153A62; }
+.lg-AR { background: #277740; } .lg-LN { background: #8D6E00; }
+tr.sous-seuil td { color: var(--rouge); } tr.non-classe td { color: var(--doux); font-style: italic; }
+/* bulletins */
+.bulletin { font-size: 10.5pt; }
+.doc-info { width: 100%; border-collapse: collapse; margin: 6px 0; }
+.doc-info td { padding: 3px 4px; font-size: 9.5pt; border: 0; color: #000; background: #fff; }
+.doc-table.resume td { text-align: center; vertical-align: top; }
+.doc-table tr.total td { background: #F2F2F2; }
+.gros { font-size: 13pt; }
+.doc-texte { margin: 6px 0; font-size: 10pt; }
+.doc-signatures { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }
+.doc-signatures td { text-align: center; vertical-align: top; height: 64px; font-size: 9pt; border: 0; color: #000; background: #fff; }
+.doc-titre.petit { font-size: 11pt; margin: 6px 0; }
+.bulletin-compact { font-size: 9pt; }
+.bulletin-compact .doc-entete { font-size: 7.5pt; }
+.bulletin-compact .doc-table th, .bulletin-compact .doc-table td { padding: 2px 4px; font-size: 8.5pt; }
+.bulletin-compact .doc-signatures td { height: 40px; }
+.coupe { border-top: 1px dashed #999; margin: 8mm 0; }
+.releve th.vertical { font-size: 7.5pt; min-width: 34px; }
+.releve td { height: 22px; }
+.saut { break-after: page; page-break-after: always; height: 0; }
 input.a-verifier, span.a-verifier { border-color: var(--ambre) !important; box-shadow: 0 0 0 2px rgba(191,143,0,.35); }
 tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--survol); }
 .barre { height: 8px; background: var(--survol); border-radius: 4px; overflow: hidden; min-width: 80px; }
@@ -156,7 +190,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   var CONFIG_INTEGREE = null; /* ex. { apiKey: "...", authDomain: "...", projectId: "...", appId: "..." } */
   var CLE_CONFIG = 'ctefa.firebase', CLE_THEME = 'ctefa.theme', CLE_ECHECS = 'ctefa.echecs';
   var ESPACE = 'ecoles/principale';
-  var VERSION_APP = '2.0 (étape 2)';
+  var VERSION_APP = '3.0 (étape 3)';
   var ASSISTANCE = 'Baye Modou DIOP — 78 295 80 96 / 76 518 55 48';
 
   function lireLocal(k) { try { return localStorage.getItem(k); } catch (x) { return null; } }
@@ -263,7 +297,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
    * =================================================================== */
   var CFG = configuration(), db = null, auth = null, appli = null;
   var S = {   /* données en mémoire, tenues à jour par les écoutes */
-    ecole: null, utilisateurs: {}, eleves: {}, personnel: {}, affectations: {}, niveaux: {}, classes: {}, matieres: {}, tarifs: {}, listes: {}, presence: {}, activite: [], journal: [],
+    ecole: null, utilisateurs: {}, eleves: {}, personnel: {}, affectations: {}, decisions: {}, resultats: {}, epreuves: {}, niveaux: {}, classes: {}, matieres: {}, tarifs: {}, listes: {}, presence: {}, activite: [], journal: [],
     moi: null, profil: null, pret: false, enLigne: navigator.onLine, attente: 0, derniereSync: null, depuisCache: true
   };
   var ecoutes = [], minuteurPresence = null;
@@ -432,7 +466,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     ecoutes.push(docEcole().onSnapshot({ includeMetadataChanges: true }, function (s) {
       S.ecole = s.exists ? s.data() : null; majEtat(); rendrePlusTard();
     }));
-    ['utilisateurs', 'niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'presence', 'eleves', 'personnel', 'affectations'].forEach(function (n) { suivreCollection(n, n); });
+    ['utilisateurs', 'niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'presence', 'eleves', 'personnel', 'affectations', 'decisions', 'resultats', 'epreuves'].forEach(function (n) { suivreCollection(n, n); });
     suivreCollection('activite', 'activite', col('activite').orderBy('le', 'desc').limit(30));
     if (peut('UTILISATEURS')) suivreCollection('journal_acces', 'journal', col('journal_acces').orderBy('le', 'desc').limit(300));
     ecoutes.push(col('utilisateurs').doc(S.moi.uid).onSnapshot(function (s) {   /* compte modifié ou désactivé à distance */
@@ -637,9 +671,9 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   /* ===================================================================
    *  7. CADRE DE L'APPLICATION ET NAVIGATION
    * =================================================================== */
-  var TITRES = { accueil: 'Accueil', eleves: 'Élèves', personnel: 'Personnel', ecole: 'École', referentiels: 'Référentiels', utilisateurs: 'Utilisateurs', journal: 'Journal', sauvegarde: 'Sauvegarde', aide: 'Aide' };
+  var TITRES = { accueil: 'Accueil', eleves: 'Élèves', notes: 'Évaluations', personnel: 'Personnel', ecole: 'École', referentiels: 'Référentiels', utilisateurs: 'Utilisateurs', journal: 'Journal', sauvegarde: 'Sauvegarde', aide: 'Aide' };
   var MENU = [
-    ['accueil', null], ['eleves', ['ELEVES', 'LISTES', 'NOTES', 'CAISSE']], ['personnel', ['PERSONNEL', 'LISTES']], ['ecole', null], ['referentiels', null], ['utilisateurs', 'UTILISATEURS'], ['journal', 'UTILISATEURS'], ['sauvegarde', 'PARAMETRES'], ['aide', null]
+    ['accueil', null], ['eleves', ['ELEVES', 'LISTES', 'NOTES', 'CAISSE']], ['notes', ['NOTES', 'BULLETINS']], ['personnel', ['PERSONNEL', 'LISTES']], ['ecole', null], ['referentiels', null], ['utilisateurs', 'UTILISATEURS'], ['journal', 'UTILISATEURS'], ['sauvegarde', 'PARAMETRES'], ['aide', null]
   ];
   function vueCourante() { var v = (location.hash.slice(1) || 'accueil').split('/')[0]; return TITRES[v] && autorisee(v) ? v : 'accueil'; }
   function sousVue() { return location.hash.slice(1).split('/')[1] || ''; }
@@ -862,7 +896,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     var ro = lectureSeule() ? ' disabled' : '', niv = niveauxEcole();
     var opts = function (choisi) { return '<option value="">—</option>' + niv.map(function (n) { return '<option value="' + n.code + '"' + (n.code === choisi ? ' selected' : '') + '>' + e(n.nom) + '</option>'; }).join(''); };
     return carte('Niveaux de l\'école', '<p class="aide" style="margin-top:0">Seuls les niveaux des cycles cochés dans la fiche de l\'école apparaissent. Les seuils servent aux propositions de passage.</p>' +
-      '<div class="table-defil"><table><thead><tr><th>Niveau</th><th>Cycle</th><th>Notes sur</th><th>Seuil redoublement</th><th>Seuil passage</th><th>Niveau suivant</th><th class="mm">Suivant alternatif</th><th class="mm">Bulletin</th><th></th></tr></thead><tbody>' +
+      '<div class="table-defil"><table><thead><tr><th>Niveau</th><th>Cycle</th><th>Notes sur</th><th>Seuil redoublement</th><th>Seuil passage</th><th>Niveau suivant</th><th class="mm">Suivant alternatif</th><th class="mm">Bulletin</th><th>Périodes</th><th></th></tr></thead><tbody>' +
       niv.map(function (n) {
         return '<tr data-id="' + n.id + '" data-version="' + n.version + '"><td><strong>' + e(n.nom) + '</strong></td><td class="aide">' + CYCLES[n.cycle] + '</td>' +
           '<td><select name="base"' + ro + '><option' + (n.base === 10 ? ' selected' : '') + '>10</option><option' + (n.base === 20 ? ' selected' : '') + '>20</option></select></td>' +
@@ -870,6 +904,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
           '<td><input name="seuil_passage" type="number" step="0.25" min="0" value="' + e(n.seuil_passage) + '"' + ro + '></td>' +
           '<td><select name="suivant"' + ro + '>' + opts(n.suivant) + '</select></td><td class="mm"><select name="suivant_alt"' + ro + '>' + opts(n.suivant_alt) + '</select></td>' +
           '<td class="mm"><select name="format"' + ro + '><option' + (n.format === 'EFA' ? ' selected' : '') + '>EFA</option><option' + (n.format === 'CLASSIQUE' ? ' selected' : '') + '>CLASSIQUE</option></select></td>' +
+          '<td><select name="periodes"' + ro + '><option value="3"' + ((n.periodes || 3) === 3 ? ' selected' : '') + '>3 compositions</option><option value="2"' + (n.periodes === 2 ? ' selected' : '') + '>2 semestres</option></select></td>' +
           '<td>' + (ro ? '' : '<button class="btn petit" data-act="niv-enr">Enregistrer</button>') + '</td></tr>';
       }).join('') + '</tbody></table></div>', ro ? '' : '<button class="btn" data-act="reparer">🔧 Réparer les référentiels</button><span class="aide">Recrée les niveaux, matières, listes et tarifs manquants, sans toucher à vos modifications.</span>');
   };
@@ -1042,7 +1077,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
 
   /* ---------- Sauvegarde, restauration, maintenance ---------- */
   var COLLECTIONS = ['utilisateurs', 'matricules', 'niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'compteurs', 'journal_acces', 'activite',
-                     'eleves', 'personnel', 'affectations', 'notes', 'decisions', 'caisse', 'restes_dus', 'documents_registre', 'presences', 'pointages', 'quantum', 'stock'];
+                     'eleves', 'personnel', 'affectations', 'notes', 'decisions', 'resultats', 'epreuves', 'verrous', 'caisse', 'restes_dus', 'documents_registre', 'presences', 'pointages', 'quantum', 'stock'];
   VUES.sauvegarde = function () {
     var m = S.ecole.maintenance, princ = S.profil.role === 'ADMIN_PRINCIPAL';
     return '<h2>Sauvegarde et restauration</h2><div class="grille">' +
@@ -2374,6 +2409,643 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
 
 
   /* ===================================================================
+   *  ÉTAPE 3 — NOTES, CALCULS, BULLETINS, RÉSULTATS, CONSEIL DE CLASSE
+   *
+   *  Règles de calcul :
+   *   - Une épreuve (rubrique) que personne n'a passée dans la classe est exclue.
+   *   - Un élève qui a au moins une note est classé ; pour lui, une rubrique
+   *     passée par la classe mais sans note, ou marquée ABS, compte 0.
+   *   - Format EFA (sur 10) : moyenne d'une langue = Σ notes ÷ Σ barèmes × base ;
+   *     moyenne générale = moyenne des langues (les langues nationales comptent
+   *     avec le français). Format CLASSIQUE : Σ notes ÷ Σ barèmes × base.
+   *   - Moyen et secondaire (sur 20) : note de matière = (moyenne des devoirs +
+   *     composition) ÷ 2 ; moyenne = Σ (note × coef) ÷ Σ coef.
+   *   - Rang : les ex aequo partagent le rang (1er, 2e ex, 2e ex, 4e).
+   *   - Moyenne annuelle = moyenne des périodes où l'élève est classé.
+   * =================================================================== */
+  var NOTES = {}, ecoutesNotes = {};      /* NOTES[classeId] = { docId: note } */
+  var ui3 = { classe: null, compo: 1, matiere: '', verrou: null, minVerrou: null, resPeriode: 1, edType: 'bulletins', edFormat: 'detaille', edOrdre: 'alpha', edEleve: '', essai: null };
+  var LIB_LANGUE = { FR: 'Français', AR: 'Arabe', LN: 'Langue nationale' };
+  var DECISIONS = { PASSAGE: 'Passe en classe supérieure', PASSAGE_COND: 'Passage à l\'appréciation du conseil', REDOUBLEMENT: 'Redouble', EXCLUSION: 'Exclusion', FIN_CYCLE: 'Fin de cycle (admis)', ORIENTATION: 'Orientation', SANS_NOTE: 'Non classé' };
+
+  function arr(x, n) { var p = Math.pow(10, n === undefined ? 2 : n); return Math.round(x * p) / p; }
+  function nb(x) { return x === null || x === undefined || x === '' ? '—' : String(x).replace('.', ','); }
+  function niveauDe(classeId) { var c = classeDe(classeId); return c ? S.niveaux[c.niveau] : null; }
+  function nbPeriodes(n) { return (n && n.periodes) || 3; }
+  function libPeriode(n, k) { return k === 'A' ? 'Année' : (nbPeriodes(n) === 2 ? 'Semestre ' + k : 'Composition ' + k); }
+  function rubriquesDe(niveauCode) { return liste(S.matieres).filter(function (m) { return m.niveau === niveauCode; }).sort(function (a, b) { return a.ordre - b.ordre; }); }
+  function matieresListe(niveauCode) { var vues = {}, r = []; rubriquesDe(niveauCode).forEach(function (m) { var k = m.langue + '|' + m.matiere; if (!vues[k]) { vues[k] = 1; r.push({ langue: m.langue, matiere: m.matiere, cle: k }); } }); return r; }
+  function idNote(eleveId, compo, rubId) { return eleveId + '_' + compo + '_' + rubId; }
+  function rangTexte(r, ex, sexe) { if (!r) return ''; return r + (r === 1 ? (sexe === 'F' ? 're' : 'er') : 'e') + (ex ? ' ex' : ''); }
+  function appreciation(m, base) {
+    if (m === null || m === undefined) return '';
+    var x = m / base * 10;
+    return x >= 9 ? 'Excellent' : x >= 8 ? 'Très bien' : x >= 7 ? 'Bien' : x >= 6 ? 'Assez bien' : x >= 5 ? 'Passable' : x >= 3 ? 'Insuffisant' : 'Très insuffisant';
+  }
+  function appreciationAr(m, base) {
+    if (m === null || m === undefined) return '';
+    var x = m / base * 10;
+    return x >= 9 ? 'ممتاز' : x >= 8 ? 'جيد جدا' : x >= 7 ? 'جيد' : x >= 6 ? 'مستحسن' : x >= 5 ? 'مقبول' : x >= 3 ? 'ضعيف' : 'ضعيف جدا';
+  }
+
+  /* ---------- notes en temps réel, par classe ---------- */
+  function ecouterNotes(classeId) {
+    if (!classeId || ecoutesNotes[classeId]) return;
+    NOTES[classeId] = NOTES[classeId] || {};
+    ecoutesNotes[classeId] = col('notes').where('classe_id', '==', classeId).onSnapshot(function (snap) {
+      snap.docChanges().forEach(function (c) {
+        if (c.type === 'removed') delete NOTES[classeId][c.doc.id];
+        else { var x = c.doc.data(); x.id = c.doc.id; NOTES[classeId][c.doc.id] = x; }
+      });
+      NOTES[classeId].__charge = true;
+      majGrilleDistante(classeId);
+      rendrePlusTard();
+    }, function (err) { toast('Lecture des notes refusée : ' + messageAuth(err), 'ko'); });
+  }
+  function notesChargees(classeId) { return !!(NOTES[classeId] && NOTES[classeId].__charge); }
+  function valeurNote(classeId, eleveId, compo, rubId) { var n = NOTES[classeId] && NOTES[classeId][idNote(eleveId, compo, rubId)]; return n ? n.valeur : null; }
+
+  /* ---------- moteur de calcul ---------- */
+  function calculer(classeId, compo) {
+    var c = classeDe(classeId), niv = S.niveaux[c.niveau] || { base: 10, format: 'EFA' }, base = niv.base || 10;
+    var rubs = rubriquesDe(c.niveau), eleves = elevesActifsDe(classeId).sort(function (a, b) { return a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom); });
+    var bar = function (r) { return Number((r.baremes || [])[compo - 1]) || base; };
+    /* rubriques réellement passées par la classe */
+    var passees = rubs.filter(function (r) { return eleves.some(function (x) { var v = valeurNote(classeId, x.id, compo, r.id); return v !== null && v !== undefined && v !== ''; }); });
+    var lignes = eleves.map(function (x) {
+      var vals = {}, aNote = false;
+      passees.forEach(function (r) { var v = valeurNote(classeId, x.id, compo, r.id); if (typeof v === 'number') aNote = true; vals[r.id] = v; });
+      var l = { eleve: x, classe: aNote, langues: {}, matieres: [], g: null, notes: vals };
+      if (!aNote) return l;
+      var note = function (r) { return typeof vals[r.id] === 'number' ? vals[r.id] : 0; };
+      var mats = [];
+      passees.forEach(function (r) {
+        var m = mats.find(function (z) { return z.matiere === r.matiere && z.langue === r.langue; });
+        if (!m) { m = { matiere: r.matiere, langue: r.langue, coef: Number(r.coef) || 1, rubs: [] }; mats.push(m); }
+        m.rubs.push({ r: r, note: note(r), bareme: bar(r), abs: vals[r.id] === 'ABS' || vals[r.id] === null || vals[r.id] === undefined });
+      });
+      mats.forEach(function (m) {
+        m.total = arr(m.rubs.reduce(function (s, z) { return s + z.note; }, 0)); m.bareme = m.rubs.reduce(function (s, z) { return s + z.bareme; }, 0);
+        if (base === 20) {
+          var dev = m.rubs.filter(function (z) { return /^devoir/i.test(z.r.rubrique); }), cp = m.rubs.filter(function (z) { return /^compo/i.test(z.r.rubrique); });
+          var md = dev.length ? dev.reduce(function (s, z) { return s + z.note / z.bareme * 20; }, 0) / dev.length : null;
+          var mc = cp.length ? cp.reduce(function (s, z) { return s + z.note / z.bareme * 20; }, 0) / cp.length : null;
+          if (md === null && mc === null) { md = m.rubs.reduce(function (s, z) { return s + z.note / z.bareme * 20; }, 0) / m.rubs.length; }
+          m.devoirs = md === null ? null : arr(md); m.compo = mc === null ? null : arr(mc);
+          m.note = arr(md !== null && mc !== null ? (md + mc) / 2 : (mc !== null ? mc : md));
+        } else m.note = arr(m.total / m.bareme * base);
+      });
+      l.matieres = mats;
+      var langues = {};
+      mats.forEach(function (m) { var lg = (niv.format === 'EFA' && m.langue === 'LN') ? 'FR' : m.langue; (langues[lg] = langues[lg] || []).push(m); });
+      Object.keys(langues).forEach(function (lg) {
+        var ms = langues[lg];
+        l.langues[lg] = base === 20 ? arr(ms.reduce(function (s, m) { return s + m.note * m.coef; }, 0) / ms.reduce(function (s, m) { return s + m.coef; }, 0))
+                                    : arr(ms.reduce(function (s, m) { return s + m.total; }, 0) / ms.reduce(function (s, m) { return s + m.bareme; }, 0) * base);
+      });
+      if (base === 20) l.g = arr(mats.reduce(function (s, m) { return s + m.note * m.coef; }, 0) / mats.reduce(function (s, m) { return s + m.coef; }, 0));
+      else if (niv.format === 'EFA') { var lg2 = Object.keys(l.langues); l.g = arr(lg2.reduce(function (s, k) { return s + l.langues[k]; }, 0) / lg2.length); }
+      else l.g = arr(mats.reduce(function (s, m) { return s + m.total; }, 0) / mats.reduce(function (s, m) { return s + m.bareme; }, 0) * base);
+      return l;
+    });
+    return finaliser(c, niv, compo, lignes, passees);
+  }
+  function calculerAnnee(classeId) {
+    var c = classeDe(classeId), niv = S.niveaux[c.niveau] || { base: 10 }, per = [];
+    for (var k = 1; k <= nbPeriodes(niv); k++) per.push(calculer(classeId, k));
+    var lignes = elevesActifsDe(classeId).map(function (x) {
+      var ps = per.map(function (R) { return R.lignes.find(function (l) { return l.eleve.id === x.id; }); });
+      var cl = ps.filter(function (l) { return l && l.classe; });
+      var l = { eleve: x, classe: cl.length > 0, langues: {}, periodes: ps.map(function (p) { return p && p.classe ? p.g : null; }), rangsPer: ps.map(function (p) { return p && p.classe ? [p.rang_g, p.ex_g] : null; }), g: null };
+      if (cl.length) {
+        l.g = arr(cl.reduce(function (s, p) { return s + p.g; }, 0) / cl.length);
+        ['FR', 'AR', 'LN'].forEach(function (lg) { var v = cl.filter(function (p) { return p.langues[lg] !== undefined; }); if (v.length) l.langues[lg] = arr(v.reduce(function (s, p) { return s + p.langues[lg]; }, 0) / v.length); });
+      }
+      return l;
+    });
+    var R = finaliser(c, niv, 'A', lignes, []); R.periodes = per; return R;
+  }
+  function classer(lignes, cle, get) {
+    var t = lignes.filter(function (l) { return get(l) !== null && get(l) !== undefined; }).sort(function (a, b) { return get(b) - get(a); });
+    t.forEach(function (l, i) { l['rang_' + cle] = i > 0 && get(t[i - 1]) === get(l) ? t[i - 1]['rang_' + cle] : i + 1; });
+    t.forEach(function (l) { l['ex_' + cle] = t.filter(function (y) { return get(y) === get(l); }).length > 1; });
+  }
+  function finaliser(c, niv, compo, lignes, passees) {
+    classer(lignes, 'g', function (l) { return l.classe ? l.g : null; });
+    ['FR', 'AR', 'LN'].forEach(function (lg) { classer(lignes, lg, function (l) { return l.classe && l.langues[lg] !== undefined ? l.langues[lg] : null; }); });
+    var base = niv.base || 10, seuil = niv.seuil_passage !== undefined ? niv.seuil_passage : base / 2, cl = lignes.filter(function (l) { return l.classe; });
+    var st = { inscrits: lignes.length, filles: lignes.filter(function (l) { return l.eleve.sexe === 'F'; }).length, classes: cl.length,
+      classes_f: cl.filter(function (l) { return l.eleve.sexe === 'F'; }).length, base: base, seuil: seuil,
+      moyenne: cl.length ? arr(cl.reduce(function (s, l) { return s + l.g; }, 0) / cl.length) : null,
+      max: cl.length ? Math.max.apply(null, cl.map(function (l) { return l.g; })) : null, min: cl.length ? Math.min.apply(null, cl.map(function (l) { return l.g; })) : null,
+      admis: cl.filter(function (l) { return l.g >= seuil; }).length, admis_f: cl.filter(function (l) { return l.g >= seuil && l.eleve.sexe === 'F'; }).length };
+    st.taux = cl.length ? arr(100 * st.admis / cl.length, 1) : null;
+    st.taux_f = st.classes_f ? arr(100 * st.admis_f / st.classes_f, 1) : null;
+    return { classe: c, niveau: niv, compo: compo, lignes: lignes, stats: st, passees: passees };
+  }
+
+  /* ---------- verrou d'édition d'une grille (60 s, renouvelé) ---------- */
+  function cleVerrou(classeId, compo, matiere) { return [classeId, compo, normal(matiere || 'TOUTES').replace(/\s+/g, '_')].join('__').slice(0, 140); }
+  function clesGrille() {
+    var c = classeDe(ui3.classe); if (!c) return [];
+    var mats = ui3.matiere ? [ui3.matiere.split('|')[1]] : matieresListe(c.niveau).map(function (m) { return m.matiere; });
+    return mats.map(function (m) { return cleVerrou(ui3.classe, ui3.compo, m); });
+  }
+  function prendreVerrou() {
+    var cles = clesGrille(), moi = S.moi.uid;
+    if (!cles.length || !peut('NOTES')) { ui3.verrou = { lecture: true, raison: peut('NOTES') ? '' : 'Votre compte ne peut pas saisir de notes.' }; return Promise.resolve(); }
+    if (!S.enLigne) { ui3.verrou = { lecture: false, horsLigne: true }; return Promise.resolve(); }
+    return db.runTransaction(function (tx) {
+      return Promise.all(cles.map(function (k) { return tx.get(col('verrous').doc(k)); })).then(function (snaps) {
+        var pris = snaps.map(function (s) { return s.exists ? s.data() : null; }).find(function (d) { return d && d.uid !== moi && d.expire_ms > Date.now(); });
+        if (pris) return pris;
+        cles.forEach(function (k) { tx.set(col('verrous').doc(k), { uid: moi, nom: S.profil.nom, expire_ms: Date.now() + 60000, le: maintenant() }); });
+        return null;
+      });
+    }).then(function (pris) {
+      ui3.verrou = pris ? { lecture: true, par: pris.nom } : { lecture: false, cles: cles };
+      clearInterval(ui3.minVerrou);
+      if (!pris) ui3.minVerrou = setInterval(renouvelerVerrou, 30000);
+    }).catch(function () { ui3.verrou = { lecture: false, horsLigne: true }; });
+  }
+  function renouvelerVerrou() {
+    if (!ui3.verrou || !ui3.verrou.cles || vueCourante() !== 'notes') return libererVerrou();
+    var b = db.batch(); ui3.verrou.cles.forEach(function (k) { b.set(col('verrous').doc(k), { uid: S.moi.uid, nom: S.profil.nom, expire_ms: Date.now() + 60000, le: maintenant() }); });
+    b.commit().catch(function () {});
+  }
+  function libererVerrou() {
+    clearInterval(ui3.minVerrou);
+    var v = ui3.verrou; ui3.verrou = null;
+    if (v && v.cles) { var b = db.batch(); v.cles.forEach(function (k) { b.delete(col('verrous').doc(k)); }); b.commit().catch(function () {}); }
+  }
+  window.addEventListener('hashchange', function () { if (vueCourante() !== 'notes' || sousVue() !== 'saisie') libererVerrou(); });
+  window.addEventListener('beforeunload', libererVerrou);
+
+  /* ---------------------------------------------------------------
+   *  VUE : ÉVALUATIONS (saisie, résultats, conseil, éditions, essais)
+   * --------------------------------------------------------------- */
+  var ONGLETS_NOTES = { saisie: 'Saisie des notes', resultats: 'Résultats', conseil: 'Conseil de classe', editions: 'Éditions', essais: 'Tests et essais' };
+  var NO = {};
+  VUES.notes = function () {
+    var o = ONGLETS_NOTES[sousVue()] ? sousVue() : 'saisie';
+    var cls = classesTriees();
+    if (!cls.length) return '<h2>Évaluations</h2>' + carte('Aucune classe', '<p>Créez d\'abord les classes (Référentiels).</p>');
+    if (!classeDe(ui3.classe)) ui3.classe = cls[0].id;
+    ecouterNotes(ui3.classe);
+    var niv = niveauDe(ui3.classe);
+    if (ui3.compo > nbPeriodes(niv)) ui3.compo = 1;
+    return '<h2>Évaluations</h2><nav class="onglets">' + Object.keys(ONGLETS_NOTES).map(function (k) { return '<a href="#notes/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_NOTES[k] + '</a>'; }).join('') + '</nav>' +
+      (o === 'essais' ? '' : '<div class="carte pas-imprimer"><div class="carte-corps ligne"><div><label>Classe active</label><select id="n-classe">' + optClasses(ui3.classe) + '</select></div>' +
+        '<div><label>' + (o === 'saisie' ? 'Composition' : 'Période') + '</label><select id="n-compo">' + periodesOpt(niv, o === 'saisie' ? ui3.compo : ui3.resPeriode, o !== 'saisie') + '</select></div>' +
+        (o === 'saisie' ? '<div><label>Matière</label><select id="n-matiere"><option value="">Toutes les matières</option>' + matieresListe(classeDe(ui3.classe).niveau).map(function (m) { return '<option value="' + e(m.cle) + '"' + (m.cle === ui3.matiere ? ' selected' : '') + '>' + e(m.langue + ' · ' + m.matiere) + '</option>'; }).join('') + '</select></div>' : '') +
+        '</div></div>') + (notesChargees(ui3.classe) || o === 'essais' ? NO[o]() : '<p class="aide">Chargement des notes…</p>');
+  };
+  VUES.notes.apres = function () {
+    var o = ONGLETS_NOTES[sousVue()] ? sousVue() : 'saisie';
+    var c = $('#n-classe'); if (c) c.onchange = function () { libererVerrou(); ui3.classe = c.value; ui3.matiere = ''; rendre(); };
+    var p = $('#n-compo'); if (p) p.onchange = function () { libererVerrou(); if (o === 'saisie') ui3.compo = Number(p.value); else ui3.resPeriode = p.value === 'A' ? 'A' : Number(p.value); rendre(); };
+    var m = $('#n-matiere'); if (m) m.onchange = function () { libererVerrou(); ui3.matiere = m.value; rendre(); };
+    if (NO[o].apres) NO[o].apres();
+  };
+  function periodesOpt(niv, val, annee) {
+    var h = ''; for (var k = 1; k <= nbPeriodes(niv); k++) h += '<option value="' + k + '"' + (String(val) === String(k) ? ' selected' : '') + '>' + libPeriode(niv, k) + '</option>';
+    return h + (annee ? '<option value="A"' + (val === 'A' ? ' selected' : '') + '>Année (moyenne annuelle)</option>' : '');
+  }
+
+  /* ---------- saisie ---------- */
+  NO.saisie = function () {
+    var c = classeDe(ui3.classe), niv = S.niveaux[c.niveau] || {}, compo = ui3.compo;
+    var rubs = rubriquesDe(c.niveau).filter(function (r) { return !ui3.matiere || (r.langue + '|' + r.matiere) === ui3.matiere; });
+    var el = elevesActifsDe(c.id).sort(function (a, b) { return a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom); });
+    if (!rubs.length) return carte('Aucune matière', '<p>Le niveau ' + e(nomNiveau(c.niveau)) + ' n\'a pas de matières (Référentiels → Matières).</p>');
+    if (!el.length) return carte('Aucun élève', '<p>Inscrivez d\'abord les élèves de ' + e(c.nom) + '.</p>');
+    if (!ui3.verrou) { prendreVerrou().then(function () { rendre(); }); return '<p class="aide">Ouverture de la grille…</p>'; }
+    var ro = ui3.verrou.lecture || enMaintenancePourMoi();
+    var R = calculer(c.id, compo);
+    var tete = '<tr><th class="fixe-g">Élève</th>' + rubs.map(function (r) {
+      return '<th class="rub" title="' + e(r.matiere + ' — ' + r.rubrique) + '"><span class="lg lg-' + r.langue + '">' + r.langue + '</span><br>' + e(abreger(r.matiere)) + '<br><small dir="auto">' + e(r.rubrique) + '</small><br><small>/' + ((r.baremes || [])[compo - 1] || niv.base) + '</small></th>';
+    }).join('') + (ui3.matiere ? '' : '<th>Moy.</th><th>Rang</th>') + '</tr>';
+    var corps = el.map(function (x, i) {
+      var l = R.lignes.find(function (y) { return y.eleve.id === x.id; });
+      return '<tr><td class="fixe-g"><span class="aide">' + (i + 1) + '.</span> ' + e(x.prenom) + ' <strong>' + e(x.nom) + '</strong></td>' + rubs.map(function (r, j) {
+        var v = valeurNote(c.id, x.id, compo, r.id);
+        return '<td class="cn"><input class="note" inputmode="decimal" autocomplete="off" data-el="' + x.id + '" data-rub="' + r.id + '" data-i="' + i + '" data-j="' + j + '" value="' + (v === null || v === undefined ? '' : String(v).replace('.', ',')) + '"' + (ro ? ' disabled' : '') + '></td>';
+      }).join('') + (ui3.matiere ? '' : '<td class="c moy">' + (l && l.classe ? nb(l.g) : '—') + '</td><td class="c">' + (l && l.classe ? rangTexte(l.rang_g, l.ex_g, x.sexe) : '') + '</td>') + '</tr>';
+    }).join('');
+    var saisies = el.reduce(function (s, x) { return s + rubs.filter(function (r) { var v = valeurNote(c.id, x.id, compo, r.id); return v !== null && v !== undefined; }).length; }, 0);
+    var bandeau = ui3.verrou.par ? '<div class="alerte att">🔒 Grille en cours de saisie par <strong>' + e(ui3.verrou.par) + '</strong> : lecture seule. Elle se libère quand cette personne quitte la grille (au plus tard 1 minute après).</div>'
+      : ui3.verrou.horsLigne ? '<div class="alerte att">Hors ligne : la grille n\'est pas réservée ; vos notes partiront au retour du réseau.</div>' : (ui3.verrou.raison ? '<div class="alerte">' + e(ui3.verrou.raison) + '</div>' : '');
+    return bandeau + carte(e(c.nom) + ' · ' + libPeriode(niv, compo) + ' · ' + saisies + ' / ' + el.length * rubs.length + ' notes',
+      '<p class="aide" style="margin-top:0">Chaque note est enregistrée dès que vous quittez la case. <strong>Entrée</strong> = élève suivant. Tapez <strong>ABS</strong> pour un absent (compte 0). Une épreuve que personne n\'a passée n\'est pas comptée ; ' +
+      'pour un élève qui a composé, une case vide compte 0. Notes au-dessus du barème refusées.</p>' +
+      '<div class="table-defil grille-notes"><table class="notes"><thead>' + tete + '</thead><tbody>' + corps + '</tbody></table></div>',
+      ro ? '' : '<button class="btn danger" data-act="n-effacer">Effacer les notes de cette grille…</button><a class="btn" href="#notes/resultats">Voir les résultats</a>');
+  };
+  NO.saisie.apres = function () {};
+  function abreger(m) { return String(m).replace(/\s*\(.*\)$/, '').replace('Langue et Communication', 'Langue & Com.').replace('Découverte du Monde', 'Découverte').replace('Éducation au Développement Durable', 'EDD'); }
+  function lireNote(t, bareme) {
+    var s = String(t || '').trim().toUpperCase().replace(',', '.');
+    if (!s) return { vide: true };
+    if (s === 'ABS' || s === 'A' || s === 'ABSENT') return { v: 'ABS' };
+    if (!/^\d+(\.\d{1,2})?$/.test(s)) return { err: 'Note invalide : un nombre (2 décimales au plus) ou ABS.' };
+    var v = Number(s);
+    if (v > bareme) return { err: 'Note supérieure au barème (' + bareme + ').' };
+    if (v > 20) return { err: 'Note supérieure à 20.' };
+    return { v: v };
+  }
+  function saisirNote(input) {
+    var c = classeDe(ui3.classe), rub = S.matieres[input.dataset.rub], compo = ui3.compo, niv = S.niveaux[c.niveau] || {};
+    var bareme = Number((rub.baremes || [])[compo - 1]) || niv.base || 10, r = lireNote(input.value, bareme);
+    if (r.err) { input.classList.add('faux'); toast(r.err, 'ko'); return; }
+    try { verifierEcriture('NOTES'); } catch (x) { input.classList.add('faux'); return toast(x.message, 'ko'); }
+    var id = idNote(input.dataset.el, compo, rub.id), ref = col('notes').doc(id);
+    input.classList.remove('faux');
+    if (r.vide) { if (NOTES[c.id][id]) suivre(ref.delete()).catch(erreurEcriture); input.classList.add('ok'); return; }
+    var ex = NOTES[c.id][id];
+    if (ex && ex.valeur === r.v) return;
+    suivre(ref.set(Object.assign({ eleve_id: input.dataset.el, classe_id: c.id, compo: compo, rubrique_id: rub.id, matiere: rub.matiere, langue: rub.langue, valeur: r.v, annee: S.ecole.annee },
+      ex ? Object.assign({ cree_par: ex.cree_par, cree_le: ex.cree_le, version: (ex.version || 0) + 1 }, meta()) : meta(true)))).catch(erreurEcriture);
+    input.value = r.v === 'ABS' ? 'ABS' : String(r.v).replace('.', ',');
+    input.classList.add('ok');
+  }
+  /** Une note changée par un autre poste : on met la case à jour sans redessiner la grille */
+  function majGrilleDistante(classeId) {
+    if (classeId !== ui3.classe || vueCourante() !== 'notes') return;
+    $$('input.note').forEach(function (i) {
+      if (i === document.activeElement) return;
+      var v = valeurNote(classeId, i.dataset.el, ui3.compo, i.dataset.rub), t = v === null || v === undefined ? '' : String(v).replace('.', ',');
+      if (i.value !== t) { i.value = t; i.classList.add('distant'); setTimeout(function () { i.classList.remove('distant'); }, 1500); }
+    });
+  }
+  document.addEventListener('change', function (ev) { if (ev.target.classList && ev.target.classList.contains('note') && vueCourante() === 'notes') saisirNote(ev.target); });
+  document.addEventListener('keydown', function (ev) {
+    var t = ev.target; if (!t.classList || !t.classList.contains('note')) return;
+    if (ev.key === 'Enter' || ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      var i = Number(t.dataset.i) + (ev.key === 'ArrowUp' ? -1 : 1), j = t.dataset.j;
+      var n = $('input.note[data-i="' + i + '"][data-j="' + j + '"]') || (ev.key === 'Enter' ? $('input.note[data-i="0"][data-j="' + (Number(j) + 1) + '"]') : null);
+      if (n) { n.focus(); n.select(); } else t.blur();
+    }
+  });
+
+  /* ---------- résultats ---------- */
+  function resultatsCourants() { return ui3.resPeriode === 'A' ? calculerAnnee(ui3.classe) : calculer(ui3.classe, ui3.resPeriode); }
+  NO.resultats = function () {
+    var R = resultatsCourants(), s = R.stats, niv = R.niveau, langs = ['FR', 'AR', 'LN'].filter(function (lg) { return R.lignes.some(function (l) { return l.langues[lg] !== undefined; }); });
+    var t = '<div class="table-defil"><table><thead><tr><th>Rang</th><th>Élève</th>' + langs.map(function (lg) { return '<th class="c">' + LIB_LANGUE[lg] + '</th>'; }).join('') +
+      (R.compo === 'A' ? R.periodes.map(function (P, i) { return '<th class="c mm">' + (nbPeriodes(niv) === 2 ? 'S' : 'C') + (i + 1) + '</th>'; }).join('') : '') +
+      '<th class="c">Moyenne</th><th class="mm">Appréciation</th></tr></thead><tbody>' +
+      R.lignes.slice().sort(function (a, b) { return (a.rang_g || 9999) - (b.rang_g || 9999) || a.eleve.nom.localeCompare(b.eleve.nom); }).map(function (l) {
+        return '<tr' + (l.classe ? (l.g >= s.seuil ? '' : ' class="sous-seuil"') : ' class="non-classe"') + '><td class="c"><strong>' + (l.classe ? rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) : '—') + '</strong></td>' +
+          '<td>' + e(l.eleve.prenom + ' ' + l.eleve.nom) + (l.eleve.prenom_ar ? '<br><span class="aide" dir="rtl">' + e(l.eleve.prenom_ar + ' ' + l.eleve.nom_ar) + '</span>' : '') + '</td>' +
+          langs.map(function (lg) { return '<td class="c">' + nb(l.langues[lg]) + (l['rang_' + lg] ? '<br><span class="aide">' + rangTexte(l['rang_' + lg], l['ex_' + lg], l.eleve.sexe) + '</span>' : '') + '</td>'; }).join('') +
+          (R.compo === 'A' ? l.periodes.map(function (p) { return '<td class="c mm">' + nb(p) + '</td>'; }).join('') : '') +
+          '<td class="c"><strong>' + (l.classe ? nb(l.g) : 'non classé') + '</strong></td><td class="mm">' + appreciation(l.g, s.base) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+    var valide = R.compo !== 'A' && liste(S.eleves).length && resultatValide(ui3.classe, R.compo);
+    return '<div class="tuiles">' + tuile('Inscrits', s.inscrits + ' (' + s.filles + ' F)') + tuile('Classés', s.classes) + tuile('Moyenne de la classe', nb(s.moyenne)) +
+      tuile('Plus forte / faible', nb(s.max) + ' / ' + nb(s.min)) + tuile('≥ ' + nb(s.seuil) + ' (taux)', s.admis + ' · ' + nb(s.taux) + ' %') + '</div>' +
+      (R.passees && R.compo !== 'A' ? '<p class="aide">' + R.passees.length + ' épreuve(s) passée(s) sur ' + rubriquesDe(R.classe.niveau).length + ' prévues ; les autres ne sont pas comptées.</p>' : '') +
+      carte(e(R.classe.nom) + ' · ' + libPeriode(niv, R.compo), t,
+        (R.compo !== 'A' && peut('BULLETINS') ? '<button class="btn plein" data-act="n-valider">✔ Valider et figer les résultats</button>' + (valide ? '<span class="aide">Dernière validation : ' + e(valide.par) + ' ' + ilya(valide.le) + '</span>' : '') : '') +
+        '<button class="btn" data-act="n-imp-res">🖨 Imprimer le palmarès</button><button class="btn" data-act="n-csv">⬇ Exporter (CSV)</button>');
+  };
+  var VALIDATIONS = {};
+  function resultatValide(classeId, compo) { return VALIDATIONS[classeId + '_' + compo] || null; }
+  function validerResultats() {
+    verifierEcriture('BULLETINS');
+    var R = calculer(ui3.classe, ui3.resPeriode), b = db.batch(), mt = meta(true), n = 0;
+    R.lignes.forEach(function (l) {
+      if (!l.classe) return;
+      var id = l.eleve.id + '_' + String(S.ecole.annee).replace(/\W/g, '') + '_' + R.compo, ex = S.resultats && S.resultats[id];
+      b.set(col('resultats').doc(id), Object.assign({ annee: S.ecole.annee, compo: R.compo, niveau: R.classe.niveau, classe_id: R.classe.id, classe: R.classe.nom, eleve_id: l.eleve.id, matricule: l.eleve.matricule,
+        eleve: l.eleve.prenom + ' ' + l.eleve.nom, moy_fr: l.langues.FR === undefined ? null : l.langues.FR, rang_fr: l.rang_FR || null, moy_ar: l.langues.AR === undefined ? null : l.langues.AR, rang_ar: l.rang_AR || null,
+        moy_g: l.g, rang_g: l.rang_g, ex_aequo: !!l.ex_g, effectif: R.stats.classes, moyenne_classe: R.stats.moyenne, observation: ex ? ex.observation || '' : '', valide_par: S.profil.nom, valide_le: maintenant() }, mt)); n++;
+    });
+    suivre(b.commit()).then(function () {
+      VALIDATIONS[R.classe.id + '_' + R.compo] = { par: S.profil.nom, le: maintenant() };
+      toast(n + ' résultat(s) figé(s).', 'ok'); activite(S.profil.nom + ' a validé les notes de ' + R.classe.nom + ' – ' + libPeriode(R.niveau, R.compo)); rendre();
+    }).catch(erreurEcriture);
+  }
+
+  /* ---------- conseil de classe et décisions ---------- */
+  function idDecision(eleveId) { return eleveId + '_' + String(S.ecole.annee).replace(/\W/g, ''); }
+  function proposition(l, niv) {
+    if (!l.classe) return 'SANS_NOTE';
+    var sp = niv.seuil_passage !== undefined ? niv.seuil_passage : niv.base / 2, sr = niv.seuil_redoublement !== undefined ? niv.seuil_redoublement : sp;
+    if (l.g >= sp) return niv.suivant ? 'PASSAGE' : 'FIN_CYCLE';
+    if (l.g < sr) return l.eleve.redoublant ? 'EXCLUSION' : 'REDOUBLEMENT';
+    return 'PASSAGE_COND';
+  }
+  NO.conseil = function () {
+    var R = calculerAnnee(ui3.classe), niv = R.niveau, c = R.classe;
+    var sp = niv.seuil_passage !== undefined ? niv.seuil_passage : niv.base / 2, sr = niv.seuil_redoublement !== undefined ? niv.seuil_redoublement : sp;
+    var lignes = R.lignes.slice().sort(function (a, b) { return (a.rang_g || 9999) - (b.rang_g || 9999); });
+    var ro = !peut('BULLETINS') || enMaintenancePourMoi() ? ' disabled' : '';
+    return carte('Conseil de classe · ' + e(c.nom) + ' · moyennes annuelles', '<p class="aide" style="margin-top:0">Proposition automatique : moyenne ≥ ' + nb(sp) + ' → passage' + (niv.suivant ? ' en ' + e(nomNiveau(niv.suivant)) : ' (fin de cycle)') +
+      (sr < sp ? ' ; entre ' + nb(sr) + ' et ' + nb(sp) + ' → à l\'appréciation du conseil' : '') + ' ; moins de ' + nb(sr) + ' → redoublement (exclusion proposée pour un élève déjà redoublant). Seuils modifiables dans Référentiels → Niveaux. La décision finale est tracée.</p>' +
+      '<div class="table-defil"><table><thead><tr><th>Rang</th><th>Élève</th><th class="c">Moy. annuelle</th><th>Proposition</th><th>Décision du conseil</th><th>Motif / observation</th><th class="mm">Tracé</th></tr></thead><tbody>' +
+      lignes.map(function (l) {
+        var d = S.decisions[idDecision(l.eleve.id)], p = proposition(l, niv);
+        return '<tr data-id="' + l.eleve.id + '"><td class="c">' + (l.classe ? rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) : '—') + '</td><td>' + e(l.eleve.prenom + ' ' + l.eleve.nom) + (l.eleve.redoublant ? ' <span class="pastille att">redoublant</span>' : '') + '</td>' +
+          '<td class="c"><strong>' + nb(l.g) + '</strong></td><td>' + DECISIONS[p] + '</td>' +
+          '<td><select class="dec-sel"' + ro + '>' + opt(Object.keys(DECISIONS).filter(function (k) { return k !== 'SANS_NOTE'; }).map(function (k) { return [k, DECISIONS[k]]; }), d ? d.decision : '', '— à décider —') + '</select></td>' +
+          '<td><input class="dec-motif" value="' + e(d ? d.motif : '') + '"' + ro + '></td><td class="mm aide">' + (d ? e(d.decide_par) + ' · ' + heure(d.modifie_le) + (d.historique && d.historique.length > 1 ? ' · ' + d.historique.length + ' changements' : '') : '') + '</td></tr>';
+      }).join('') + '</tbody></table></div>',
+      ro ? '' : '<button class="btn" data-act="dec-propositions">Reprendre les propositions pour les élèves sans décision</button><button class="btn plein" data-act="dec-enr">✔ Enregistrer les décisions</button><button class="btn" data-act="dec-imp">🖨 Imprimer la proposition de passage</button>');
+  };
+  function enregistrerDecisions(seulementVides) {
+    verifierEcriture('BULLETINS');
+    var R = calculerAnnee(ui3.classe), niv = R.niveau, b = db.batch(), n = 0;
+    $$('tr[data-id]').forEach(function (tr) {
+      var l = R.lignes.find(function (x) { return x.eleve.id === tr.dataset.id; }), d = S.decisions[idDecision(tr.dataset.id)];
+      var dec = seulementVides ? (d ? null : proposition(l, niv)) : $('.dec-sel', tr).value, motif = $('.dec-motif', tr).value.trim();
+      if (!dec || dec === 'SANS_NOTE' || (d && d.decision === dec && (d.motif || '') === motif)) return;
+      var hist = (d && d.historique || []).concat([{ decision: dec, par: S.profil.nom, le: maintenant() }]).slice(-10);
+      var suiv = dec === 'PASSAGE' || dec === 'PASSAGE_COND' ? niv.suivant : dec === 'REDOUBLEMENT' ? niv.code : null;
+      b.set(col('decisions').doc(idDecision(l.eleve.id)), Object.assign({ eleve_id: l.eleve.id, classe_id: R.classe.id, niveau: niv.code, annee: S.ecole.annee, moyenne: l.g, rang: l.rang_g || null,
+        proposition: proposition(l, niv), decision: dec, niveau_propose: suiv || null, motif: motif, decide_par: S.profil.nom, historique: hist },
+        d ? Object.assign({ cree_par: d.cree_par, cree_le: d.cree_le, version: (d.version || 0) + 1 }, meta()) : meta(true))); n++;
+    });
+    if (!n) return toast('Aucune décision à enregistrer.', 'ok');
+    suivre(b.commit()).then(function () { toast(n + ' décision(s) enregistrée(s).', 'ok'); activite('Conseil de classe ' + R.classe.nom + ' : ' + n + ' décision(s)'); journal('DECISIONS', R.classe.nom + ' : ' + n); }).catch(erreurEcriture);
+  }
+
+  /* ---------- éditions ---------- */
+  var EDITIONS = { bulletins: 'Bulletins', releve: 'Relevé de notes vierge (fiche de notation)', palmares: 'Résultats / palmarès', synthese: 'Synthèse de la classe (par matière)', ecole: 'Synthèse de l\'école (statistiques IEF)', progression: 'Progression annuelle', passage: 'Proposition de passage' };
+  NO.editions = function () {
+    var opts = '<div class="ligne pas-imprimer"><div><label>Document</label><select id="ed-type">' + opt(Object.keys(EDITIONS).map(function (k) { return [k, EDITIONS[k]]; }), ui3.edType) + '</select></div>';
+    if (ui3.edType === 'bulletins') {
+      var el = elevesActifsDe(ui3.classe).sort(function (a, b) { return a.nom.localeCompare(b.nom); });
+      opts += '<div><label>Format</label><select id="ed-format">' + opt([['detaille', 'Détaillé (1 par page)'], ['compact', 'Compact (2 par page)']], ui3.edFormat) + '</select></div>' +
+        '<div><label>Ordre</label><select id="ed-ordre">' + opt([['alpha', 'Alphabétique'], ['merite', 'Ordre de mérite']], ui3.edOrdre) + '</select></div>' +
+        '<div><label>Élève</label><select id="ed-eleve">' + opt(el.map(function (x) { return [x.id, x.nom + ' ' + x.prenom]; }), ui3.edEleve, 'Toute la classe') + '</select></div>';
+    }
+    opts += '</div>';
+    var doc = documentEdition();
+    return carte('Éditions', opts, '<button class="btn plein" data-act="ed-imprimer">🖨 Aperçu / Imprimer / PDF</button>' + (ui3.edType === 'bulletins' && !ui3.edEleve ? '<span class="aide">' + elevesActifsDe(ui3.classe).length + ' bulletin(s)</span>' : '')) +
+      '<div class="carte"><div class="carte-corps" style="overflow-x:auto;background:#fff">' + (ui3.edType === 'bulletins' && !ui3.edEleve ? doc.split('<div class="saut"></div>').slice(0, 2).join('<div class="saut"></div>') + (elevesActifsDe(ui3.classe).length > 2 ? '<p class="aide">… aperçu limité aux 2 premiers bulletins ; tous seront imprimés.</p>' : '') : doc) + '</div></div>';
+  };
+  NO.editions.apres = function () {
+    [['#ed-type', 'edType'], ['#ed-format', 'edFormat'], ['#ed-ordre', 'edOrdre'], ['#ed-eleve', 'edEleve']].forEach(function (x) { var s = $(x[0]); if (s) s.onchange = function () { ui3[x[1]] = s.value; rendre(); }; });
+  };
+  function documentEdition() {
+    var t = ui3.edType;
+    if (t === 'bulletins') return bulletinsClasse();
+    if (t === 'releve') return releveVierge();
+    if (t === 'palmares') return palmares();
+    if (t === 'synthese') return syntheseClasse();
+    if (t === 'ecole') return syntheseEcole();
+    if (t === 'progression') return progression();
+    return propositionPassage();
+  }
+  function enteteBulletin(titre) {
+    var ec = S.ecole;
+    return '<div class="doc-entete"><div class="doc-g">RÉPUBLIQUE DU SÉNÉGAL<br><small>Un Peuple – Un But – Une Foi</small><br>Ministère de l\'Éducation nationale' + (ec.ia ? '<br>IA de ' + e(ec.ia) : '') + (ec.ief ? '<br>IEF de ' + e(ec.ief) : '') + '</div>' +
+      '<div class="doc-c">' + (ec.logo ? '<img src="' + e(ec.logo) + '" alt="" style="max-height:52px"><br>' : '') + '<strong>' + e(ec.nom) + '</strong>' + (ec.nom_ar ? '<br><span dir="rtl">' + e(ec.nom_ar) + '</span>' : '') + '</div>' +
+      '<div class="doc-d" dir="rtl">جمهورية السنغال<br><small>شعب واحد – هدف واحد – عقيدة واحدة</small><br>وزارة التربية الوطنية<br><span dir="ltr">' + e(ec.annee) + '</span></div></div>' + (titre ? '<h1 class="doc-titre">' + titre + '</h1>' : '');
+  }
+  function bulletinsClasse() {
+    var per = ui3.resPeriode, R = per === 'A' ? calculerAnnee(ui3.classe) : calculer(ui3.classe, per);
+    var ls = R.lignes.slice();
+    if (ui3.edOrdre === 'merite') ls.sort(function (a, b) { return (a.rang_g || 9999) - (b.rang_g || 9999); }); else ls.sort(function (a, b) { return a.eleve.nom.localeCompare(b.eleve.nom) || a.eleve.prenom.localeCompare(b.eleve.prenom); });
+    if (ui3.edEleve) ls = ls.filter(function (l) { return l.eleve.id === ui3.edEleve; });
+    var html = ls.map(function (l) { return ui3.edFormat === 'compact' ? bulletinCompact(R, l) : bulletinDetaille(R, l); });
+    if (ui3.edFormat === 'compact') { var p = []; for (var i = 0; i < html.length; i += 2) p.push('<div class="page-compacte">' + html.slice(i, i + 2).join('<div class="coupe"></div>') + '</div>'); return p.join('<div class="saut"></div>'); }
+    return html.join('<div class="saut"></div>');
+  }
+  function infosEleve(R, l) {
+    var x = l.eleve;
+    return '<table class="doc-info"><tr><td>Élève : <strong>' + e(x.prenom + ' ' + x.nom) + '</strong>' + (x.prenom_ar ? ' · <span dir="rtl">' + e(x.prenom_ar + ' ' + x.nom_ar) + '</span>' : '') + '</td><td>Matricule : ' + e(x.matricule) + '</td><td>Classe : <strong>' + e(R.classe.nom) + '</strong></td></tr>' +
+      '<tr><td>Né(e) le ' + (dateFr(x.date_naiss) || '…………') + (x.lieu_naiss ? ' à ' + e(x.lieu_naiss) : '') + '</td><td>Sexe : ' + (x.sexe === 'F' ? 'F' : 'M') + '</td><td>Effectif : ' + R.stats.inscrits + '</td></tr></table>';
+  }
+  function observation(R, l) { var r = S.resultats && S.resultats[l.eleve.id + '_' + String(S.ecole.annee).replace(/\W/g, '') + '_' + R.compo]; return r && r.observation || ''; }
+  function resumeBulletin(R, l, compact) {
+    var s = R.stats, d = S.decisions[idDecision(l.eleve.id)];
+    return '<table class="doc-table resume"><tr><td>Moyenne générale<br><strong class="gros">' + (l.classe ? nb(l.g) + ' / ' + s.base : 'non classé') + '</strong></td>' +
+      '<td>Rang<br><strong class="gros">' + (l.classe ? rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) : '—') + '</strong> sur ' + s.classes + '</td>' +
+      '<td>Moyenne de la classe : ' + nb(s.moyenne) + '<br>Plus forte : ' + nb(s.max) + ' · Plus faible : ' + nb(s.min) + '</td>' +
+      '<td>Appréciation<br><strong>' + appreciation(l.g, s.base) + '</strong><br><span dir="rtl">' + appreciationAr(l.g, s.base) + '</span></td></tr></table>' +
+      (observation(R, l) ? '<p class="doc-texte"><strong>Observation :</strong> ' + e(observation(R, l)) + '</p>' : '') +
+      (R.compo === 'A' && d ? '<p class="doc-texte"><strong>Décision du conseil :</strong> ' + DECISIONS[d.decision] + (d.niveau_propose && d.decision !== 'REDOUBLEMENT' ? ' (' + e(nomNiveau(d.niveau_propose)) + ')' : '') + '</p>' : '') +
+      '<table class="doc-signatures"><tr><td>Le maître<br>' + e(R.classe.titulaire_fr) + '</td><td>Le maître d\'arabe<br>' + e(R.classe.titulaire_ar) + '</td><td>' + e(chefEtablissement().qualite) + '<br>' + e(chefEtablissement().nom) +
+      (S.ecole.cachet && S.ecole.cachet_actif && !compact ? '<br><img src="' + e(S.ecole.cachet) + '" alt="" style="max-height:60px;opacity:.85">' : '') + '</td><td>Le parent</td></tr></table>';
+  }
+  function bulletinDetaille(R, l) {
+    var niv = R.niveau, base = R.stats.base;
+    var h = '<div class="document bulletin">' + enteteBulletin('BULLETIN ' + (R.compo === 'A' ? 'ANNUEL' : 'DE NOTES — ' + libPeriode(niv, R.compo).toUpperCase())) + infosEleve(R, l);
+    if (R.compo === 'A') {
+      var langs = ['FR', 'AR', 'LN'].filter(function (lg) { return l.langues[lg] !== undefined; });
+      h += '<table class="doc-table"><thead><tr><th>Période</th>' + langs.map(function (lg) { return '<th>' + LIB_LANGUE[lg] + '</th>'; }).join('') + '<th>Moyenne</th><th>Rang</th></tr></thead><tbody>' +
+        R.periodes.map(function (P, i) { var p = P.lignes.find(function (y) { return y.eleve.id === l.eleve.id; }); return '<tr><td>' + libPeriode(niv, i + 1) + '</td>' + langs.map(function (lg) { return '<td class="c">' + nb(p && p.classe ? p.langues[lg] : null) + '</td>'; }).join('') + '<td class="c"><strong>' + nb(p && p.classe ? p.g : null) + '</strong></td><td class="c">' + (p && p.classe ? rangTexte(p.rang_g, p.ex_g, l.eleve.sexe) : '') + '</td></tr>'; }).join('') +
+        '<tr class="total"><td>Moyenne annuelle</td>' + langs.map(function (lg) { return '<td class="c">' + nb(l.langues[lg]) + '</td>'; }).join('') + '<td class="c"><strong>' + nb(l.g) + '</strong></td><td class="c"><strong>' + rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) + '</strong></td></tr></tbody></table>';
+    } else if (l.classe) {
+      var groupes = {};
+      l.matieres.forEach(function (m) { var lg = m.langue === 'AR' ? 'AR' : (niv.format === 'EFA' ? 'FR' : m.langue); (groupes[lg] = groupes[lg] || []).push(m); });
+      ['FR', 'LN', 'AR'].filter(function (lg) { return groupes[lg]; }).forEach(function (lg) {
+        var ar = lg === 'AR', mats = groupes[lg];
+        h += '<table class="doc-table"' + (ar ? ' dir="rtl"' : '') + '><thead><tr><th colspan="' + (base === 20 ? 6 : 4) + '">' + (ar ? 'المواد العربية — Arabe' : LIB_LANGUE[lg]) + '</th></tr><tr>' +
+          (base === 20 ? '<th>Matière</th><th>Devoirs</th><th>Compo.</th><th>Moy./20</th><th>Coef</th><th>Appréciation</th>' : '<th>' + (ar ? 'المادة' : 'Matière') + '</th><th>' + (ar ? 'الفرع' : 'Rubrique') + '</th><th>' + (ar ? 'الدرجة' : 'Note') + '</th><th>' + (ar ? 'المجموع' : 'Total') + '</th>') + '</tr></thead><tbody>';
+        mats.forEach(function (m) {
+          if (base === 20) h += '<tr><td>' + e(m.matiere) + '</td><td class="c">' + nb(m.devoirs) + '</td><td class="c">' + nb(m.compo) + '</td><td class="c"><strong>' + nb(m.note) + '</strong></td><td class="c">' + m.coef + '</td><td>' + appreciation(m.note, 20) + '</td></tr>';
+          else m.rubs.forEach(function (z, i) {
+            h += '<tr>' + (i === 0 ? '<td rowspan="' + m.rubs.length + '">' + e(m.matiere) + '</td>' : '') + '<td>' + e(z.r.rubrique) + '</td><td class="c"><span dir="ltr">' + (z.abs && l.notes[z.r.id] === 'ABS' ? 'ABS' : nb(z.note)) + ' / ' + z.bareme + '</span></td>' +
+              (i === 0 ? '<td class="c" rowspan="' + m.rubs.length + '"><strong dir="ltr">' + nb(m.total) + ' / ' + m.bareme + '</strong></td>' : '') + '</tr>';
+          });
+        });
+        var mo = l.langues[lg === 'LN' ? 'FR' : lg];
+        h += '<tr class="total"><td colspan="3">' + (ar ? 'المعدل' : 'Moyenne ' + LIB_LANGUE[lg].toLowerCase()) + '</td><td class="c" colspan="' + (base === 20 ? 3 : 1) + '"><strong dir="ltr">' + nb(mo) + ' / ' + base + '</strong>' +
+          (l['rang_' + lg] ? ' · ' + rangTexte(l['rang_' + lg], l['ex_' + lg], l.eleve.sexe) : '') + '</td></tr></tbody></table>';
+      });
+    } else h += '<p class="doc-texte">Aucune note pour cette période : élève non classé.</p>';
+    return h + resumeBulletin(R, l) + '</div>';
+  }
+  function bulletinCompact(R, l) {
+    var niv = R.niveau, base = R.stats.base;
+    var h = '<div class="bulletin-compact">' + enteteBulletin('') + '<div class="doc-titre petit">BULLETIN — ' + (R.compo === 'A' ? 'ANNÉE' : libPeriode(niv, R.compo).toUpperCase()) + '</div>' + infosEleve(R, l);
+    if (R.compo !== 'A' && l.classe) {
+      h += '<table class="doc-table"><thead><tr><th>Matière</th><th class="c">Note</th><th>Matière</th><th class="c">Note</th></tr></thead><tbody>';
+      var ms = l.matieres;
+      for (var i = 0; i < ms.length; i += 2) {
+        var a = ms[i], b = ms[i + 1], cel = function (m) { return m ? '<td dir="auto">' + e(abreger(m.matiere)) + '</td><td class="c">' + (base === 20 ? nb(m.note) : '<span dir="ltr">' + nb(m.total) + '/' + m.bareme + '</span>') + '</td>' : '<td></td><td></td>'; };
+        h += '<tr>' + cel(a) + cel(b) + '</tr>';
+      }
+      h += '</tbody></table><p class="doc-texte">' + ['FR', 'AR', 'LN'].filter(function (lg) { return l.langues[lg] !== undefined; }).map(function (lg) { return LIB_LANGUE[lg] + ' : <strong>' + nb(l.langues[lg]) + '</strong>'; }).join(' · ') + '</p>';
+    } else if (R.compo === 'A') h += '<p class="doc-texte">' + l.periodes.map(function (p, i) { return libPeriode(niv, i + 1) + ' : <strong>' + nb(p) + '</strong>'; }).join(' · ') + '</p>';
+    return h + resumeBulletin(R, l, true) + '</div>';
+  }
+  function releveVierge() {
+    var c = classeDe(ui3.classe), niv = S.niveaux[c.niveau] || {}, per = ui3.resPeriode === 'A' ? 1 : ui3.resPeriode, rubs = rubriquesDe(c.niveau);
+    var el = elevesActifsDe(c.id).sort(function (a, b) { return a.nom.localeCompare(b.nom); });
+    return '<div class="document">' + enteteBulletin('FICHE DE NOTATION — ' + e(c.nom) + ' — ' + libPeriode(niv, per).toUpperCase()) +
+      '<table class="doc-table releve"><thead><tr><th>N°</th><th>Prénom et nom</th>' + rubs.map(function (r) { return '<th class="vertical"><span dir="auto">' + e(abreger(r.matiere) + ' · ' + r.rubrique) + '</span><br>/' + ((r.baremes || [])[per - 1] || niv.base) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      el.map(function (x, i) { return '<tr><td class="c">' + (i + 1) + '</td><td>' + e(x.prenom + ' ' + x.nom) + '</td>' + rubs.map(function () { return '<td></td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>' +
+      '<p class="doc-texte">Enseignant : ……………………………………… Signature : ……………………</p></div>';
+  }
+  function palmares() {
+    var R = resultatsCourants(), s = R.stats, langs = ['FR', 'AR', 'LN'].filter(function (lg) { return R.lignes.some(function (l) { return l.langues[lg] !== undefined; }); });
+    var ls = R.lignes.filter(function (l) { return l.classe; }).sort(function (a, b) { return a.rang_g - b.rang_g; });
+    return '<div class="document">' + enteteBulletin('RÉSULTATS — ' + e(R.classe.nom) + ' — ' + libPeriode(R.niveau, R.compo).toUpperCase()) +
+      tableDoc(['Rang', 'Prénom et nom', 'Sexe'].concat(langs.map(function (lg) { return LIB_LANGUE[lg]; })).concat(['Moyenne', 'Appréciation']),
+        ls.map(function (l) { return [rangTexte(l.rang_g, l.ex_g, l.eleve.sexe), l.eleve.prenom + ' ' + l.eleve.nom, l.eleve.sexe].concat(langs.map(function (lg) { return nb(l.langues[lg]); })).concat([nb(l.g), appreciation(l.g, s.base)]); })) +
+      '<p class="doc-texte">Inscrits : ' + s.inscrits + ' (' + s.filles + ' F) · Classés : ' + s.classes + ' · Moyenne de la classe : ' + nb(s.moyenne) + ' · Ont la moyenne : ' + s.admis + ' (' + nb(s.taux) + ' %), dont ' + s.admis_f + ' filles</p>' + visa() + '</div>';
+  }
+  function syntheseClasse() {
+    var R = ui3.resPeriode === 'A' ? null : calculer(ui3.classe, ui3.resPeriode);
+    if (!R) return '<p class="aide">Choisissez une composition (la synthèse par matière se fait période par période).</p>';
+    var mats = {};
+    R.lignes.filter(function (l) { return l.classe; }).forEach(function (l) { l.matieres.forEach(function (m) { var k = m.langue + '|' + m.matiere, x = mats[k] = mats[k] || { langue: m.langue, matiere: m.matiere, notes: [] }; x.notes.push(R.stats.base === 20 ? m.note : m.note); }); });
+    var base = R.stats.base;
+    return '<div class="document">' + enteteBulletin('SYNTHÈSE PAR MATIÈRE — ' + e(R.classe.nom) + ' — ' + libPeriode(R.niveau, R.compo).toUpperCase()) +
+      tableDoc(['Langue', 'Matière', 'Moyenne de la classe (/' + base + ')', 'Plus forte', 'Plus faible', 'Élèves ≥ ' + (base / 2), '%'],
+        Object.keys(mats).map(function (k) { var x = mats[k], n = x.notes.length, ok = x.notes.filter(function (v) { return v >= base / 2; }).length;
+          return [x.langue, x.matiere, nb(arr(x.notes.reduce(function (s, v) { return s + v; }, 0) / n)), nb(Math.max.apply(null, x.notes)), nb(Math.min.apply(null, x.notes)), ok + ' / ' + n, nb(arr(100 * ok / n, 1))]; })) + visa() + '</div>';
+  }
+  function syntheseEcole() {
+    var per = ui3.resPeriode, manquent = classesTriees().filter(function (c) { return !notesChargees(c.id); });
+    manquent.forEach(function (c) { ecouterNotes(c.id); });
+    if (manquent.length) return '<p class="aide">Chargement des notes de ' + manquent.length + ' classe(s)…</p>';
+    var tot = { i: 0, f: 0, c: 0, cf: 0, a: 0, af: 0 }, lignes = classesTriees().map(function (c) {
+      var R = per === 'A' ? calculerAnnee(c.id) : calculer(c.id, Math.min(per, nbPeriodes(S.niveaux[c.niveau]))), s = R.stats;
+      tot.i += s.inscrits; tot.f += s.filles; tot.c += s.classes; tot.cf += s.classes_f; tot.a += s.admis; tot.af += s.admis_f;
+      return [c.nom, s.inscrits, s.filles, s.classes, s.classes_f, s.admis, s.admis_f, nb(s.taux), nb(s.taux_f), nb(s.moyenne)];
+    });
+    lignes.push([{ html: '<strong>TOTAL ÉCOLE</strong>' }, tot.i, tot.f, tot.c, tot.cf, tot.a, tot.af, nb(tot.c ? arr(100 * tot.a / tot.c, 1) : null), nb(tot.cf ? arr(100 * tot.af / tot.cf, 1) : null), '']);
+    return '<div class="document">' + enteteBulletin('STATISTIQUES DES RÉSULTATS — ' + (per === 'A' ? 'ANNÉE' : 'COMPOSITION ' + per)) +
+      tableDoc(['Classe', 'Inscrits', 'dont filles', 'Classés', 'dont filles', 'Moyenne atteinte', 'dont filles', 'Taux %', 'Taux filles %', 'Moyenne classe'], lignes) + visa() + '</div>';
+  }
+  function progression() {
+    var R = calculerAnnee(ui3.classe), n = nbPeriodes(R.niveau);
+    var tetes = ['Prénom et nom']; for (var k = 1; k <= n; k++) tetes.push(libPeriode(R.niveau, k), 'Rang'); tetes.push('Annuelle', 'Rang', 'Évolution');
+    return '<div class="document">' + enteteBulletin('PROGRESSION ANNUELLE — ' + e(R.classe.nom)) + tableDoc(tetes, R.lignes.slice().sort(function (a, b) { return (a.rang_g || 9999) - (b.rang_g || 9999); }).map(function (l) {
+      var cells = [l.eleve.prenom + ' ' + l.eleve.nom], vals = l.periodes.filter(function (p) { return p !== null; });
+      l.periodes.forEach(function (p, i) { cells.push(nb(p), l.rangsPer[i] ? rangTexte(l.rangsPer[i][0], l.rangsPer[i][1], l.eleve.sexe) : ''); });
+      var ev = vals.length > 1 ? arr(vals[vals.length - 1] - vals[0]) : null;
+      return cells.concat([nb(l.g), l.classe ? rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) : '', ev === null ? '' : (ev > 0 ? '▲ +' : ev < 0 ? '▼ ' : '= ') + nb(ev)]);
+    })) + visa() + '</div>';
+  }
+  function propositionPassage() {
+    var R = calculerAnnee(ui3.classe), niv = R.niveau;
+    return '<div class="document">' + enteteBulletin('PROPOSITION DE PASSAGE — ' + e(R.classe.nom) + ' — ' + e(S.ecole.annee)) +
+      tableDoc(['Rang', 'Prénom et nom', 'Moyenne annuelle', 'Proposition', 'Décision du conseil', 'Classe proposée'], R.lignes.slice().sort(function (a, b) { return (a.rang_g || 9999) - (b.rang_g || 9999); }).map(function (l) {
+        var d = S.decisions[idDecision(l.eleve.id)], p = proposition(l, niv);
+        return [l.classe ? rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) : '—', l.eleve.prenom + ' ' + l.eleve.nom, nb(l.g), DECISIONS[p], d ? DECISIONS[d.decision] : '', d && d.niveau_propose ? nomNiveau(d.niveau_propose) : ''];
+      })) + visa() + '</div>';
+  }
+
+  /* ---------- tests et essais (CFEE, BFEM…) ---------- */
+  NO.essais = function () {
+    var essais = liste(S.epreuves).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+    var E = ui3.essai && S.epreuves[ui3.essai];
+    if (!E) return carte('Tests et essais', '<p class="aide" style="margin-top:0">Organisez un essai (CFEE, BFEM, test de niveau) avec ses propres épreuves, barèmes et coefficients, pour une ou plusieurs classes.</p>' +
+      '<ul class="liste-simple">' + (essais.map(function (x) { return '<li><a href="#" data-act="es-ouvrir" data-id="' + x.id + '"><strong>' + e(x.nom) + '</strong></a> <span class="aide">' + e(x.examen) + ' · ' + dateFr(x.date) + ' · ' + (x.classes || []).map(function (id) { return (classeDe(id) || {}).nom; }).join(', ') + '</span></li>'; }).join('') || '<li class="aide">Aucun essai.</li>') + '</ul>',
+      peut('NOTES') ? '<button class="btn plein" data-act="es-nouveau">➕ Nouvel essai</button>' : '');
+    var el = liste(S.eleves).filter(function (x) { return x.statut === 'ACTIF' && (E.classes || []).indexOf(x.classe_id) >= 0; }).sort(function (a, b) { return a.nom.localeCompare(b.nom); });
+    (E.classes || []).forEach(ecouterNotes);
+    var val = function (x, i) { var n = NOTES[x.classe_id] && NOTES[x.classe_id]['E_' + E.id + '_' + x.id + '_' + i]; return n ? n.valeur : null; };
+    var res = el.map(function (x) {
+      var vals = E.epreuves.map(function (p, i) { return val(x, i); }), aNote = vals.some(function (v) { return typeof v === 'number'; });
+      var tot = 0, tc = 0; E.epreuves.forEach(function (p, i) { var v = typeof vals[i] === 'number' ? vals[i] : 0; tot += v / p.bareme * 20 * p.coef; tc += p.coef; });
+      return { eleve: x, vals: vals, classe: aNote, g: aNote ? arr(tot / tc) : null };
+    });
+    classer(res, 'g', function (l) { return l.classe ? l.g : null; });
+    var ro = !peut('NOTES') || enMaintenancePourMoi() ? ' disabled' : '', seuil = Number(E.seuil) || 10;
+    var adm = res.filter(function (l) { return l.classe && l.g >= seuil; }).length, cl = res.filter(function (l) { return l.classe; }).length;
+    return carte(e(E.nom) + ' · ' + e(E.examen) + ' · ' + dateFr(E.date), '<div class="table-defil grille-notes"><table class="notes"><thead><tr><th class="fixe-g">Candidat</th>' +
+      E.epreuves.map(function (p) { return '<th>' + e(p.nom) + '<br><small>/' + p.bareme + ' · coef ' + p.coef + '</small></th>'; }).join('') + '<th>Moy./20</th><th>Rang</th><th>Résultat</th></tr></thead><tbody>' +
+      res.map(function (l, i) {
+        return '<tr><td class="fixe-g">' + e(l.eleve.prenom + ' ' + l.eleve.nom) + ' <span class="aide">' + e((classeDe(l.eleve.classe_id) || {}).nom) + '</span></td>' +
+          E.epreuves.map(function (p, j) { var v = l.vals[j]; return '<td class="cn"><input class="note-essai" inputmode="decimal" data-el="' + l.eleve.id + '" data-i="' + j + '" data-row="' + i + '" value="' + (v === null || v === undefined ? '' : String(v).replace('.', ',')) + '"' + ro + '></td>'; }).join('') +
+          '<td class="c"><strong>' + nb(l.g) + '</strong></td><td class="c">' + (l.classe ? rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) : '') + '</td><td>' + (l.classe ? (l.g >= seuil ? '<span class="pastille ok">Admis</span>' : '<span class="pastille ko">Ajourné</span>') : '') + '</td></tr>';
+      }).join('') + '</tbody></table></div><p class="aide">Seuil d\'admission : ' + nb(seuil) + ' / 20 · ' + adm + ' admis sur ' + cl + ' classés (' + nb(cl ? arr(100 * adm / cl, 1) : null) + ' %).</p>',
+      '<button class="btn" data-act="es-retour">‹ Tous les essais</button><button class="btn" data-act="es-palmares">🖨 Palmarès</button>' + (ro ? '' : '<button class="btn danger" data-act="es-suppr">Supprimer l\'essai…</button>'));
+  };
+  function boiteEssai() {
+    ouvrirBoite('<form class="boite large" id="f-essai"><h2>Nouvel essai</h2><div class="grille">' +
+      '<div class="champ"><label>Nom</label><input name="nom" required placeholder="Essai CFEE n°1"></div><div class="champ"><label>Examen</label><select name="examen">' + opt(['CFEE', 'BFEM', 'Entrée en 6e', 'Test de niveau', 'Autre']) + '</select></div>' +
+      '<div class="champ"><label>Date (JJMMAAAA)</label><input name="date" class="date8" inputmode="numeric" value="' + dateFr(new Date().toISOString().slice(0, 10)) + '"></div><div class="champ"><label>Seuil d\'admission (sur 20)</label><input name="seuil" type="number" step="0.5" value="10"></div></div>' +
+      '<label>Classes concernées</label><div class="droits">' + classesTriees().map(function (c) { return '<label><input type="checkbox" name="cl" value="' + c.id + '"' + (/CM2|3E/.test(c.niveau) ? ' checked' : '') + '> ' + e(c.nom) + '</label>'; }).join('') + '</div>' +
+      '<label style="margin-top:10px">Épreuves (une par ligne : nom ; barème ; coefficient)</label><textarea name="ep" rows="7">Français ; 20 ; 2\nMathématiques ; 20 ; 2\nArabe ; 20 ; 2\nÉducation religieuse ; 20 ; 1\nDécouverte du monde ; 20 ; 1</textarea>' +
+      '<div style="display:flex;gap:8px;margin-top:10px"><button class="btn plein">Créer l\'essai</button><button type="button" class="btn" data-act="fermer">Annuler</button></div></form>');
+    $('#f-essai').onsubmit = function (ev) {
+      ev.preventDefault();
+      try {
+        verifierEcriture('NOTES');
+        var f = this, d = dateVersIso(f.date.value), cls = $$('[name=cl]:checked', f).map(function (c) { return c.value; });
+        var ep = f.ep.value.split('\n').map(function (l) { return l.split(';').map(function (x) { return x.trim(); }); }).filter(function (p) { return p[0]; }).map(function (p) {
+          var b = Number(p[1] || 20), c = Number(p[2] || 1); if (!(b > 0 && b <= 100) || !(c > 0)) throw new Erreur('Épreuve « ' + p[0] + ' » : barème entre 1 et 100, coefficient positif.'); return { nom: p[0], bareme: b, coef: c };
+        });
+        if (!f.nom.value.trim()) throw new Erreur('Donnez un nom à l\'essai.');
+        if (!d) throw new Erreur('Date impossible.');
+        if (!cls.length) throw new Erreur('Cochez au moins une classe.');
+        if (!ep.length) throw new Erreur('Ajoutez au moins une épreuve.');
+        var id = creer('epreuves', { nom: f.nom.value.trim(), examen: f.examen.value, date: d, seuil: Number(f.seuil.value) || 10, classes: cls, epreuves: ep, annee: S.ecole.annee }, 'NOTES');
+        ui3.essai = id; fermerBoite(); activite('Essai créé : ' + f.nom.value.trim()); rendre();
+      } catch (x) { erreurEcriture(x); }
+    };
+  }
+  document.addEventListener('change', function (ev) {
+    var t = ev.target; if (!t.classList || !t.classList.contains('note-essai')) return;
+    var E = S.epreuves[ui3.essai], p = E.epreuves[Number(t.dataset.i)], x = S.eleves[t.dataset.el], r = lireNote(t.value, p.bareme);
+    if (r.err) { t.classList.add('faux'); return toast(r.err, 'ko'); }
+    try { verifierEcriture('NOTES'); } catch (er) { return toast(er.message, 'ko'); }
+    var ref = col('notes').doc('E_' + E.id + '_' + x.id + '_' + t.dataset.i);
+    t.classList.remove('faux');
+    if (r.vide) suivre(ref.delete()).catch(erreurEcriture);
+    else suivre(ref.set(Object.assign({ eleve_id: x.id, classe_id: x.classe_id, essai_id: E.id, epreuve: Number(t.dataset.i), valeur: r.v, compo: 'ESSAI' }, meta(true)))).catch(erreurEcriture);
+    t.classList.add('ok');
+  });
+
+  /* ---------- actions de l'étape 3 ---------- */
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    try {
+      switch (b.dataset.act) {
+        case 'n-effacer': {
+          var c = classeDe(ui3.classe), rubs = rubriquesDe(c.niveau).filter(function (r) { return !ui3.matiere || (r.langue + '|' + r.matiere) === ui3.matiere; }).map(function (r) { return r.id; });
+          var refs = liste(NOTES[c.id]).filter(function (n) { return n && n.compo === ui3.compo && rubs.indexOf(n.rubrique_id) >= 0; });
+          if (!refs.length) return toast('Aucune note à effacer.', 'ok');
+          if (!confirm('Effacer ' + refs.length + ' note(s) de ' + c.nom + ' (' + libPeriode(S.niveaux[c.niveau], ui3.compo) + (ui3.matiere ? ', ' + ui3.matiere.split('|')[1] : ', toutes les matières') + ') ?')) return;
+          verifierEcriture('NOTES');
+          supprimerParLots(refs.map(function (n) { return col('notes').doc(n.id); })).then(function () { toast(refs.length + ' note(s) effacée(s).', 'ok'); journal('NOTES_EFFACEES', c.nom + ' C' + ui3.compo + ' : ' + refs.length); activite('Notes effacées : ' + c.nom + ' – composition ' + ui3.compo); });
+          break;
+        }
+        case 'n-valider': validerResultats(); break;
+        case 'n-imp-res': imprimer(palmares()); break;
+        case 'n-csv': {
+          var R = resultatsCourants();
+          csv([['RANG', 'MATRICULE', 'PRENOM', 'NOM', 'MOY_FR', 'MOY_AR', 'MOY_G', 'APPRECIATION']].concat(R.lignes.map(function (l) { return [l.classe ? rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) : '', l.eleve.matricule, l.eleve.prenom, l.eleve.nom, nb(l.langues.FR), nb(l.langues.AR), nb(l.g), appreciation(l.g, R.stats.base)]; })), 'resultats_' + R.classe.nom + '.csv');
+          break;
+        }
+        case 'dec-propositions': enregistrerDecisions(true); break;
+        case 'dec-enr': enregistrerDecisions(false); break;
+        case 'dec-imp': imprimer(propositionPassage()); break;
+        case 'ed-imprimer': imprimer(documentEdition()); break;
+        case 'es-nouveau': boiteEssai(); break;
+        case 'es-ouvrir': ev.preventDefault(); ui3.essai = b.dataset.id; rendre(); break;
+        case 'es-retour': ui3.essai = null; rendre(); break;
+        case 'es-palmares': {
+          var tab = $('table.notes'); if (!tab) return;
+          var E = S.epreuves[ui3.essai], rows = $$('tbody tr', tab).map(function (tr) { var td = $$('td', tr); return [td[0].innerText, td[td.length - 3].innerText, td[td.length - 2].innerText, td[td.length - 1].innerText]; })
+            .sort(function (a, c) { return (parseInt(a[2], 10) || 999) - (parseInt(c[2], 10) || 999); });
+          imprimer('<div class="document">' + enteteBulletin('PALMARÈS — ' + e(E.nom) + ' (' + e(E.examen) + ')') + tableDoc(['Candidat', 'Moyenne /20', 'Rang', 'Résultat'], rows) + visa() + '</div>');
+          break;
+        }
+        case 'es-suppr': {
+          var E2 = S.epreuves[ui3.essai];
+          if (!confirm('Supprimer l\'essai « ' + E2.nom + ' » et toutes ses notes ?')) return;
+          verifierEcriture('NOTES');
+          var refs2 = [col('epreuves').doc(E2.id)];
+          (E2.classes || []).forEach(function (cid) { liste(NOTES[cid] || {}).forEach(function (n) { if (n && n.essai_id === E2.id) refs2.push(col('notes').doc(n.id)); }); });
+          supprimerParLots(refs2).then(function () { ui3.essai = null; toast('Essai supprimé.', 'ok'); activite('Essai supprimé : ' + E2.nom); });
+          break;
+        }
+      }
+    } catch (x) { erreurEcriture(x); }
+  });
+
+
+  /* ===================================================================
    *  9. ACTIONS
    * =================================================================== */
   document.addEventListener('click', function (ev) {
@@ -2390,7 +3062,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
         case 'niv-enr': {
           var v = ligneValeurs(tr), sr = Number(v.seuil_redoublement), sp = Number(v.seuil_passage), bs = Number(v.base);
           if (!(sr >= 0 && sr <= bs && sp >= 0 && sp <= bs)) throw new Erreur('Les seuils doivent être compris entre 0 et ' + bs + '.');
-          modifier('niveaux', tr.dataset.id, { base: bs, seuil_redoublement: sr, seuil_passage: sp, suivant: v.suivant || null, suivant_alt: v.suivant_alt || null, format: v.format }, Number(tr.dataset.version), 'PARAMETRES')
+          modifier('niveaux', tr.dataset.id, { base: bs, seuil_redoublement: sr, seuil_passage: sp, suivant: v.suivant || null, suivant_alt: v.suivant_alt || null, format: v.format, periodes: Number(v.periodes) || 3 }, Number(tr.dataset.version), 'PARAMETRES')
             .then(function (ok) { if (ok) { toast('Niveau enregistré.', 'ok'); activite('Niveau ' + nomNiveau(tr.dataset.id) + ' modifié'); } });
           break;
         }
@@ -2495,7 +3167,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
    * =================================================================== */
   var REGLES = [
     "rules_version = '2';",
-    "// CTEFA-CLASSIC Web : règles de sécurité (étapes 1 et 2)",
+    "// CTEFA-CLASSIC Web : règles de sécurité (étapes 1 à 3)",
     "service cloud.firestore {",
     "  match /databases/{database}/documents {",
     "    match /ecoles/{ecole} {",
@@ -2544,7 +3216,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     "      function peutEcrire(nom) {",
     "        return (nom in ['niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'sauvegardes'] && droit('PARAMETRES'))",
     "          || (nom == 'eleves' && droit('ELEVES'))",
-    "          || (nom == 'notes' && droit('NOTES'))",
+    "          || (nom in ['notes', 'epreuves'] && droit('NOTES'))",
     "          || (nom in ['decisions', 'resultats'] && droit('BULLETINS'))",
     "          || (nom in ['caisse', 'restes_dus', 'stock'] && droit('CAISSE'))",
     "          || (nom in ['personnel', 'affectations'] && droit('PERSONNEL'))",

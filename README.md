@@ -30,7 +30,22 @@ Gestion scolaire multi-utilisateurs (direction, secrétariat, caisse, enseignant
 - **Import / export du personnel** (CSV, mise à jour par matricule) et **purge** (cases à cocher, double confirmation avec le mot PURGER, mot de passe redemandé, sauvegarde automatique avant, journal).
 - Correctifs de l'étape 1 : messages Firebase en français, refus clair d'une adresse e-mail à la place de l'identifiant, un formulaire en cours de saisie n'est plus effacé par une mise à jour venue d'un autre poste.
 
+- **Noms en arabe calculés automatiquement** (élèves et personnel : saisie, import, registre) : 1) dictionnaire de l'école, qui apprend chaque correction ; 2) dictionnaire intégré des prénoms et noms sénégalais courants ; 3) transcription phonétique, signalée « à vérifier ». Bouton « ✨ Compléter les noms en arabe » dans le registre pour traiter tous les élèves d'un coup.
+
+- **Purges** (administrateurs) : élèves (par classe, statut, année d'entrée ; matricules libérés), classes (avec ou sans leurs élèves ; affectations et classes tenues nettoyées), matières d'un niveau (« Réparer les référentiels » les remet). Chaque purge : confirmation, mot PURGER, mot de passe, sauvegarde automatique avant, journal.
+
 **Après la mise à jour : republier les règles** (`firestore.rules` → Firestore → Règles → Publier) : elles protègent maintenant les matricules.
+
+## Étape 3 — notes, bulletins, conseil de classe
+- **Saisie** par classe, composition (3 compositions ou 2 semestres, réglable par niveau) et matière. Une note = un enregistrement indépendant, sauvegardé à la sortie de la case. Barème et 20 bloqués, 2 décimales au plus, `ABS` pour un absent. Bouton « Effacer les notes ».
+- **Travail à plusieurs** : la grille est réservée 60 s (renouvelées) par le premier qui l'ouvre ; les autres voient « en cours de saisie par X » en lecture seule. Les notes saisies ailleurs apparaissent en direct.
+- **Règles de calcul** : une épreuve passée par personne n'est pas comptée ; pour un élève qui a composé, une case vide ou ABS compte 0 ; un élève sans aucune note n'est pas classé. Format EFA : moyenne des langues (sur 10) ; CEM/lycée : (moyenne des devoirs + composition) ÷ 2, coefficients. Rangs avec ex aequo (général et par langue). Moyenne annuelle.
+- **Validation** : « Valider et figer » enregistre moyennes et rangs (collection résultats) et l'annonce dans l'activité.
+- **Conseil de classe** : proposition automatique selon les seuils du niveau (passage, appréciation du conseil, redoublement, exclusion pour un redoublant), décision finale avec motif, historique des changements.
+- **Éditions** : bulletins bilingues détaillés (1 par page) ou compacts (2 par page), ordre alphabétique ou de mérite ; fiche de notation vierge ; palmarès ; synthèse par matière ; statistiques de l'école (inscrits, classés, moyenne atteinte, taux, filles) ; progression annuelle ; proposition de passage.
+- **Tests et essais** (CFEE, BFEM…) : épreuves, barèmes et coefficients propres, saisie, moyenne sur 20, rang, admis / ajourné, palmarès.
+
+**Republier les règles** (`firestore.rules`) : elles autorisent maintenant les essais (collection `epreuves`).
 
 ## Mise en place (une seule fois)
 1. **Firebase** : console.firebase.google.com → nouveau projet (ex. `ctefa-efa-yassi`), puis :
@@ -49,4 +64,4 @@ Gestion scolaire multi-utilisateurs (direction, secrétariat, caisse, enseignant
 - Données d'élèves hébergées en ligne : informer les parents et vérifier les obligations auprès de la CDP (loi 2008-12).
 
 ## Étapes suivantes
-3. Notes, bulletins, conseil de classe (règle : matière sans note = 0 si l'élève a d'autres notes) · 4. Caisse et finances · 5. Documents (QR) · 6. Vie scolaire et tableau de bord · 7. Migration, purges, reprise · 8. Guides et tests de charge.
+4. Caisse et finances · 5. Documents (QR) · 6. Vie scolaire et tableau de bord · 7. Migration, purges, reprise · 8. Guides et tests de charge.
