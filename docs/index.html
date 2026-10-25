@@ -106,7 +106,23 @@ td input, td select { min-height: 34px; padding: 5px 7px; }
 .pied { text-align: center; font-size: .8rem; color: var(--doux); padding: 10px 16px 24px; }
 .cache { display: none !important; }
 @media (max-width: 600px) { .mm { display: none; } main { padding: 12px; } }
-@media print { .entete, .nav, .carte-pied, #toasts, .pas-imprimer { display: none !important; } body { background: #fff; } .carte { border: 0; } }
+tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--survol); }
+.barre { height: 8px; background: var(--survol); border-radius: 4px; overflow: hidden; min-width: 80px; }
+.barre > span { display: block; height: 100%; background: var(--vert); }
+.document { color: #000; background: #fff; padding: 8px; font-size: 11pt; }
+.doc-entete { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 8px; text-align: center; font-size: 8.5pt; border-bottom: 2px solid #000; padding-bottom: 6px; }
+.doc-titre { text-align: center; font-size: 13pt; margin: 12px 0 8px; }
+.doc-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+.doc-table th, .doc-table td { border: 1px solid #000; padding: 4px 6px; font-size: 9.5pt; color: #000; background: #fff; text-transform: none; letter-spacing: 0; }
+.doc-table th { background: #E8E8E8; font-weight: 700; }
+.doc-visa { width: 260px; margin: 18px 0 0 auto; text-align: center; font-size: 10pt; }
+#impression { display: none; }
+@media print {
+  .entete, .nav, .carte-pied, #toasts, .pas-imprimer { display: none !important; } body { background: #fff; } .carte { border: 0; }
+  body.mode-impression > *:not(#impression) { display: none !important; }
+  body.mode-impression #impression { display: block; }
+  @page { size: A4; margin: 10mm; }
+}
 </style>
 </head>
 <body>
@@ -132,7 +148,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   var CONFIG_INTEGREE = null; /* ex. { apiKey: "...", authDomain: "...", projectId: "...", appId: "..." } */
   var CLE_CONFIG = 'ctefa.firebase', CLE_THEME = 'ctefa.theme', CLE_ECHECS = 'ctefa.echecs';
   var ESPACE = 'ecoles/principale';
-  var VERSION_APP = '1.0 (étape 1)';
+  var VERSION_APP = '2.0 (étape 2)';
   var ASSISTANCE = 'Baye Modou DIOP — 78 295 80 96 / 76 518 55 48';
 
   function lireLocal(k) { try { return localStorage.getItem(k); } catch (x) { return null; } }
@@ -226,6 +242,10 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     if (/email-already-in-use/.test(c)) return 'Cet identifiant existe déjà.';
     if (/operation-not-allowed/.test(c)) return 'La connexion par mot de passe n\'est pas activée dans Firebase (Authentication).';
     if (/permission-denied/.test(c)) return 'Action refusée par les règles de sécurité de la base.';
+    if (/configuration-not-found/.test(c)) return 'La connexion par e-mail n\'est pas activée dans Firebase (Authentication → Mode de connexion → E-mail/Mot de passe).';
+    if (/invalid-email/.test(c)) return 'Identifiant non valide : tapez votre identifiant court (ex. admin), pas une adresse e-mail.';
+    if (/unauthorized-domain/.test(c)) return 'Ce site n\'est pas autorisé dans Firebase (Authentication → Paramètres → Domaines autorisés).';
+    if (/user-disabled/.test(c)) return 'Ce compte est désactivé.';
     return (err && err.message) || 'Erreur inconnue.';
   }
   function motDePasseValide(m) { return String(m).length >= 8 && /\d/.test(m) && /[a-zA-Z]/.test(m); }
@@ -235,7 +255,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
    * =================================================================== */
   var CFG = configuration(), db = null, auth = null, appli = null;
   var S = {   /* données en mémoire, tenues à jour par les écoutes */
-    ecole: null, utilisateurs: {}, niveaux: {}, classes: {}, matieres: {}, tarifs: {}, listes: {}, presence: {}, activite: [], journal: [],
+    ecole: null, utilisateurs: {}, eleves: {}, personnel: {}, affectations: {}, niveaux: {}, classes: {}, matieres: {}, tarifs: {}, listes: {}, presence: {}, activite: [], journal: [],
     moi: null, profil: null, pret: false, enLigne: navigator.onLine, attente: 0, derniereSync: null, depuisCache: true
   };
   var ecoutes = [], minuteurPresence = null;
@@ -370,6 +390,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     ecouter();
     presence();
     minuteurPresence = setInterval(presence, 30000);
+    setTimeout(remplacerProvisoires, 6000);
     rendreCadre();
   }
   function deconnexion() {
@@ -403,7 +424,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     ecoutes.push(docEcole().onSnapshot({ includeMetadataChanges: true }, function (s) {
       S.ecole = s.exists ? s.data() : null; majEtat(); rendrePlusTard();
     }));
-    ['utilisateurs', 'niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'presence'].forEach(function (n) { suivreCollection(n, n); });
+    ['utilisateurs', 'niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'presence', 'eleves', 'personnel', 'affectations'].forEach(function (n) { suivreCollection(n, n); });
     suivreCollection('activite', 'activite', col('activite').orderBy('le', 'desc').limit(30));
     if (peut('UTILISATEURS')) suivreCollection('journal_acces', 'journal', col('journal_acces').orderBy('le', 'desc').limit(300));
     ecoutes.push(col('utilisateurs').doc(S.moi.uid).onSnapshot(function (s) {   /* compte modifié ou désactivé à distance */
@@ -462,6 +483,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     $('#f-cnx').onsubmit = function (ev) {
       ev.preventDefault();
       var id = this.ident.value.trim().toLowerCase(), mdp = this.mdp.value, b = bloqueJusqua(id);
+      if (id.indexOf('@') >= 0) return ecranConnexion('Tapez votre identifiant court (ex. admin), pas votre adresse e-mail.');
       if (b) return ecranConnexion('Compte bloqué jusqu\'à ' + new Date(b).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' après 5 mots de passe faux sur cet appareil.');
       this.querySelector('button').disabled = true;
       auth.signInWithEmailAndPassword(emailDe(id), mdp).catch(function (err) {
@@ -607,13 +629,14 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   /* ===================================================================
    *  7. CADRE DE L'APPLICATION ET NAVIGATION
    * =================================================================== */
-  var TITRES = { accueil: 'Accueil', ecole: 'École', referentiels: 'Référentiels', utilisateurs: 'Utilisateurs', journal: 'Journal', sauvegarde: 'Sauvegarde', aide: 'Aide' };
+  var TITRES = { accueil: 'Accueil', eleves: 'Élèves', personnel: 'Personnel', ecole: 'École', referentiels: 'Référentiels', utilisateurs: 'Utilisateurs', journal: 'Journal', sauvegarde: 'Sauvegarde', aide: 'Aide' };
   var MENU = [
-    ['accueil', null], ['ecole', null], ['referentiels', null], ['utilisateurs', 'UTILISATEURS'], ['journal', 'UTILISATEURS'], ['sauvegarde', 'PARAMETRES'], ['aide', null]
+    ['accueil', null], ['eleves', ['ELEVES', 'LISTES', 'NOTES', 'CAISSE']], ['personnel', ['PERSONNEL', 'LISTES']], ['ecole', null], ['referentiels', null], ['utilisateurs', 'UTILISATEURS'], ['journal', 'UTILISATEURS'], ['sauvegarde', 'PARAMETRES'], ['aide', null]
   ];
   function vueCourante() { var v = (location.hash.slice(1) || 'accueil').split('/')[0]; return TITRES[v] && autorisee(v) ? v : 'accueil'; }
   function sousVue() { return location.hash.slice(1).split('/')[1] || ''; }
-  function autorisee(v) { var m = MENU.find(function (x) { return x[0] === v; }); return !m || !m[1] || peut(m[1]); }
+  function autorisee(v) { var m = MENU.find(function (x) { return x[0] === v; }); return okMenu(m); }
+  function okMenu(m) { return !m || !m[1] || [].concat(m[1]).some(peut); }
 
   function rendreCadre() {
     $('#racine').innerHTML = '<header class="entete"><div class="entete-haut"><h1 id="titre-ecole"></h1>' +
@@ -657,14 +680,14 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   function rendrePlusTard() { clearTimeout(minuteurRendu); minuteurRendu = setTimeout(rendreSiLibre, 120); }
   function rendreSiLibre() {
     var a = document.activeElement;
-    if ($('#voile') || (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.closest('#vue'))) { majCadre(); minuteurRendu = setTimeout(rendreSiLibre, 1500); return; }
+    if ($('#voile') || saisieEnCours || (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.closest('#vue'))) { majCadre(); minuteurRendu = setTimeout(rendreSiLibre, 1500); return; }
     rendre();
   }
   function majCadre() {
     if (!$('#nav')) return;
     $('#titre-ecole').textContent = (S.ecole && S.ecole.nom) || 'CTEFA-CLASSIC';
     var v = vueCourante();
-    $('#nav').innerHTML = MENU.filter(function (m) { return !m[1] || peut(m[1]); }).map(function (m) {
+    $('#nav').innerHTML = MENU.filter(okMenu).map(function (m) {
       return '<a href="#' + m[0] + '"' + (m[0] === v ? ' class="actif"' : '') + '>' + TITRES[m[0]] + '</a>';
     }).join('');
     $('#b-qui').textContent = '👥 ' + connectes().length;
@@ -676,8 +699,13 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     $('#bandeaux').innerHTML = bd;
     majEtat();
   }
+  /* Un formulaire modifié et non enregistré n'est jamais redessiné par une mise à jour venue d'un autre poste */
+  var saisieEnCours = false;
+  document.addEventListener('input', function (ev) { if (ev.target.closest && ev.target.closest('#vue form')) saisieEnCours = true; });
+  document.addEventListener('change', function (ev) { if (ev.target.closest && ev.target.closest('#vue form') && ev.target.type !== 'file') saisieEnCours = true; });
   function rendre() {
     if (!$('#vue') || !S.profil) return;
+    saisieEnCours = false;
     majCadre();
     var v = vueCourante();
     if (!S.pret || !S.ecole) { $('#vue').innerHTML = '<p class="aide">Chargement des données de l\'école…</p>'; return; }
@@ -708,8 +736,13 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     var principaux = trier(S.utilisateurs, function () { return 0; }).filter(function (u) { return u.role === 'ADMIN_PRINCIPAL' && u.actif; });
     if (principaux.length < 2 && peut('UTILISATEURS')) alertes.push('Un seul administrateur principal actif : créez un compte de secours.');
     if (!S.ecole.logo) alertes.push('Logo de l\'école non chargé (École).');
+    var actifs = liste(S.eleves).filter(function (x) { return x.statut === 'ACTIF'; }), filles = actifs.filter(function (x) { return x.sexe === 'F'; }).length;
+    var sansClasse = actifs.filter(function (x) { return !S.classes[x.classe_id]; }).length;
+    if (sansClasse) alertes.unshift(sansClasse + ' élève(s) actif(s) sans classe.');
+    cl.forEach(function (c) { var n = elevesActifsDe(c.id).length; if (n >= (c.effectif_max || 50)) alertes.unshift('Classe ' + c.nom + ' pleine (' + n + '/' + c.effectif_max + ').'); });
+    var prov = actifs.filter(function (x) { return x.matricule_provisoire; }).length; if (prov) alertes.push(prov + ' matricule(s) provisoire(s) en attente de connexion.');
     var h = '<h2>Bonjour ' + e(S.profil.nom.split(' ')[0]) + '</h2>' +
-      '<div class="tuiles">' + tuile('Classes', cl.length) + tuile('Niveaux', niveauxEcole().length) + tuile('Comptes actifs', trier(S.utilisateurs, function () { return 0; }).filter(function (u) { return u.actif; }).length) +
+      '<div class="tuiles">' + tuile('Élèves actifs', actifs.length) + tuile('Garçons / Filles', (actifs.length - filles) + ' / ' + filles) + tuile('Classes', cl.length) + tuile('Personnel', liste(S.personnel).length) + tuile('Comptes actifs', trier(S.utilisateurs, function () { return 0; }).filter(function (u) { return u.actif; }).length) +
       tuile('Connectés maintenant', connectes().length) + '</div>';
     if (alertes.length && peut('PARAMETRES')) h += '<div class="alerte att"><strong>À faire</strong><ul style="margin:6px 0 0;padding-left:18px">' + alertes.slice(0, 6).map(function (a) { return '<li>' + e(a) + '</li>'; }).join('') + '</ul></div>';
     h += '<div class="grille">' + carte('Qui est connecté', '<ul class="liste-simple">' + (connectes().map(function (p) {
@@ -718,9 +751,9 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
       carte('Activité récente', '<ul class="liste-simple">' + (S.activite.map(function (a) {
         return '<li>' + e(a.texte) + '<br><span class="aide">' + e(a.nom || a.par) + ' · ' + ilya(a.le) + '</span></li>';
       }).join('') || '<li class="aide">Aucune activité pour l\'instant.</li>') + '</ul>') + '</div>';
-    h += carte('Classes de l\'école', '<div class="table-defil"><table><thead><tr><th>Classe</th><th>Niveau</th><th class="c">Effectif max</th><th class="mm">Titulaires</th></tr></thead><tbody>' +
-      (cl.map(function (c) { return '<tr><td><strong>' + e(c.nom) + '</strong></td><td>' + e(nomNiveau(c.niveau)) + '</td><td class="c">' + e(c.effectif_max) + '</td><td class="mm">' + e([c.titulaire_fr, c.titulaire_ar].filter(Boolean).join(' · ') || '—') + '</td></tr>'; }).join('') ||
-       '<tr><td colspan="4" class="aide">Aucune classe.</td></tr>') + '</tbody></table></div><p class="aide">Les effectifs, les finances et les alertes sur les notes s\'ajouteront avec les étapes suivantes.</p>');
+    h += carte('Classes de l\'école', '<div class="table-defil"><table><thead><tr><th>Classe</th><th class="c">Effectif</th><th class="c">Places libres</th><th>Remplissage</th><th class="mm">Titulaires</th></tr></thead><tbody>' +
+      (cl.map(function (c) { var n = elevesActifsDe(c.id).length, mx = c.effectif_max || 50, p = Math.min(100, Math.round(100 * n / mx)); return '<tr><td><strong>' + e(c.nom) + '</strong></td><td class="c">' + n + '</td><td class="c">' + Math.max(0, mx - n) + '</td><td><div class="barre"><span style="width:' + p + '%' + (p >= 100 ? ';background:var(--rouge)' : '') + '"></span></div></td><td class="mm">' + e([c.titulaire_fr, c.titulaire_ar].filter(Boolean).join(' · ') || '—') + '</td></tr>'; }).join('') ||
+       '<tr><td colspan="5" class="aide">Aucune classe.</td></tr>') + '</tbody></table></div><p class="aide">Les finances et les alertes sur les notes s\'ajouteront avec les étapes suivantes.</p>');
     return h;
   };
 
@@ -738,6 +771,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
         '<div class="champ"><label>Nature</label><select name="nature"' + lec + '><option value="FRANCO_ARABE"' + (ec.nature === 'FRANCO_ARABE' ? ' selected' : '') + '>Franco-arabe</option><option value="CLASSIQUE"' + (ec.nature === 'CLASSIQUE' ? ' selected' : '') + '>Classique</option></select></div>') +
       carte('Coordonnées et documents', ch('annee', 'Année scolaire') + ch('adresse', 'Adresse') + ch('telephone', 'Téléphone', '77 000 00 00', ' inputmode="tel"') + ch('lieu', 'Lieu des documents', 'Yassi') +
         ch('signataire', 'Signataire des documents') + ch('qualite', 'Qualité du signataire', 'Le Directeur') +
+        ch('modele_matricule', 'Modèle de matricule ({AAAA} année, {AA}, {NNNN} numéro, {NIV} niveau, {CLASSE})', '{AAAA}{NNNN}') +
         '<div class="champ"><label>Cycles de l\'école</label>' + cyc + (peut('ECOLE') ? '' : '<p class="aide">Modifiable par l\'administrateur principal.</p>') + '</div>') +
       carte('Logo et cachet', '<div class="ligne"><div><label>Logo</label>' + (ec.logo ? '<img class="vignette" src="' + e(ec.logo) + '" alt="Logo">' : '<p class="aide">Aucun</p>') +
         (lec ? '' : '<input type="file" accept="image/*" id="logo"><button type="button" class="btn petit" data-act="sans-logo">Retirer</button>') + '</div>' +
@@ -752,9 +786,10 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     f.onsubmit = function (ev) {
       ev.preventDefault();
       var ch = {};
-      ['nom', 'nom_ar', 'code', 'ia', 'ief', 'type', 'nature', 'annee', 'adresse', 'telephone', 'lieu', 'signataire', 'qualite'].forEach(function (k) { ch[k] = f[k].value.trim(); });
+      ['nom', 'nom_ar', 'code', 'ia', 'ief', 'type', 'nature', 'annee', 'adresse', 'telephone', 'lieu', 'signataire', 'qualite', 'modele_matricule'].forEach(function (k) { ch[k] = f[k].value.trim(); });
       ch.cachet_actif = f.cachet_actif.checked;
       if (!ch.nom) return toast('Le nom de l\'école est obligatoire.', 'ko');
+      if (ch.modele_matricule && !/\{N+\}/.test(ch.modele_matricule)) return toast('Le modèle de matricule doit contenir {NNNN} (numéro).', 'ko');
       if (ch.telephone && !telephoneValide(ch.telephone)) return toast('Téléphone : 9 chiffres commençant par 77, 78, 76, 70, 75 ou 33.', 'ko');
       if (peut('ECOLE')) {
         ch.cycles = $$('[name=cycle]:checked', f).map(function (c) { return c.value; });
@@ -998,7 +1033,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   };
 
   /* ---------- Sauvegarde, restauration, maintenance ---------- */
-  var COLLECTIONS = ['utilisateurs', 'niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'compteurs', 'journal_acces', 'activite',
+  var COLLECTIONS = ['utilisateurs', 'matricules', 'niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'compteurs', 'journal_acces', 'activite',
                      'eleves', 'personnel', 'affectations', 'notes', 'decisions', 'caisse', 'restes_dus', 'documents_registre', 'presences', 'pointages', 'quantum', 'stock'];
   VUES.sauvegarde = function () {
     var m = S.ecole.maintenance, princ = S.profil.role === 'ADMIN_PRINCIPAL';
@@ -1094,6 +1129,889 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
         '<li>Prévu pour une école (jusqu\'à environ 1 500 élèves et 10 connexions simultanées). Plusieurs écoles dans une même base demandent un vrai serveur.</li></ul>') +
       carte('Assistance', '<p style="margin-top:0">' + ASSISTANCE + '</p>') + '</div>';
   };
+
+  /* ===================================================================
+   *  ÉTAPE 2 — ÉLÈVES ET PERSONNEL
+   * =================================================================== */
+  var PAR_PAGE = 100;
+  var MOTIFS_SORTIE = ['Abandon', 'Transfert', 'Exclusion', 'Décès', 'Autre'];
+  var FONCTIONS = ['Directeur', 'Directrice', 'Directeur adjoint', 'Enseignant', 'Enseignante', 'Maître d\'arabe', 'Professeur', 'Secrétaire', 'Comptable', 'Surveillant', 'Gardien', 'Agent d\'entretien', 'Vacataire', 'Autre'];
+  var CHAMPS_PERSONNEL = [
+    ['matricule', 'Matricule'], ['civilite', 'Civilité'], ['prenom', 'Prénom'], ['nom', 'Nom'], ['sexe', 'Sexe'], ['fonction', 'Fonction'], ['langue', 'Langue'],
+    ['telephone', 'Téléphone'], ['telephone_2', 'Téléphone 2'], ['telephone_3', 'Téléphone 3'], ['mail_perso', 'E-mail personnel'], ['mail_pro', 'E-mail professionnel'],
+    ['date_naissance', 'Date de naissance'], ['lieu_naissance', 'Lieu de naissance'], ['adresse', 'Adresse'], ['cni', 'N° CNI'], ['situation_matrimoniale', 'Situation matrimoniale'],
+    ['grade', 'Grade'], ['diplome_academique', 'Diplôme académique'], ['diplome_professionnel', 'Diplôme professionnel'], ['date_entree_enseignement', 'Entrée dans l\'enseignement'],
+    ['date_entree_etablissement', 'Prise de service dans l\'école'], ['ien', 'IEN'], ['n_os', 'N° OS'], ['statut', 'Statut'], ['salaire', 'Salaire']
+  ];
+  var ui2 = { ongletEleve: 'identite', page: 0, filtreClasse: '', filtreStatut: 'ACTIF', filtreSexe: '', recherche: '', tri: 'nom', import: null, persFiltre: { fonction: '', langue: '', sexe: '' }, persTri: 'nom', modele: 'nominative', affClasse: null, repartition: null };
+
+  function liste(obj) { return Object.keys(obj).map(function (k) { return obj[k]; }); }
+  function normal(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim(); }
+  function nomEleve(x) { return x ? x.prenom + ' ' + x.nom : ''; }
+  function classeDe(id) { return S.classes[id] || null; }
+  function classesTriees() { return trier(S.classes, function (a, b) { return ((S.niveaux[a.niveau] || {}).ordre || 0) - ((S.niveaux[b.niveau] || {}).ordre || 0) || a.nom.localeCompare(b.nom); }); }
+  function optClasses(choisi, vide) { return (vide !== undefined ? '<option value="">' + vide + '</option>' : '') + classesTriees().map(function (c) { return '<option value="' + c.id + '"' + (c.id === choisi ? ' selected' : '') + '>' + e(c.nom) + '</option>'; }).join(''); }
+  function opt(liste2, choisi, vide) { return (vide !== undefined ? '<option value="">' + vide + '</option>' : '') + liste2.map(function (v) { var k = Array.isArray(v) ? v[0] : v, l = Array.isArray(v) ? v[1] : v; return '<option value="' + e(k) + '"' + (String(k) === String(choisi) ? ' selected' : '') + '>' + e(l) + '</option>'; }).join(''); }
+  function valeursListe(id, defaut) { return (S.listes[id] && S.listes[id].valeurs) || defaut; }
+  function elevesActifsDe(classeId) { return liste(S.eleves).filter(function (x) { return x.classe_id === classeId && x.statut === 'ACTIF'; }); }
+
+  /* ---------- dates : saisie en 8 chiffres JJMMAAAA ---------- */
+  function dateVersIso(t) {
+    var s = String(t || '').trim();
+    if (!s) return '';
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/) || null, j, mo, a;
+    if (m) { a = +m[1]; mo = +m[2]; j = +m[3]; }
+    else {
+      var d = s.replace(/\D/g, '');
+      if (d.length === 8) { j = +d.slice(0, 2); mo = +d.slice(2, 4); a = +d.slice(4); }
+      else { m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/); if (!m) return null; j = +m[1]; mo = +m[2]; a = +m[3]; }
+    }
+    var dt = new Date(a, mo - 1, j);
+    if (dt.getFullYear() !== a || dt.getMonth() !== mo - 1 || dt.getDate() !== j) return null;
+    return a + '-' + String(mo).padStart(2, '0') + '-' + String(j).padStart(2, '0');
+  }
+  function dateFr(iso) { if (!iso) return ''; var p = String(iso).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; }
+  function formaterSaisieDate(input) {
+    var d = input.value.replace(/\D/g, '').slice(0, 8);
+    input.value = d.length > 4 ? d.slice(0, 2) + '/' + d.slice(2, 4) + '/' + d.slice(4) : d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
+  }
+  document.addEventListener('input', function (ev) { if (ev.target.classList && ev.target.classList.contains('date8')) formaterSaisieDate(ev.target); });
+  function ageAu(iso) { if (!iso) return null; var n = new Date(iso), a = new Date(); var x = a.getFullYear() - n.getFullYear(); if (a < new Date(a.getFullYear(), n.getMonth(), n.getDate())) x--; return x; }
+
+  /* ---------- matricules : compteur atomique + réservation unique ---------- */
+  function anneeDebut() { return parseInt(String(S.ecole.annee || '').slice(0, 4), 10) || new Date().getFullYear(); }
+  function modeleMatricule() { return S.ecole.modele_matricule || '{AAAA}{NNNN}'; }
+  function construireMatricule(n, classeId) {
+    var c = classeDe(classeId), a = String(anneeDebut());
+    return modeleMatricule().replace('{AAAA}', a).replace('{AA}', a.slice(2)).replace(/\{N+\}/, function (t) { return String(n).padStart(t.length - 2, '0'); })
+      .replace('{NIV}', c ? String(c.niveau).replace(/[^A-Z0-9]/gi, '') : '').replace('{CLASSE}', c ? String(c.code).replace(/[^A-Z0-9]/gi, '') : '').toUpperCase();
+  }
+  function cleMatricule(m) { return String(m).toUpperCase().replace(/[^A-Z0-9_-]/g, '_'); }
+  /** Réserve k numéros d'un coup (transaction) ; renvoie le premier */
+  function reserverNumeros(k) {
+    var ref = col('compteurs').doc('matricule_' + anneeDebut());
+    return suivre(db.runTransaction(function (tx) {
+      return tx.get(ref).then(function (s) {
+        var d = s.exists ? s.data().valeur : 0;
+        tx.set(ref, Object.assign({ valeur: d + k }, meta(!s.exists)));
+        return d + 1;
+      });
+    }));
+  }
+
+  /* ---------- contrôles de la fiche élève ---------- */
+  function controlerEleve(f, idExclu, forcer) {
+    var err = [];
+    if (!f.prenom) err.push('Prénom obligatoire.');
+    if (!f.nom) err.push('Nom obligatoire.');
+    if (f.sexe !== 'M' && f.sexe !== 'F') err.push('Sexe : M ou F.');
+    if (f.date_naiss === null) err.push('Date de naissance impossible (tapez 8 chiffres : JJMMAAAA).');
+    else if (f.date_naiss) { var ag = ageAu(f.date_naiss); if (ag < 2 || ag > 30) err.push('Date de naissance improbable (âge ' + ag + ' ans).'); }
+    if (!f.classe_id || !classeDe(f.classe_id)) err.push('Classe inexistante.');
+    if (f.telephone && !telephoneValide(f.telephone)) err.push('Téléphone : 9 chiffres commençant par 77, 78, 76, 70, 75 ou 33.');
+    if (f.matricule) {
+      var mm = cleMatricule(f.matricule);
+      if (liste(S.eleves).some(function (x) { return x.id !== idExclu && cleMatricule(x.matricule) === mm; })) err.push('Matricule ' + f.matricule + ' déjà utilisé.');
+    }
+    if (!forcer && f.prenom && f.nom) {
+      var cle = normal(f.prenom + ' ' + f.nom) + '|' + (f.date_naiss || '');
+      var h = liste(S.eleves).find(function (x) { return x.id !== idExclu && normal(x.prenom + ' ' + x.nom) + '|' + (x.date_naiss || '') === cle; });
+      if (h) err.push('Homonyme : ' + nomEleve(h) + (h.date_naiss ? ' né(e) le ' + dateFr(h.date_naiss) : '') + ' (' + h.matricule + '). Cochez « Forcer » si c\'est bien un autre élève.');
+    }
+    return err;
+  }
+  function nettoyerEleve(v) {
+    var tel = function (t) { return String(t || '').replace(/[^\d+]/g, ''); };
+    return {
+      prenom: String(v.prenom || '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/(^|[\s-])\S/g, function (c) { return c.toUpperCase(); }),
+      nom: String(v.nom || '').trim().replace(/\s+/g, ' ').toUpperCase(),
+      prenom_ar: String(v.prenom_ar || '').trim(), nom_ar: String(v.nom_ar || '').trim(),
+      sexe: /^f/i.test(v.sexe || '') ? 'F' : /^[mg]/i.test(v.sexe || '') ? 'M' : '',
+      date_naiss: dateVersIso(v.date_naiss), lieu_naiss: String(v.lieu_naiss || '').trim(), extrait_naiss: String(v.extrait_naiss || '').trim(),
+      classe_id: v.classe_id || '', adresse: String(v.adresse || '').trim(), parent: String(v.parent || '').trim(), lien_parent: String(v.lien_parent || '').trim(),
+      telephone: tel(v.telephone), telephone_2: tel(v.telephone_2), observations: String(v.observations || '').trim(),
+      type_eleve: v.type_eleve || 'Externe', redoublant: !!v.redoublant, profil_tarif: String(v.profil_tarif || '').trim(),
+      date_entree: dateVersIso(v.date_entree) || '', date_1ere_inscription: dateVersIso(v.date_1ere_inscription) || '',
+      matricule: String(v.matricule || '').trim().toUpperCase()
+    };
+  }
+
+  /** Inscrit un élève : matricule automatique (ou saisi) réservé de façon unique */
+  function inscrireEleve(f) {
+    verifierEcriture('ELEVES');
+    var refEl = col('eleves').doc();
+    var donnees = Object.assign({}, f, { statut: 'ACTIF', motif_sortie: '', cause_exclusion: '', date_sortie: '', date_entree: f.date_entree || new Date().toISOString().slice(0, 10) });
+    if (!donnees.date_1ere_inscription) donnees.date_1ere_inscription = donnees.date_entree;
+    if (!S.enLigne && !f.matricule) {   /* hors ligne : matricule provisoire, remplacé au retour du réseau */
+      donnees.matricule = 'PROV-' + Date.now().toString(36).toUpperCase(); donnees.matricule_provisoire = true;
+      suivre(refEl.set(Object.assign(donnees, meta(true)))).catch(erreurEcriture);
+      return Promise.resolve(donnees.matricule);
+    }
+    var essai = function (n) {
+      return (f.matricule ? Promise.resolve(null) : reserverNumeros(1)).then(function (num) {
+        var mat = f.matricule || construireMatricule(num, f.classe_id), refM = col('matricules').doc(cleMatricule(mat));
+        return suivre(db.runTransaction(function (tx) {
+          return tx.get(refM).then(function (s) {
+            if (s.exists) { var c = new Erreur('Matricule ' + mat + ' déjà attribué.'); c.pris = true; throw c; }
+            tx.set(refM, Object.assign({ eleve_id: refEl.id }, meta(true)));
+            tx.set(refEl, Object.assign({}, donnees, { matricule: mat, matricule_provisoire: false }, meta(true)));
+            return mat;
+          });
+        })).catch(function (err) { if (err.pris && !f.matricule && n < 5) return essai(n + 1); throw err; });
+      });
+    };
+    return essai(1);
+  }
+  function remplacerProvisoires() {
+    if (!S.enLigne || !S.profil || !peut('ELEVES')) return;
+    liste(S.eleves).filter(function (x) { return x.matricule_provisoire && x.cree_par === S.profil.identifiant; }).forEach(function (x) {
+      reserverNumeros(1).then(function (num) {
+        var mat = construireMatricule(num, x.classe_id), b = db.batch();
+        b.set(col('matricules').doc(cleMatricule(mat)), Object.assign({ eleve_id: x.id }, meta(true)));
+        b.update(col('eleves').doc(x.id), Object.assign({ matricule: mat, matricule_provisoire: false, version: (x.version || 0) + 1 }, meta()));
+        return suivre(b.commit()).then(function () { activite('Matricule attribué à ' + nomEleve(x) + ' : ' + mat); });
+      }).catch(function () {});
+    });
+  }
+  window.addEventListener('online', function () { setTimeout(remplacerProvisoires, 2000); });
+
+  /* ---------------------------------------------------------------
+   *  VUE : ÉLÈVES
+   * --------------------------------------------------------------- */
+  var ONGLETS_EL = { registre: 'Registre', fiche: 'Nouvelle fiche', import: 'Importer', reinscription: 'Réinscription', sorties: 'Sorties' };
+  VUES.eleves = function () {
+    var o = ONGLETS_EL[sousVue()] ? sousVue() : 'registre';
+    if (!peut('ELEVES')) o = 'registre';
+    var h = '<h2>Élèves</h2>' + (peut('ELEVES') ? '<nav class="onglets">' + Object.keys(ONGLETS_EL).map(function (k) { return '<a href="#eleves/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_EL[k] + '</a>'; }).join('') + '</nav>' : '');
+    return h + EL[o]();
+  };
+  VUES.eleves.apres = function () { var o = ONGLETS_EL[sousVue()] ? sousVue() : 'registre'; if (EL[o] && EL[o].apres) EL[o].apres(); };
+  var EL = {};
+
+  function filtrerEleves() {
+    var q = normal(ui2.recherche);
+    var l = liste(S.eleves).filter(function (x) {
+      if (ui2.filtreStatut && x.statut !== ui2.filtreStatut) return false;
+      if (ui2.filtreClasse === '_SANS') { if (classeDe(x.classe_id)) return false; }
+      else if (ui2.filtreClasse && x.classe_id !== ui2.filtreClasse) return false;
+      if (ui2.filtreSexe && x.sexe !== ui2.filtreSexe) return false;
+      return !q || normal([x.matricule, x.prenom, x.nom, x.parent, x.telephone].join(' ')).indexOf(q) >= 0;
+    });
+    var cmp = {
+      nom: function (a, b) { return a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom); },
+      matricule: function (a, b) { return String(a.matricule).localeCompare(String(b.matricule)); },
+      classe: function (a, b) { var ca = classeDe(a.classe_id) || {}, cb = classeDe(b.classe_id) || {}; return (((S.niveaux[ca.niveau] || {}).ordre || 99) - ((S.niveaux[cb.niveau] || {}).ordre || 99)) || String(ca.nom).localeCompare(String(cb.nom)) || a.nom.localeCompare(b.nom); },
+      naissance: function (a, b) { return String(a.date_naiss).localeCompare(String(b.date_naiss)); }
+    };
+    return l.sort(cmp[ui2.tri] || cmp.nom);
+  }
+  EL.registre = function () {
+    var l = filtrerEleves(), pages = Math.max(1, Math.ceil(l.length / PAR_PAGE));
+    if (ui2.page >= pages) ui2.page = pages - 1;
+    var morceau = l.slice(ui2.page * PAR_PAGE, (ui2.page + 1) * PAR_PAGE);
+    var g = l.filter(function (x) { return x.sexe === 'M'; }).length;
+    var filtres = '<div class="ligne pas-imprimer" style="margin-bottom:10px">' +
+      '<div><label>Recherche</label><input type="search" id="el-recherche" value="' + e(ui2.recherche) + '" placeholder="Nom, matricule, parent, téléphone"></div>' +
+      '<div><label>Classe</label><select id="el-classe">' + '<option value="">Toutes</option>' + optClasses(ui2.filtreClasse) + '<option value="_SANS"' + (ui2.filtreClasse === '_SANS' ? ' selected' : '') + '>Sans classe</option></select></div>' +
+      '<div><label>Statut</label><select id="el-statut">' + opt([['ACTIF', 'Actifs'], ['INACTIF', 'Inactifs'], ['', 'Tous']], ui2.filtreStatut) + '</select></div>' +
+      '<div><label>Sexe</label><select id="el-sexe">' + opt([['', 'Tous'], ['M', 'Garçons'], ['F', 'Filles']], ui2.filtreSexe) + '</select></div>' +
+      '<div><label>Trier par</label><select id="el-tri">' + opt([['nom', 'Nom'], ['classe', 'Classe'], ['matricule', 'Matricule'], ['naissance', 'Date de naissance']], ui2.tri) + '</select></div></div>';
+    var t = '<div class="table-defil"><table><thead><tr><th>N°</th><th>Matricule</th><th>Prénom et nom</th><th class="c">Sexe</th><th class="mm">Né(e) le</th><th>Classe</th><th class="mm">Parent · téléphone</th><th class="c">Statut</th></tr></thead><tbody>' +
+      (morceau.map(function (x, i) {
+        var c = classeDe(x.classe_id);
+        return '<tr class="cliquable" data-act="el-ouvrir" data-id="' + x.id + '"><td class="c">' + (ui2.page * PAR_PAGE + i + 1) + '</td><td>' + e(x.matricule) + (x.matricule_provisoire ? ' <span class="pastille att">provisoire</span>' : '') + '</td>' +
+          '<td><strong>' + e(x.nom) + '</strong> ' + e(x.prenom) + (x.nom_ar || x.prenom_ar ? '<br><span dir="rtl" class="aide">' + e(x.prenom_ar + ' ' + x.nom_ar) + '</span>' : '') + '</td><td class="c">' + (x.sexe === 'F' ? 'F' : 'G') + '</td>' +
+          '<td class="mm">' + dateFr(x.date_naiss) + (x.lieu_naiss ? ' à ' + e(x.lieu_naiss) : '') + '</td><td>' + (c ? e(c.nom) : '<span class="pastille ko">sans classe</span>') + '</td>' +
+          '<td class="mm">' + e(x.parent) + (x.telephone ? ' · ' + e(x.telephone) : '') + '</td><td class="c"><span class="pastille ' + (x.statut === 'ACTIF' ? 'ok' : 'att') + '">' + (x.statut === 'ACTIF' ? 'Actif' : 'Inactif') + '</span></td></tr>';
+      }).join('') || '<tr><td colspan="8" class="aide">Aucun élève' + (liste(S.eleves).length ? ' pour ces filtres' : ' : utilisez « Nouvelle fiche » ou « Importer »') + '.</td></tr>') + '</tbody></table></div>';
+    var nav = pages > 1 ? '<div class="ligne pas-imprimer" style="margin-top:10px;align-items:center"><div class="fixe"><button class="btn petit" data-act="el-page" data-p="-1"' + (ui2.page ? '' : ' disabled') + '>‹ Précédents</button></div>' +
+      '<div class="fixe aide">Page ' + (ui2.page + 1) + ' / ' + pages + '</div><div class="fixe"><button class="btn petit" data-act="el-page" data-p="1"' + (ui2.page < pages - 1 ? '' : ' disabled') + '>Suivants ›</button></div></div>' : '';
+    return carte('Registre des élèves · ' + l.length + ' (' + g + ' G, ' + (l.length - g) + ' F)', filtres + t + nav,
+      '<button class="btn" data-act="el-csv">⬇ Exporter (Excel/CSV)</button><button class="btn" data-act="el-imprimer">🖨 Imprimer la liste</button>');
+  };
+  EL.registre.apres = function () {
+    var r = $('#el-recherche');
+    if (r) r.oninput = function () { ui2.recherche = r.value; ui2.page = 0; var p = r.selectionStart; rendre(); var n = $('#el-recherche'); n.focus(); n.setSelectionRange(p, p); };
+    [['#el-classe', 'filtreClasse'], ['#el-statut', 'filtreStatut'], ['#el-sexe', 'filtreSexe'], ['#el-tri', 'tri']].forEach(function (x) {
+      var s = $(x[0]); if (s) s.onchange = function () { ui2[x[1]] = s.value; ui2.page = 0; rendre(); };
+    });
+  };
+
+  /* ---------- fiche élève (3 onglets) ---------- */
+  function formulaireEleve(x) {
+    x = x || { sexe: '', type_eleve: 'Externe', classe_id: ui2.filtreClasse && ui2.filtreClasse !== '_SANS' ? ui2.filtreClasse : '' };
+    var ro = !peut('ELEVES') || enMaintenancePourMoi() ? ' disabled' : '';
+    var champ = function (n, lib, val, attrs) { return '<div class="champ"><label>' + lib + '</label><input name="' + n + '" value="' + e(val) + '"' + (attrs || '') + ro + '></div>'; };
+    var types = valeursListe('types_eleve', ['Externe', 'Interne']);
+    var onglet = function (k, lib) { return '<a href="#" data-act="el-onglet" data-o="' + k + '"' + (ui2.ongletEleve === k ? ' class="actif"' : '') + '>' + lib + '</a>'; };
+    return '<form id="f-eleve"' + (x.id ? ' data-id="' + x.id + '" data-version="' + x.version + '"' : '') + '>' +
+      '<nav class="onglets">' + onglet('identite', '1. Identité') + onglet('famille', '2. Famille et contacts') + onglet('scolarite', '3. Scolarité') + '</nav>' +
+      '<div class="grille' + (ui2.ongletEleve === 'identite' ? '' : ' cache') + '" data-onglet="identite">' +
+        champ('prenom', 'Prénom *', x.prenom, ' required') + champ('nom', 'Nom *', x.nom, ' required') +
+        champ('prenom_ar', 'Prénom en arabe', x.prenom_ar, ' dir="rtl"') + champ('nom_ar', 'Nom en arabe', x.nom_ar, ' dir="rtl"') +
+        '<div class="champ"><label>Sexe *</label><select name="sexe"' + ro + '>' + opt([['', '—'], ['M', 'Garçon'], ['F', 'Fille']], x.sexe) + '</select></div>' +
+        champ('date_naiss', 'Date de naissance (8 chiffres : JJMMAAAA)', dateFr(x.date_naiss), ' class="date8" inputmode="numeric" placeholder="15032016"') +
+        champ('lieu_naiss', 'Lieu de naissance', x.lieu_naiss) + champ('extrait_naiss', 'N° extrait de naissance', x.extrait_naiss) + '</div>' +
+      '<div class="grille' + (ui2.ongletEleve === 'famille' ? '' : ' cache') + '" data-onglet="famille">' +
+        champ('parent', 'Parent / tuteur', x.parent) + '<div class="champ"><label>Lien</label><select name="lien_parent"' + ro + '>' + opt(['', 'Père', 'Mère', 'Tuteur', 'Tutrice', 'Autre'], x.lien_parent) + '</select></div>' +
+        champ('telephone', 'Téléphone', x.telephone, ' inputmode="tel" placeholder="77 000 00 00"') + champ('telephone_2', 'Autre téléphone', x.telephone_2, ' inputmode="tel"') +
+        champ('adresse', 'Adresse / quartier', x.adresse) + '</div>' +
+      '<div class="grille' + (ui2.ongletEleve === 'scolarite' ? '' : ' cache') + '" data-onglet="scolarite">' +
+        '<div class="champ"><label>Classe *</label><select name="classe_id"' + ro + '>' + optClasses(x.classe_id, '—') + '</select></div>' +
+        '<div class="champ"><label>Type d\'élève</label><select name="type_eleve"' + ro + '>' + opt(types, x.type_eleve) + '</select></div>' +
+        champ('matricule', 'Matricule' + (x.id ? '' : ' (vide = automatique)'), x.matricule, x.id ? '' : ' placeholder="' + e(construireMatricule(1, x.classe_id).replace(/\d+$/, '…')) + '"') +
+        champ('date_entree', 'Date d\'entrée (JJMMAAAA)', dateFr(x.date_entree), ' class="date8" inputmode="numeric"') +
+        champ('date_1ere_inscription', '1re inscription dans l\'école', dateFr(x.date_1ere_inscription), ' class="date8" inputmode="numeric"') +
+        champ('profil_tarif', 'Profil tarifaire (caisse)', x.profil_tarif, ' placeholder="Normal"') +
+        '<label style="display:flex;gap:8px;align-items:center;color:var(--texte)"><input type="checkbox" name="redoublant"' + (x.redoublant ? ' checked' : '') + ro + '> Redoublant</label>' +
+        '<div class="champ" style="grid-column:1/-1"><label>Observations</label><input name="observations" value="' + e(x.observations) + '"' + ro + '></div></div>' +
+      '<div class="alerte ko cache" id="el-erreurs"></div>' +
+      (ro ? '' : '<div class="ligne" style="margin-top:8px"><div class="fixe"><button class="btn plein">' + (x.id ? 'Enregistrer' : 'Inscrire l\'élève') + '</button></div>' +
+        '<label class="fixe" style="display:flex;gap:6px;align-items:center;color:var(--texte)"><input type="checkbox" name="forcer"> Forcer (homonyme réel)</label>' +
+        (x.id ? '<div class="fixe"><button type="button" class="btn" data-act="el-fermer">Fermer</button></div>' : '') + '</div>') + '</form>';
+  }
+  EL.fiche = function () {
+    return carte('Nouvelle fiche élève', formulaireEleve()) ;
+  };
+  EL.fiche.apres = function () { brancherFormEleve(); };
+  function brancherFormEleve() {
+    var f = $('#f-eleve'); if (!f) return;
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      var v = {}; $$('input,select', f).forEach(function (i) { v[i.name] = i.type === 'checkbox' ? i.checked : i.value; });
+      var x = nettoyerEleve(v), id = f.dataset.id || null;
+      var err = controlerEleve(x, id, v.forcer);
+      var box = $('#el-erreurs');
+      if (err.length) { box.innerHTML = err.map(e).join('<br>'); box.classList.remove('cache'); return; }
+      box.classList.add('cache');
+      if (!id) {
+        f.querySelector('button.plein').disabled = true;
+        inscrireEleve(x).then(function (mat) {
+          toast(nomEleve(x) + ' inscrit(e) · matricule ' + mat, 'ok'); activite('Élève inscrit : ' + nomEleve(x) + ' (' + (classeDe(x.classe_id) || {}).nom + ')');
+          ui2.ongletEleve = 'identite'; rendre(); var p = $('#f-eleve [name=prenom]'); if (p) p.focus();
+        }).catch(function (er) { erreurEcriture(er); f.querySelector('button.plein').disabled = false; });
+      } else {
+        var ancien = S.eleves[id], ch = Object.assign({}, x);
+        var nouveauMat = ch.matricule && cleMatricule(ch.matricule) !== cleMatricule(ancien.matricule);
+        if (!ch.matricule) delete ch.matricule;
+        var suite = nouveauMat ? suivre(db.runTransaction(function (tx) {
+          var refM = col('matricules').doc(cleMatricule(ch.matricule));
+          return tx.get(refM).then(function (s) {
+            if (s.exists) throw new Erreur('Matricule ' + ch.matricule + ' déjà attribué.');
+            tx.set(refM, Object.assign({ eleve_id: id }, meta(true)));
+            tx.delete(col('matricules').doc(cleMatricule(ancien.matricule)));
+          });
+        })) : Promise.resolve();
+        suite.then(function () { return modifier('eleves', id, ch, Number(f.dataset.version), 'ELEVES'); }).then(function (ok) {
+          if (ok) { toast('Fiche enregistrée.', 'ok'); activite('Fiche de ' + nomEleve(x) + ' modifiée'); fermerBoite(); }
+        }).catch(erreurEcriture);
+      }
+    };
+  }
+  function ouvrirFicheEleve(id) {
+    var x = S.eleves[id]; if (!x) return;
+    ui2.ongletEleve = 'identite';
+    var c = classeDe(x.classe_id);
+    ouvrirBoite('<div class="boite large"><h2>' + e(nomEleve(x)) + ' <span class="aide">' + e(x.matricule) + ' · ' + e(c ? c.nom : 'sans classe') + ' · ' + (x.statut === 'ACTIF' ? 'Actif' : 'Inactif' + (x.motif_sortie ? ' (' + e(x.motif_sortie) + ')' : '')) + '</span></h2>' +
+      formulaireEleve(x) +
+      (peut('ELEVES') && !enMaintenancePourMoi() ? '<div class="carte-pied" style="padding-left:0;padding-right:0">' +
+        (x.statut === 'ACTIF' ? '<button class="btn danger" data-act="el-sortie" data-id="' + id + '">Enregistrer une sortie</button>' : '<button class="btn" data-act="el-reactiver" data-id="' + id + '">Réactiver</button>') +
+        '<span class="aide">Modifié par ' + e(x.modifie_par) + ' ' + ilya(x.modifie_le) + '</span></div>' : '') + '</div>');
+    brancherFormEleve();
+  }
+  function boiteSortie(id) {
+    var x = S.eleves[id];
+    ouvrirBoite('<form class="boite" id="f-sortie"><h2>Sortie de ' + e(nomEleve(x)) + '</h2>' +
+      '<div class="champ"><label>Motif</label><select name="motif">' + opt(valeursListe('motifs_sortie', MOTIFS_SORTIE)) + '</select></div>' +
+      '<div class="champ"><label>Date de sortie (JJMMAAAA)</label><input name="date" class="date8" inputmode="numeric" value="' + dateFr(new Date().toISOString().slice(0, 10)) + '"></div>' +
+      '<div class="champ"><label>Précision (école d\'accueil, cause d\'exclusion…)</label><input name="cause"></div>' +
+      '<div style="display:flex;gap:8px"><button class="btn danger">Enregistrer la sortie</button><button type="button" class="btn" data-act="fermer">Annuler</button></div></form>');
+    $('#f-sortie').onsubmit = function (ev) {
+      ev.preventDefault();
+      var d = dateVersIso(this.date.value);
+      if (!d) return toast('Date impossible.', 'ko');
+      modifier('eleves', id, { statut: 'INACTIF', motif_sortie: this.motif.value, cause_exclusion: this.cause.value.trim(), date_sortie: d }, x.version, 'ELEVES').then(function (ok) {
+        if (ok) { fermerBoite(); toast('Sortie enregistrée.', 'ok'); activite('Sortie : ' + nomEleve(x) + ' (' + d + ')'); }
+      });
+    };
+  }
+
+  /* ---------- import : coller ou fichier (CSV / Excel), correspondance des colonnes ---------- */
+  var COLONNES_IMPORT = [['prenom', 'Prénom *'], ['nom', 'Nom *'], ['sexe', 'Sexe *'], ['date_naiss', 'Date de naissance'], ['lieu_naiss', 'Lieu de naissance'], ['classe', 'Classe *'],
+    ['adresse', 'Adresse'], ['parent', 'Parent'], ['telephone', 'Téléphone'], ['matricule', 'Matricule'], ['type_eleve', 'Type d\'élève'], ['prenom_ar', 'Prénom arabe'], ['nom_ar', 'Nom arabe']];
+  var SYNONYMES = { prenom: /^pr[ée]nom/i, nom: /^nom$|^nom\s|^nom_?famille|^nom$/i, sexe: /^sexe|^genre/i, date_naiss: /naiss|^date/i, lieu_naiss: /^lieu/i, classe: /^classe/i, adresse: /adresse|quartier/i,
+    parent: /parent|tuteur|p[eè]re|m[eè]re/i, telephone: /t[ée]l/i, matricule: /matric/i, type_eleve: /type|r[ée]gime/i, prenom_ar: /pr[ée]nom.*ar/i, nom_ar: /nom.*ar/i };
+  EL.import = function () {
+    var im = ui2.import;
+    var etapes = ['1. Source', '2. Aperçu', '3. Colonnes', '4. Contrôle', '5. Import'];
+    var n = !im ? 0 : im.etape;
+    var h = '<div class="onglets">' + etapes.map(function (t, i) { return '<a href="#"' + (i === n ? ' class="actif"' : '') + ' style="pointer-events:none">' + t + '</a>'; }).join('') + '</div>';
+    if (n === 0) return h + '<div class="grille">' +
+      carte('Coller depuis Excel', '<p class="aide" style="margin-top:0">Dans Excel, sélectionnez les lignes (avec ou sans la ligne de titres), copiez, puis collez ici. Ordre conseillé (comme la feuille IMPORT_ELEVES) : PRENOM · NOM · SEXE · DATE_NAISS · LIEU_NAISS · CLASSE · ADRESSE · PARENT · TELEPHONE.</p>' +
+        '<textarea id="imp-colle" rows="8" placeholder="Awa&#9;DIOP&#9;F&#9;15032016&#9;Mbacké&#9;CM2"></textarea>', '<button class="btn plein" data-act="imp-colle">Continuer</button>') +
+      carte('Depuis un fichier', '<p class="aide" style="margin-top:0">Fichier CSV (séparateur ; ou ,) ou Excel (.xlsx / .xlsm). La première ligne doit contenir les titres.</p><input type="file" id="imp-fichier" accept=".csv,.txt,.xlsx,.xlsm,.xls">') + '</div>';
+    if (n === 1) {
+      var apercu = im.lignes.slice(0, 8);
+      return h + carte('Aperçu · ' + im.lignes.length + ' ligne(s)' + (im.feuilles && im.feuilles.length > 1 ? '' : ''),
+        (im.feuilles && im.feuilles.length > 1 ? '<div class="champ"><label>Feuille</label><select id="imp-feuille">' + opt(im.feuilles, im.feuille) + '</select></div>' : '') +
+        '<label style="display:flex;gap:8px;align-items:center;color:var(--texte)"><input type="checkbox" id="imp-titres"' + (im.titres ? ' checked' : '') + '> La première ligne contient les titres</label>' +
+        '<div class="table-defil"><table><tbody>' + apercu.map(function (r, i) { return '<tr' + (i === 0 && im.titres ? ' style="font-weight:700"' : '') + '>' + r.map(function (c) { return '<td>' + e(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>',
+        '<button class="btn" data-act="imp-retour">Recommencer</button><button class="btn plein" data-act="imp-etape" data-n="2">Continuer</button>');
+    }
+    if (n === 2) {
+      var tetes = im.titres ? im.lignes[0] : im.lignes[0].map(function (_, i) { return 'Colonne ' + (i + 1); });
+      return h + carte('Correspondance des colonnes', '<p class="aide" style="margin-top:0">Pour chaque information, choisissez la colonne du fichier. Les correspondances évidentes sont déjà proposées.</p><div class="grille">' +
+        COLONNES_IMPORT.map(function (c) {
+          return '<div class="champ"><label>' + c[1] + '</label><select class="imp-map" data-champ="' + c[0] + '"><option value="">— ignorer —</option>' + tetes.map(function (t, i) { return '<option value="' + i + '"' + (im.map[c[0]] === i ? ' selected' : '') + '>' + e(t) + '</option>'; }).join('') + '</select></div>';
+        }).join('') + '</div>' +
+        '<div class="champ"><label>Classe par défaut (si la colonne Classe est vide ou ignorée)</label><select id="imp-classe-def">' + optClasses(im.classeDefaut, '—') + '</select></div>',
+        '<button class="btn" data-act="imp-etape" data-n="1">‹ Retour</button><button class="btn plein" data-act="imp-controler">Contrôler</button>');
+    }
+    if (n === 3) {
+      var ok = im.rapport.filter(function (r) { return r.ok; }).length;
+      return h + carte('Contrôle · ' + ok + ' ligne(s) prête(s), ' + (im.rapport.length - ok) + ' en erreur',
+        '<label style="display:flex;gap:8px;align-items:center;color:var(--texte);margin-bottom:8px"><input type="checkbox" id="imp-forcer"' + (im.forcer ? ' checked' : '') + '> Forcer les homonymes (élèves réellement différents)</label>' +
+        '<div class="table-defil"><table><thead><tr><th>Ligne</th><th>Élève</th><th>Classe</th><th>RAPPORT</th></tr></thead><tbody>' +
+        im.rapport.map(function (r) { return '<tr><td class="c">' + r.ligne + '</td><td>' + e(nomEleve(r.x)) + '</td><td>' + e((classeDe(r.x.classe_id) || {}).nom || r.classeTexte) + '</td><td>' + (r.ok ? '<span class="pastille ok">OK</span>' : '<span class="pastille ko">' + e(r.erreurs.join(' ')) + '</span>') + '</td></tr>'; }).join('') +
+        '</tbody></table></div>',
+        '<button class="btn" data-act="imp-etape" data-n="2">‹ Colonnes</button><button class="btn" data-act="imp-rapport-csv">⬇ Rapport (CSV)</button>' +
+        (ok ? '<button class="btn plein" data-act="imp-lancer">Importer ' + ok + ' élève(s)</button>' : ''));
+    }
+    return h + carte('Import terminé', '<p style="margin-top:0">' + e(im.bilan) + '</p>', '<button class="btn" data-act="imp-retour">Nouvel import</button><a class="btn plein" href="#eleves/registre">Voir le registre</a>');
+  };
+  EL.import.apres = function () {
+    var fi = $('#imp-fichier');
+    if (fi) fi.onchange = function () { if (fi.files[0]) lireFichierImport(fi.files[0]); };
+    var t = $('#imp-titres'); if (t) t.onchange = function () { ui2.import.titres = t.checked; devinerColonnes(); rendre(); };
+    var fe = $('#imp-feuille'); if (fe) fe.onchange = function () { ui2.import.feuille = fe.value; ui2.import.lignes = ui2.import.parFeuille[fe.value]; devinerColonnes(); rendre(); };
+    var fo = $('#imp-forcer'); if (fo) fo.onchange = function () { ui2.import.forcer = fo.checked; controlerImport(); rendre(); };
+  };
+  function decouperTexte(t) {
+    var lignes = String(t || '').replace(/\r/g, '').split('\n').filter(function (l) { return l.trim(); });
+    var sep = lignes[0] && lignes[0].indexOf('\t') >= 0 ? '\t' : (lignes[0] && (lignes[0].split(';').length >= lignes[0].split(',').length) ? ';' : ',');
+    return lignes.map(function (l) {
+      var res = [], cur = '', q = false;
+      for (var i = 0; i < l.length; i++) {
+        var ch = l[i];
+        if (ch === '"') { if (q && l[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+        else if (ch === sep && !q) { res.push(cur.trim()); cur = ''; }
+        else cur += ch;
+      }
+      res.push(cur.trim()); return res;
+    });
+  }
+  function nouvelImport(lignes, extra) {
+    var premier = (lignes[0] || []).join(' ');
+    ui2.import = Object.assign({ etape: 1, lignes: lignes, titres: /pr[ée]nom|nom|classe|sexe/i.test(premier), map: {}, classeDefaut: '', rapport: [], forcer: false }, extra || {});
+    devinerColonnes(); rendre();
+  }
+  function devinerColonnes() {
+    var im = ui2.import, tetes = im.lignes[0] || [], map = {};
+    if (im.titres) {
+      COLONNES_IMPORT.forEach(function (c) {
+        var i = tetes.findIndex(function (t, k) { return SYNONYMES[c[0]].test(String(t).trim()) && Object.keys(map).every(function (m) { return map[m] !== k; }); });
+        if (i >= 0) map[c[0]] = i;
+      });
+    } else ['prenom', 'nom', 'sexe', 'date_naiss', 'lieu_naiss', 'classe', 'adresse', 'parent', 'telephone'].forEach(function (c, i) { if (i < tetes.length) map[c] = i; });
+    im.map = map;
+  }
+  function chargerSheetJS() {
+    if (window.XLSX) return Promise.resolve();
+    return new Promise(function (ok, ko) {
+      var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = ok; s.onerror = function () { ko(new Erreur('Impossible de charger le lecteur Excel (connexion internet ?). Enregistrez le fichier en CSV.')); };
+      document.head.appendChild(s);
+    });
+  }
+  function lireFichierImport(fichier) {
+    if (/\.(xlsx|xlsm|xls)$/i.test(fichier.name)) {
+      toast('Lecture du fichier Excel…');
+      chargerSheetJS().then(function () {
+        return fichier.arrayBuffer();
+      }).then(function (buf) {
+        var wb = XLSX.read(buf, { type: 'array', cellDates: true }), par = {};
+        wb.SheetNames.forEach(function (n) {
+          par[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, dateNF: 'dd/mm/yyyy', defval: '' })
+            .filter(function (r) { return r.some(function (c) { return String(c).trim(); }); }).map(function (r) { return r.map(function (c) { return String(c).trim(); }); });
+        });
+        var feuille = wb.SheetNames.find(function (n) { return /eleve|élève|import/i.test(n) && par[n].length; }) || wb.SheetNames.find(function (n) { return par[n].length; });
+        if (!feuille) throw new Erreur('Ce fichier ne contient aucune donnée.');
+        nouvelImport(par[feuille], { feuilles: wb.SheetNames.filter(function (n) { return par[n].length; }), feuille: feuille, parFeuille: par });
+      }).catch(erreurEcriture);
+    } else {
+      var r = new FileReader();
+      r.onload = function () { var l = decouperTexte(r.result); if (!l.length) return toast('Fichier vide.', 'ko'); nouvelImport(l); };
+      r.readAsText(fichier, 'utf-8');
+    }
+  }
+  function trouverClasse(t) {
+    var n = normal(t); if (!n) return null;
+    return classesTriees().find(function (c) { return normal(c.code) === n || normal(c.nom) === n; }) ||
+           classesTriees().filter(function (c) { return normal(S.niveaux[c.niveau] ? S.niveaux[c.niveau].nom : '') === n || normal(c.niveau) === n; })[0] || null;
+  }
+  function controlerImport() {
+    var im = ui2.import, debut = im.titres ? 1 : 0, vus = {};
+    var get = function (r, c) { return im.map[c] !== undefined && im.map[c] !== '' ? (r[im.map[c]] || '') : ''; };
+    im.rapport = im.lignes.slice(debut).map(function (r, i) {
+      var v = {}; COLONNES_IMPORT.forEach(function (c) { v[c[0]] = get(r, c[0]); });
+      var cl = trouverClasse(v.classe) || (!v.classe && im.classeDefaut ? classeDe(im.classeDefaut) : null);
+      v.classe_id = cl ? cl.id : '';
+      var x = nettoyerEleve(v), err = controlerEleve(x, null, im.forcer);
+      if (v.classe && !cl) err = err.filter(function (m) { return m !== 'Classe inexistante.'; }).concat(['Classe « ' + v.classe + ' » inexistante.']);
+      var cle = normal(x.prenom + ' ' + x.nom) + '|' + (x.date_naiss || '');
+      if (!im.forcer && vus[cle]) err.push('Doublon dans le fichier (ligne ' + vus[cle] + ').');
+      vus[cle] = vus[cle] || i + debut + 1;
+      if (x.matricule && im.rapport && 0) err.push('');
+      return { ligne: i + debut + 1, x: x, ok: !err.length, erreurs: err, classeTexte: v.classe };
+    });
+    var mats = {};
+    im.rapport.forEach(function (r) { if (r.x.matricule) { var k = cleMatricule(r.x.matricule); if (mats[k]) { r.ok = false; r.erreurs.push('Matricule en double dans le fichier.'); } mats[k] = 1; } });
+  }
+  function lancerImport() {
+    verifierEcriture('ELEVES');
+    var im = ui2.import, prets = im.rapport.filter(function (r) { return r.ok; });
+    if (!S.enLigne) return toast('Connexion internet nécessaire pour attribuer les matricules d\'un import.', 'ko');
+    var sansMat = prets.filter(function (r) { return !r.x.matricule; }).length;
+    toast('Import de ' + prets.length + ' élève(s)…');
+    (sansMat ? reserverNumeros(sansMat) : Promise.resolve(0)).then(function (premier) {
+      var n = premier, ops = [], jour = new Date().toISOString().slice(0, 10);
+      prets.forEach(function (r) {
+        var ref = col('eleves').doc(), mat = r.x.matricule || construireMatricule(n++, r.x.classe_id);
+        var d = Object.assign({}, r.x, { matricule: mat, matricule_provisoire: false, statut: 'ACTIF', motif_sortie: '', cause_exclusion: '', date_sortie: '',
+          date_entree: r.x.date_entree || jour, date_1ere_inscription: r.x.date_1ere_inscription || jour }, meta(true));
+        ops.push([col('matricules').doc(cleMatricule(mat)), Object.assign({ eleve_id: ref.id }, meta(true))]);
+        ops.push([ref, d]);
+      });
+      var lots = [];
+      for (var i = 0; i < ops.length; i += 400) { var b = db.batch(); ops.slice(i, i + 400).forEach(function (o) { b.set(o[0], o[1]); }); lots.push(suivre(b.commit())); }
+      return Promise.all(lots);
+    }).then(function () {
+      im.etape = 4; im.bilan = prets.length + ' élève(s) importé(s). ' + (im.rapport.length - prets.length) + ' ligne(s) laissée(s) de côté (voir le rapport).';
+      journal('IMPORT_ELEVES', prets.length + ' élève(s)'); activite(prets.length + ' élève(s) importé(s)'); rendre();
+    }).catch(erreurEcriture);
+  }
+
+  /* ---------- réinscription rapide de rentrée ---------- */
+  EL.reinscription = function () {
+    var inactifs = liste(S.eleves).filter(function (x) { return x.statut === 'INACTIF' && !/exclusion|décès/i.test(x.motif_sortie || ''); })
+      .sort(function (a, b) { var ca = classeDe(a.classe_id) || {}, cb = classeDe(b.classe_id) || {}; return String(ca.nom).localeCompare(String(cb.nom)) || a.nom.localeCompare(b.nom); });
+    return carte('Réinscription rapide · ' + inactifs.length + ' élève(s) inactif(s)', '<p class="aide" style="margin-top:0">Cochez les élèves qui reviennent et vérifiez la classe proposée (classe du niveau suivant, ou la même classe pour un redoublant). Les exclus ne sont pas proposés.</p>' +
+      '<div class="table-defil"><table><thead><tr><th><input type="checkbox" id="re-tous"></th><th>Élève</th><th>Ancienne classe</th><th>Motif</th><th>Nouvelle classe</th></tr></thead><tbody>' +
+      (inactifs.map(function (x) {
+        var c = classeDe(x.classe_id), suiv = c && !x.redoublant && S.niveaux[c.niveau] ? S.niveaux[c.niveau].suivant : null;
+        var cible = suiv ? classesTriees().find(function (k) { return k.niveau === suiv; }) : c;
+        return '<tr><td><input type="checkbox" class="re-case" value="' + x.id + '"></td><td>' + e(nomEleve(x)) + ' <span class="aide">' + e(x.matricule) + '</span></td><td>' + e(c ? c.nom : '—') + '</td><td class="aide">' + e(x.motif_sortie || 'fin d\'année') + '</td>' +
+          '<td><select class="re-classe" data-id="' + x.id + '">' + optClasses(cible ? cible.id : '', '—') + '</select></td></tr>';
+      }).join('') || '<tr><td colspan="5" class="aide">Aucun élève inactif. Après la migration de fin d\'année (étape 7), les élèves passent ici en attendant leur réinscription.</td></tr>') + '</tbody></table></div>',
+      inactifs.length ? '<button class="btn plein" data-act="re-valider">Réinscrire les élèves cochés</button>' : '');
+  };
+  EL.reinscription.apres = function () { var t = $('#re-tous'); if (t) t.onchange = function () { $$('.re-case').forEach(function (c) { c.checked = t.checked; }); }; };
+  EL.sorties = function () {
+    var s = liste(S.eleves).filter(function (x) { return x.statut === 'INACTIF' && x.date_sortie; }).sort(function (a, b) { return String(b.date_sortie).localeCompare(String(a.date_sortie)); });
+    return carte('Sorties d\'élèves · ' + s.length, '<div class="table-defil"><table><thead><tr><th>Date</th><th>Élève</th><th>Classe</th><th>Motif</th><th>Précision</th></tr></thead><tbody>' +
+      (s.map(function (x) { return '<tr class="cliquable" data-act="el-ouvrir" data-id="' + x.id + '"><td>' + dateFr(x.date_sortie) + '</td><td>' + e(nomEleve(x)) + '</td><td>' + e((classeDe(x.classe_id) || {}).nom) + '</td><td>' + e(x.motif_sortie) + '</td><td>' + e(x.cause_exclusion) + '</td></tr>'; }).join('') ||
+       '<tr><td colspan="5" class="aide">Aucune sortie. Pour en enregistrer une, ouvrez la fiche de l\'élève depuis le registre.</td></tr>') + '</tbody></table></div>');
+  };
+
+  /* ---------------------------------------------------------------
+   *  VUE : PERSONNEL
+   * --------------------------------------------------------------- */
+  var ONGLETS_PERS = { registre: 'Registre', affectations: 'Affectations', repartition: 'Répartition arabe', listes: 'Listes', import: 'Import / export', purge: 'Purge' };
+  function personnelTrie() {
+    var f = ui2.persFiltre;
+    return liste(S.personnel).filter(function (p) {
+      return (!f.fonction || p.fonction === f.fonction) && (!f.langue || p.langue === f.langue) && (!f.sexe || p.sexe === f.sexe);
+    }).sort({
+      nom: function (a, b) { return a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom); },
+      fonction: function (a, b) { return String(a.fonction).localeCompare(String(b.fonction)) || a.nom.localeCompare(b.nom); },
+      matricule: function (a, b) { return String(a.matricule).localeCompare(String(b.matricule)); }
+    }[ui2.persTri] || function () { return 0; });
+  }
+  function nomPers(p) { return p ? (p.prenom + ' ' + p.nom) : ''; }
+  VUES.personnel = function () {
+    var o = ONGLETS_PERS[sousVue()] ? sousVue() : 'registre';
+    var ecr = peut('PERSONNEL');
+    if (!ecr && o !== 'listes') o = 'registre';
+    return '<h2>Personnel</h2><nav class="onglets">' + Object.keys(ONGLETS_PERS).filter(function (k) { return ecr || k === 'registre' || k === 'listes'; }).filter(function (k) { return k !== 'purge' || S.profil.role === 'ADMIN_PRINCIPAL' || S.profil.role === 'ADMIN_SECONDAIRE'; })
+      .map(function (k) { return '<a href="#personnel/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_PERS[k] + '</a>'; }).join('') + '</nav>' + PE[o]();
+  };
+  VUES.personnel.apres = function () { var o = ONGLETS_PERS[sousVue()] ? sousVue() : 'registre'; if (PE[o] && PE[o].apres) PE[o].apres(); };
+  var PE = {};
+  function filtresPersonnel() {
+    var f = ui2.persFiltre, fonctions = Array.from(new Set(liste(S.personnel).map(function (p) { return p.fonction; }).filter(Boolean))).sort();
+    return '<div class="ligne pas-imprimer" style="margin-bottom:10px"><div><label>Fonction</label><select class="pf" data-k="fonction">' + opt(fonctions, f.fonction, 'Toutes') + '</select></div>' +
+      '<div><label>Langue</label><select class="pf" data-k="langue">' + opt([['FR', 'Français'], ['AR', 'Arabe'], ['LN', 'Langue nationale']], f.langue, 'Toutes') + '</select></div>' +
+      '<div><label>Sexe</label><select class="pf" data-k="sexe">' + opt([['M', 'Hommes'], ['F', 'Femmes']], f.sexe, 'Tous') + '</select></div>' +
+      '<div><label>Trier par</label><select id="pers-tri">' + opt([['nom', 'Nom'], ['fonction', 'Fonction'], ['matricule', 'Matricule']], ui2.persTri) + '</select></div></div>';
+  }
+  function brancherFiltresPers() {
+    $$('.pf').forEach(function (s) { s.onchange = function () { ui2.persFiltre[s.dataset.k] = s.value; rendre(); }; });
+    var t = $('#pers-tri'); if (t) t.onchange = function () { ui2.persTri = t.value; rendre(); };
+  }
+  PE.registre = function () {
+    var l = personnelTrie();
+    return carte('Registre du personnel · ' + l.length, filtresPersonnel() + '<div class="table-defil"><table><thead><tr><th>Prénom et nom</th><th>Fonction</th><th class="c">Langue</th><th>Classes tenues</th><th class="mm">Téléphone</th></tr></thead><tbody>' +
+      (l.map(function (p) {
+        return '<tr class="cliquable" data-act="pers-ouvrir" data-id="' + p.id + '"><td><strong>' + e(p.nom) + '</strong> ' + e(p.prenom) + (p.matricule ? ' <span class="aide">' + e(p.matricule) + '</span>' : '') + '</td><td>' + e(p.fonction) + '</td>' +
+          '<td class="c">' + e(p.langue) + '</td><td>' + e((p.classes || []).map(function (id) { return (classeDe(id) || {}).nom; }).filter(Boolean).join(', ')) + (p.mult ? ' <span class="pastille">multigrade</span>' : '') + '</td><td class="mm">' + e(p.telephone) + '</td></tr>';
+      }).join('') || '<tr><td colspan="5" class="aide">Aucun agent enregistré.</td></tr>') + '</tbody></table></div>',
+      peut('PERSONNEL') ? '<button class="btn plein" data-act="pers-nouveau">➕ Nouvel agent</button>' : '');
+  };
+  PE.registre.apres = brancherFiltresPers;
+  function ficheAgent(p) {
+    p = p || { sexe: 'M', langue: 'FR', classes: [] };
+    var ro = !peut('PERSONNEL') || enMaintenancePourMoi() ? ' disabled' : '';
+    var champ = function (k, lib, attrs) { return '<div class="champ"><label>' + lib + '</label><input name="' + k + '" value="' + e(/date/.test(k) ? dateFr(p[k]) : p[k]) + '"' + (attrs || '') + ro + '></div>'; };
+    var cl = classesTriees().map(function (c) { return '<label style="display:flex;gap:6px;align-items:center;color:var(--texte)"><input type="checkbox" name="classe" value="' + c.id + '"' + ((p.classes || []).indexOf(c.id) >= 0 ? ' checked' : '') + ro + '> ' + e(c.nom) + '</label>'; }).join('');
+    ouvrirBoite('<form class="boite large" id="f-agent"' + (p.id ? ' data-id="' + p.id + '" data-version="' + p.version + '"' : '') + '><h2>' + (p.id ? e(nomPers(p)) : 'Nouvel agent') + '</h2>' +
+      '<h3 style="margin:6px 0">Identité et fonction</h3><div class="grille">' +
+      '<div class="champ"><label>Civilité</label><select name="civilite"' + ro + '>' + opt(['', 'M.', 'Mme', 'Mlle', 'Oustaz', 'Serigne', 'Sokhna'], p.civilite) + '</select></div>' +
+      champ('prenom', 'Prénom *', ' required') + champ('nom', 'Nom *', ' required') +
+      '<div class="champ"><label>Sexe * (accords des documents)</label><select name="sexe"' + ro + '>' + opt([['M', 'Homme'], ['F', 'Femme']], p.sexe) + '</select></div>' +
+      '<div class="champ"><label>Fonction *</label><select name="fonction"' + ro + '>' + opt(FONCTIONS, p.fonction || 'Enseignant') + '</select></div>' +
+      '<div class="champ"><label>Langue d\'enseignement</label><select name="langue"' + ro + '>' + opt([['FR', 'Français'], ['AR', 'Arabe'], ['LN', 'Langue nationale']], p.langue) + '</select></div>' +
+      champ('matricule', 'Matricule') + champ('telephone', 'Téléphone', ' inputmode="tel"') + champ('statut', 'Statut (titulaire, contractuel, vacataire…)') + '</div>' +
+      '<h3 style="margin:10px 0 6px">Classes tenues</h3><div class="droits">' + (cl || '<span class="aide">Aucune classe.</span>') + '</div>' +
+      '<label style="display:flex;gap:6px;align-items:center;color:var(--texte);margin-top:6px"><input type="checkbox" name="mult"' + (p.mult ? ' checked' : '') + ro + '> Classe multigrade</label>' +
+      '<details style="margin-top:10px"' + (p.id ? '' : '') + '><summary><strong>Fiche complète (état civil, diplômes, carrière)</strong></summary><div class="grille" style="margin-top:8px">' +
+      champ('date_naissance', 'Date de naissance (JJMMAAAA)', ' class="date8" inputmode="numeric"') + champ('lieu_naissance', 'Lieu de naissance') + champ('adresse', 'Adresse') + champ('cni', 'N° CNI') +
+      '<div class="champ"><label>Situation matrimoniale</label><select name="situation_matrimoniale"' + ro + '>' + opt(['', 'Célibataire', 'Marié(e)', 'Divorcé(e)', 'Veuf / veuve'], p.situation_matrimoniale) + '</select></div>' +
+      champ('grade', 'Grade') + champ('diplome_academique', 'Diplôme académique') + champ('diplome_professionnel', 'Diplôme professionnel') +
+      champ('date_entree_enseignement', 'Entrée dans l\'enseignement (JJMMAAAA)', ' class="date8" inputmode="numeric"') + champ('date_entree_etablissement', 'Prise de service dans l\'école (JJMMAAAA)', ' class="date8" inputmode="numeric"') +
+      champ('ien', 'IEN') + champ('n_os', 'N° OS') + champ('telephone_2', 'Téléphone 2', ' inputmode="tel"') + champ('telephone_3', 'Téléphone 3', ' inputmode="tel"') +
+      champ('mail_perso', 'E-mail personnel', ' type="email"') + champ('mail_pro', 'E-mail professionnel', ' type="email"') + champ('salaire', 'Salaire (F CFA)', ' inputmode="numeric"') + '</div></details>' +
+      '<div class="alerte ko cache" id="ag-err" style="margin-top:10px"></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' + (ro ? '' : '<button class="btn plein">Enregistrer</button>') + '<button type="button" class="btn" data-act="fermer">Fermer</button></div></form>');
+    $('#f-agent').onsubmit = function (ev) { ev.preventDefault(); enregistrerAgent(this); };
+  }
+  function enregistrerAgent(f) {
+    var v = {}, err = [];
+    CHAMPS_PERSONNEL.forEach(function (c) { if (f[c[0]]) v[c[0]] = String(f[c[0]].value).trim(); });
+    v.prenom = v.prenom.replace(/\s+/g, ' ').toLowerCase().replace(/(^|[\s-])\S/g, function (c) { return c.toUpperCase(); }); v.nom = v.nom.toUpperCase();
+    ['date_naissance', 'date_entree_enseignement', 'date_entree_etablissement'].forEach(function (k) { if (v[k]) { var d = dateVersIso(v[k]); if (!d) err.push('Date impossible : ' + k.replace(/_/g, ' ') + '.'); else v[k] = d; } });
+    ['telephone', 'telephone_2', 'telephone_3'].forEach(function (k) { v[k] = (v[k] || '').replace(/[^\d+]/g, ''); if (v[k] && !telephoneValide(v[k])) err.push('Téléphone invalide : ' + v[k] + '.'); });
+    if (!v.prenom || !v.nom) err.push('Prénom et nom obligatoires.');
+    if (v.salaire && !(Number(v.salaire) >= 0)) err.push('Salaire : un nombre.');
+    var id = f.dataset.id || null;
+    if (v.matricule && liste(S.personnel).some(function (p) { return p.id !== id && p.matricule && p.matricule.toUpperCase() === v.matricule.toUpperCase(); })) err.push('Matricule déjà utilisé par un autre agent.');
+    if (err.length) { var b = $('#ag-err'); b.innerHTML = err.map(e).join('<br>'); b.classList.remove('cache'); return; }
+    v.classes = $$('[name=classe]:checked', f).map(function (c) { return c.value; });
+    v.mult = f.mult.checked;
+    var fin = function () { fermerBoite(); toast('Agent enregistré.', 'ok'); activite((id ? 'Fiche modifiée : ' : 'Agent ajouté : ') + nomPers(v)); };
+    try {
+      if (id) modifier('personnel', id, v, Number(f.dataset.version), 'PERSONNEL').then(function (ok) { if (ok) { majTitulaires(id, v); fin(); } });
+      else { var nid = creer('personnel', v, 'PERSONNEL'); majTitulaires(nid, v); fin(); }
+    } catch (x) { erreurEcriture(x); }
+  }
+  /** Les classes tenues alimentent les titulaires (français ou arabe selon la langue de l'agent) */
+  function majTitulaires(id, p) {
+    if (!peut('PARAMETRES')) return;
+    var champ = p.langue === 'AR' ? 'titulaire_ar' : 'titulaire_fr', nom = (p.civilite ? p.civilite + ' ' : '') + nomPers(p);
+    classesTriees().forEach(function (c) {
+      var tient = (p.classes || []).indexOf(c.id) >= 0;
+      if (tient && c[champ] !== nom) modifier('classes', c.id, (function () { var o = {}; o[champ] = nom; o[champ + '_id'] = id; return o; })(), undefined, 'PARAMETRES');
+      else if (!tient && c[champ + '_id'] === id) modifier('classes', c.id, (function () { var o = {}; o[champ] = ''; o[champ + '_id'] = ''; return o; })(), undefined, 'PARAMETRES');
+    });
+  }
+
+  /* ---------- affectations classe × matière ---------- */
+  function matieresDeClasse(c) {
+    var vues = {}, res = [];
+    trier(S.matieres, function (a, b) { return a.ordre - b.ordre; }).forEach(function (m) {
+      if (m.niveau !== c.niveau || vues[m.langue + '|' + m.matiere]) return;
+      vues[m.langue + '|' + m.matiere] = 1; res.push({ langue: m.langue, matiere: m.matiere });
+    });
+    return res;
+  }
+  function idAffectation(classeId, matiere) { return classeId + '__' + normal(matiere).replace(/\s+/g, '_').slice(0, 60); }
+  PE.affectations = function () {
+    var cls = classesTriees();
+    if (!cls.length) return carte('Affectations', '<p>Aucune classe.</p>');
+    if (!classeDe(ui2.affClasse)) ui2.affClasse = cls[0].id;
+    var c = classeDe(ui2.affClasse), ens = personnelTrie().filter(function (p) { return !/gardien|entretien|secr|compta/i.test(p.fonction || ''); });
+    return '<div class="carte"><div class="carte-corps ligne"><div><label>Classe</label><select id="aff-classe">' + optClasses(c.id) + '</select></div></div></div>' +
+      carte('Enseignant par matière · ' + e(c.nom), '<div class="table-defil"><table><thead><tr><th class="c">Langue</th><th>Matière</th><th>Enseignant</th></tr></thead><tbody>' +
+        matieresDeClasse(c).map(function (m) {
+          var a = S.affectations[idAffectation(c.id, m.matiere)];
+          return '<tr><td class="c">' + m.langue + '</td><td dir="auto">' + e(m.matiere) + '</td><td><select class="aff-sel" data-matiere="' + e(m.matiere) + '" data-langue="' + m.langue + '">' +
+            opt(ens.filter(function (p) { return m.langue !== 'AR' || p.langue === 'AR'; }).map(function (p) { return [p.id, nomPers(p) + ' (' + p.langue + ')']; }), a ? a.personnel_id : '', '—') + '</select></td></tr>';
+        }).join('') + '</tbody></table></div><p class="aide">Une seule affectation par classe et par matière : un nouveau choix remplace l\'ancien.</p>',
+        '<button class="btn plein" data-act="aff-enr">Enregistrer les affectations</button>');
+  };
+  PE.affectations.apres = function () { var s = $('#aff-classe'); if (s) s.onchange = function () { ui2.affClasse = s.value; rendre(); }; };
+
+  /* ---------- répartition des enseignants d'arabe ---------- */
+  function proposerRepartition() {
+    var profs = liste(S.personnel).filter(function (p) { return p.langue === 'AR' && !/gardien|entretien|secr|compta/i.test(p.fonction || ''); });
+    var charge = {}; profs.forEach(function (p) { charge[p.id] = 0; });
+    var lignes = classesTriees().map(function (c) {
+      var mats = matieresDeClasse(c).filter(function (m) { return m.langue === 'AR'; });
+      return { classe: c, effectif: elevesActifsDe(c.id).length, matieres: mats.map(function (m) { return m.matiere; }), prof: '' };
+    }).filter(function (l) { return l.matieres.length; });
+    /* d'abord les titulaires d'arabe déjà déclarés, puis les plus grosses classes au moins chargé */
+    lignes.forEach(function (l) { if (l.classe.titulaire_ar_id && charge[l.classe.titulaire_ar_id] !== undefined) { l.prof = l.classe.titulaire_ar_id; charge[l.prof] += l.effectif || 1; } });
+    lignes.filter(function (l) { return !l.prof; }).sort(function (a, b) { return b.effectif - a.effectif; }).forEach(function (l) {
+      var p = profs.slice().sort(function (a, b) { return charge[a.id] - charge[b.id] || ((a.classes || []).indexOf(l.classe.id) >= 0 ? -1 : 1); })[0];
+      if (p) { l.prof = p.id; charge[p.id] += l.effectif || 1; }
+    });
+    return { lignes: lignes, profs: profs };
+  }
+  PE.repartition = function () {
+    if (!ui2.repartition) ui2.repartition = proposerRepartition();
+    var R = ui2.repartition, charge = {};
+    R.lignes.forEach(function (l) { if (l.prof) charge[l.prof] = (charge[l.prof] || 0) + l.effectif; });
+    if (!R.profs.length) return carte('Répartition des enseignants d\'arabe', '<p>Aucun agent de langue arabe dans le registre. Ajoutez les maîtres d\'arabe (langue « Arabe ») dans le Registre.</p>');
+    return carte('Proposition de répartition', '<p class="aide" style="margin-top:0">Toutes les matières en langue arabe de chaque classe (pas seulement « Arabe ») sont confiées à un même enseignant, en équilibrant le nombre d\'élèves. Corrigez la colonne « Enseignant retenu » puis validez.</p>' +
+      '<div class="table-defil"><table><thead><tr><th>Classe</th><th class="c">Effectif</th><th>Enseignant retenu</th><th>Matières arabes</th></tr></thead><tbody>' +
+      R.lignes.map(function (l, i) {
+        return '<tr><td><strong>' + e(l.classe.nom) + '</strong></td><td class="c">' + l.effectif + '</td><td><select class="rep-sel" data-i="' + i + '">' + opt(R.profs.map(function (p) { return [p.id, nomPers(p)]; }), l.prof, '—') + '</select></td><td dir="auto" class="aide">' + e(l.matieres.join(' ; ')) + '</td></tr>';
+      }).join('') + '</tbody></table></div><h3 style="margin:14px 0 6px">Charge par enseignant</h3><ul class="liste-simple">' +
+      R.profs.map(function (p) { var n = R.lignes.filter(function (l) { return l.prof === p.id; }); return '<li><strong>' + e(nomPers(p)) + '</strong> : ' + (charge[p.id] || 0) + ' élève(s) · ' + n.length + ' classe(s)' + (n.length ? ' (' + e(n.map(function (l) { return l.classe.nom; }).join(', ')) + ')' : '') + '</li>'; }).join('') + '</ul>',
+      '<button class="btn" data-act="rep-recalculer">↻ Nouvelle proposition</button><button class="btn plein" data-act="rep-valider">✔ Valider la répartition</button>');
+  };
+  PE.repartition.apres = function () { $$('.rep-sel').forEach(function (s) { s.onchange = function () { ui2.repartition.lignes[+s.dataset.i].prof = s.value; rendre(); }; }); };
+  function validerRepartition() {
+    verifierEcriture('PERSONNEL');
+    var R = ui2.repartition, b = db.batch(), n = 0, mt = meta(true);
+    R.lignes.forEach(function (l) {
+      l.matieres.forEach(function (m) {
+        var ref = col('affectations').doc(idAffectation(l.classe.id, m));
+        if (l.prof) { b.set(ref, Object.assign({ classe_id: l.classe.id, matiere: m, langue: 'AR', personnel_id: l.prof }, mt)); n++; } else b.delete(ref);
+      });
+    });
+    suivre(b.commit()).then(function () {
+      R.lignes.forEach(function (l) { var p = S.personnel[l.prof]; if (p && peut('PARAMETRES') && l.classe.titulaire_ar_id !== p.id) modifier('classes', l.classe.id, { titulaire_ar: (p.civilite ? p.civilite + ' ' : '') + nomPers(p), titulaire_ar_id: p.id }, undefined, 'PARAMETRES'); });
+      toast(n + ' affectation(s) enregistrée(s).', 'ok'); activite('Répartition des enseignants d\'arabe validée (' + n + ' affectations)');
+    }).catch(erreurEcriture);
+  }
+
+  /* ---------- listes du personnel (7 modèles) ---------- */
+  var MODELES = { nominative: 'Liste nominative', contacts: 'Contacts', emargement: 'Feuille d\'émargement', ief: 'Fiche IEF', affectations: 'Affectations', effectifs: 'Effectifs par classe', choix: 'Colonnes au choix' };
+  PE.listes = function () {
+    var m = ui2.modele;
+    var opts = '<div class="ligne pas-imprimer"><div><label>Modèle</label><select id="pl-modele">' + opt(Object.keys(MODELES).map(function (k) { return [k, MODELES[k]]; }), m) + '</select></div>' +
+      (m === 'emargement' ? '<div><label>Titre</label><input id="pl-titre" value="' + e(ui2.emTitre || 'FEUILLE D\'ÉMARGEMENT DU PERSONNEL') + '"></div><div><label>Colonnes vides (séparées par des virgules)</label><input id="pl-cols" value="' + e(ui2.emCols || 'Signature, Observation') + '"></div>' : '') + '</div>' +
+      (m === 'choix' ? '<div class="droits pas-imprimer" style="margin:8px 0">' + CHAMPS_PERSONNEL.map(function (c) { return '<label><input type="checkbox" class="pl-col" value="' + c[0] + '"' + ((ui2.colsChoix || ['prenom', 'nom', 'fonction', 'telephone']).indexOf(c[0]) >= 0 ? ' checked' : '') + '> ' + c[1] + '</label>'; }).join('') + '</div>' : '');
+    return carte('Listes du personnel', filtresPersonnel() + opts, '<button class="btn plein" data-act="pl-imprimer">🖨 Aperçu / Imprimer</button><button class="btn" data-act="pl-csv">⬇ Exporter (CSV)</button>') +
+      '<div class="carte"><div class="carte-corps" id="pl-apercu" style="overflow-x:auto">' + documentListe() + '</div></div>';
+  };
+  PE.listes.apres = function () {
+    brancherFiltresPers();
+    var s = $('#pl-modele'); if (s) s.onchange = function () { ui2.modele = s.value; rendre(); };
+    var t = $('#pl-titre'); if (t) t.onchange = function () { ui2.emTitre = t.value; rendre(); };
+    var c = $('#pl-cols'); if (c) c.onchange = function () { ui2.emCols = c.value; rendre(); };
+    $$('.pl-col').forEach(function (x) { x.onchange = function () { ui2.colsChoix = $$('.pl-col:checked').map(function (y) { return y.value; }); rendre(); }; });
+  };
+  function chefEtablissement() {
+    var d = liste(S.personnel).find(function (p) { return /^directri/i.test(p.fonction || ''); }) || liste(S.personnel).find(function (p) { return /^directeur$/i.test(p.fonction || ''); });
+    if (d) return { qualite: d.sexe === 'F' || /directrice/i.test(d.fonction) ? 'La Directrice' : 'Le Directeur', nom: (d.civilite ? d.civilite + ' ' : '') + nomPers(d) };
+    return { qualite: S.ecole.qualite || 'Le Directeur', nom: S.ecole.signataire || '' };
+  }
+  function enteteDocument(titre) {
+    var ec = S.ecole;
+    return '<div class="doc-entete"><div class="doc-g">RÉPUBLIQUE DU SÉNÉGAL<br><small>Un Peuple – Un But – Une Foi</small><br>Ministère de l\'Éducation nationale' + (ec.ia ? '<br>IA de ' + e(ec.ia) : '') + (ec.ief ? '<br>IEF de ' + e(ec.ief) : '') + '</div>' +
+      '<div class="doc-c">' + (ec.logo ? '<img src="' + e(ec.logo) + '" alt="" style="max-height:60px"><br>' : '') + '<strong>' + e(ec.nom) + '</strong>' + (ec.nom_ar ? '<br><span dir="rtl">' + e(ec.nom_ar) + '</span>' : '') + (ec.telephone ? '<br>Tél. ' + e(ec.telephone) : '') + '</div>' +
+      '<div class="doc-d">Année scolaire<br><strong>' + e(ec.annee) + '</strong>' + (ec.code ? '<br>Code ' + e(ec.code) : '') + '</div></div><h1 class="doc-titre">' + e(titre) + '</h1>';
+  }
+  function visa() {
+    var c = chefEtablissement();
+    return '<div class="doc-visa"><div>' + e((S.ecole.lieu || '') + (S.ecole.lieu ? ', le ' : 'Le ') + new Date().toLocaleDateString('fr-FR')) + '</div><div><strong>' + e(c.qualite) + '</strong></div>' +
+      (S.ecole.cachet && S.ecole.cachet_actif ? '<img src="' + e(S.ecole.cachet) + '" alt="" style="max-height:80px;opacity:.85">' : '<div style="height:60px"></div>') + '<div>' + e(c.nom) + '</div></div>';
+  }
+  function tableDoc(tetes, lignes) {
+    return '<table class="doc-table"><thead><tr>' + tetes.map(function (t) { return '<th>' + e(t) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      lignes.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + (c && c.html ? c.html : e(c)) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
+  }
+  function documentListe() {
+    var l = personnelTrie(), m = ui2.modele, h, cls = function (p) { return (p.classes || []).map(function (id) { return (classeDe(id) || {}).nom; }).filter(Boolean).join(', '); };
+    var nomCol = function (p) { return (p.civilite ? p.civilite + ' ' : '') + nomPers(p); };
+    if (m === 'nominative') h = enteteDocument('LISTE NOMINATIVE DU PERSONNEL') + tableDoc(['N°', 'Prénom', 'Nom', 'Sexe', 'Fonction', 'Langue', 'Classe(s)'], l.map(function (p, i) { return [i + 1, p.prenom, p.nom, p.sexe, p.fonction, p.langue, cls(p)]; }));
+    else if (m === 'contacts') h = enteteDocument('CONTACTS DU PERSONNEL') + tableDoc(['N°', 'Prénom et nom', 'Fonction', 'Téléphone', 'Autre téléphone', 'E-mail'], l.map(function (p, i) { return [i + 1, nomCol(p), p.fonction, p.telephone, p.telephone_2, p.mail_pro || p.mail_perso]; }));
+    else if (m === 'emargement') {
+      var vides = String(ui2.emCols || 'Signature, Observation').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      h = enteteDocument(ui2.emTitre || 'FEUILLE D\'ÉMARGEMENT DU PERSONNEL') + tableDoc(['N°', 'Prénom', 'Nom', 'Fonction'].concat(vides), l.map(function (p, i) { return [i + 1, p.prenom, p.nom, p.fonction].concat(vides.map(function () { return { html: '<div style="height:28px"></div>' }; })); }));
+    } else if (m === 'ief') h = enteteDocument('FICHE DU PERSONNEL (IEF)') + tableDoc(['N°', 'Prénom et nom', 'Matricule', 'Né(e) le', 'Grade', 'Diplômes', 'Entrée enseignement', 'Prise de service', 'Fonction', 'Classe(s)', 'Téléphone'],
+      l.map(function (p, i) { return [i + 1, nomCol(p), p.matricule, dateFr(p.date_naissance) + (p.lieu_naissance ? ' à ' + p.lieu_naissance : ''), p.grade, [p.diplome_academique, p.diplome_professionnel].filter(Boolean).join(' / '), dateFr(p.date_entree_enseignement), dateFr(p.date_entree_etablissement), p.fonction, cls(p), p.telephone]; }));
+    else if (m === 'affectations') {
+      var rows = [];
+      classesTriees().forEach(function (c) { matieresDeClasse(c).forEach(function (mt) { var a = S.affectations[idAffectation(c.id, mt.matiere)]; rows.push([c.nom, mt.langue, mt.matiere, a ? nomPers(S.personnel[a.personnel_id]) : '—']); }); });
+      h = enteteDocument('AFFECTATIONS DES ENSEIGNANTS') + tableDoc(['Classe', 'Langue', 'Matière', 'Enseignant'], rows);
+    } else if (m === 'effectifs') h = enteteDocument('EFFECTIFS PAR CLASSE ET TITULAIRES') + tableDoc(['Classe', 'Garçons', 'Filles', 'Total', 'Effectif max', 'Titulaire (FR)', 'Titulaire (AR)'],
+      classesTriees().map(function (c) { var el = elevesActifsDe(c.id), f = el.filter(function (x) { return x.sexe === 'F'; }).length; return [c.nom, el.length - f, f, el.length, c.effectif_max, c.titulaire_fr, c.titulaire_ar]; }));
+    else {
+      var cols = (ui2.colsChoix || ['prenom', 'nom', 'fonction', 'telephone']), lib = {}; CHAMPS_PERSONNEL.forEach(function (c) { lib[c[0]] = c[1]; });
+      h = enteteDocument('LISTE DU PERSONNEL') + tableDoc(['N°'].concat(cols.map(function (k) { return lib[k]; })), l.map(function (p, i) { return [i + 1].concat(cols.map(function (k) { return /date/.test(k) ? dateFr(p[k]) : p[k]; })); }));
+    }
+    return '<div class="document">' + h + '<p class="aide">Effectif : ' + (m === 'effectifs' ? classesTriees().length + ' classe(s)' : l.length + ' agent(s)') + '</p>' + visa() + '</div>';
+  }
+  function imprimer(html) {
+    var z = $('#impression'); if (!z) { z = document.createElement('div'); z.id = 'impression'; document.body.appendChild(z); }
+    z.innerHTML = html; document.body.classList.add('mode-impression');
+    setTimeout(function () { window.print(); }, 150);
+  }
+  window.addEventListener('afterprint', function () { document.body.classList.remove('mode-impression'); var z = $('#impression'); if (z) z.innerHTML = ''; });
+  function csv(lignes, nom) { telecharger('﻿' + lignes.map(function (r) { return r.map(function (x) { return '"' + String(x === undefined || x === null ? '' : x).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n'), nom, 'text/csv'); }
+
+  /* ---------- import / export du personnel ---------- */
+  PE.import = function () {
+    return '<div class="grille">' + carte('Exporter', '<p style="margin-top:0">Tout le registre du personnel avec les ' + CHAMPS_PERSONNEL.length + ' champs et les classes tenues (fichier CSV lisible par Excel).</p>', '<button class="btn plein" data-act="pers-export">⬇ Exporter le personnel</button>') +
+      carte('Importer', '<p style="margin-top:0">Fichier CSV avec une ligne de titres. Les titres reconnus sont ceux de l\'export (ou de la feuille PERSONNEL de CTEFA V3.4 : PRENOM, NOM, SEXE, FONCTION…). Un agent dont le matricule existe déjà est mis à jour ; sinon il est ajouté.</p>' +
+        '<input type="file" id="pers-fichier" accept=".csv,.txt">') + '</div>';
+  };
+  PE.import.apres = function () { var f = $('#pers-fichier'); if (f) f.onchange = function () { if (f.files[0]) importerPersonnel(f.files[0]); }; };
+  function importerPersonnel(fichier) {
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        verifierEcriture('PERSONNEL');
+        var lignes = decouperTexte(r.result); if (lignes.length < 2) throw new Erreur('Fichier vide.');
+        var tetes = lignes[0].map(function (t) { return normal(t).replace(/ /g, '_'); }), ok = 0, maj = 0, err = [];
+        var idx = {}; CHAMPS_PERSONNEL.forEach(function (c) { var i = tetes.indexOf(normal(c[0]).replace(/ /g, '_')); if (i < 0) i = tetes.indexOf(normal(c[1]).replace(/ /g, '_')); if (i >= 0) idx[c[0]] = i; });
+        var iCl = tetes.findIndex(function (t) { return /^CLASSES?(_TENUES)?$|^CLASSE_1$/.test(t); }), iCl2 = tetes.indexOf('CLASSE_2');
+        if (idx.prenom === undefined || idx.nom === undefined) throw new Erreur('Colonnes PRENOM et NOM introuvables dans la ligne de titres.');
+        var b = db.batch(), mt = meta(true);
+        lignes.slice(1).forEach(function (row, n) {
+          var v = {}; Object.keys(idx).forEach(function (k) { v[k] = String(row[idx[k]] || '').trim(); });
+          if (!v.prenom || !v.nom) { err.push('Ligne ' + (n + 2) + ' : prénom ou nom manquant.'); return; }
+          v.nom = v.nom.toUpperCase(); v.sexe = /^f/i.test(v.sexe || '') ? 'F' : 'M'; v.langue = /^a/i.test(v.langue || '') ? 'AR' : /^l/i.test(v.langue || '') ? 'LN' : 'FR';
+          ['date_naissance', 'date_entree_enseignement', 'date_entree_etablissement'].forEach(function (k) { if (v[k]) v[k] = dateVersIso(v[k]) || ''; });
+          var cl = [].concat(iCl >= 0 ? String(row[iCl] || '').split(/[,;]/) : [], iCl2 >= 0 ? [row[iCl2]] : []).map(function (t) { var c = trouverClasse(t); return c && c.id; }).filter(Boolean);
+          v.classes = cl;
+          var ex = v.matricule && liste(S.personnel).find(function (p) { return p.matricule && p.matricule.toUpperCase() === v.matricule.toUpperCase(); });
+          if (ex) { b.update(col('personnel').doc(ex.id), Object.assign({}, v, meta(), { version: (ex.version || 0) + 1 })); maj++; }
+          else { b.set(col('personnel').doc(), Object.assign({}, v, mt)); ok++; }
+        });
+        suivre(b.commit()).then(function () {
+          toast(ok + ' agent(s) ajouté(s), ' + maj + ' mis à jour' + (err.length ? ', ' + err.length + ' ligne(s) ignorée(s)' : '') + '.', 'ok');
+          if (err.length) alert(err.join('\n')); activite('Import du personnel : ' + ok + ' ajout(s), ' + maj + ' mise(s) à jour'); journal('IMPORT_PERSONNEL', ok + ' + ' + maj);
+        }).catch(erreurEcriture);
+      } catch (x) { erreurEcriture(x); }
+    };
+    r.readAsText(fichier, 'utf-8');
+  }
+
+  /* ---------- purge du personnel ---------- */
+  PE.purge = function () {
+    if (S.profil.role !== 'ADMIN_PRINCIPAL' && S.profil.role !== 'ADMIN_SECONDAIRE') return carte('Purge', '<p>Réservé aux administrateurs.</p>');
+    return carte('Purger des agents', '<div class="alerte att" style="margin-top:0">La purge supprime définitivement les fiches choisies. Une sauvegarde complète est téléchargée avant.</div>' +
+      '<div class="table-defil"><table><thead><tr><th></th><th>Agent</th><th>Fonction</th><th>Classes</th></tr></thead><tbody>' +
+      personnelTrie().map(function (p) { return '<tr><td><input type="checkbox" class="pu-case" value="' + p.id + '"></td><td>' + e(nomPers(p)) + '</td><td>' + e(p.fonction) + '</td><td>' + e((p.classes || []).map(function (id) { return (classeDe(id) || {}).nom; }).filter(Boolean).join(', ')) + '</td></tr>'; }).join('') +
+      '</tbody></table></div><div style="margin-top:10px"><label style="display:flex;gap:8px;align-items:center;color:var(--texte)"><input type="checkbox" id="pu-aff" checked> Supprimer aussi leurs affectations et les retirer des titulaires</label>' +
+      '<label style="display:flex;gap:8px;align-items:center;color:var(--texte)"><input type="checkbox" id="pu-caisse"> Supprimer aussi leurs opérations de caisse (salaires, prêts) — <span class="aide">non coché par défaut ; disponible à l\'étape 4</span></label></div>',
+      '<button class="btn danger" data-act="pu-lancer">Purger les agents cochés…</button>');
+  };
+  function purgerPersonnel() {
+    var ids = $$('.pu-case:checked').map(function (c) { return c.value; }), aff = $('#pu-aff').checked;
+    if (!ids.length) return toast('Cochez au moins un agent.', 'ko');
+    if (!confirm('Purger définitivement ' + ids.length + ' agent(s) : ' + ids.map(function (i) { return nomPers(S.personnel[i]); }).join(', ') + ' ?')) return;
+    var mot = prompt('Pour confirmer, tapez le mot PURGER en majuscules :');
+    if (mot !== 'PURGER') return toast('Purge annulée.', 'ko');
+    confirmerMdp('La purge est définitive.').then(function () { toast('Copie de sécurité…'); return sauver(); }).then(function () {
+      verifierEcriture('PERSONNEL');
+      var b = db.batch();
+      ids.forEach(function (id) {
+        b.delete(col('personnel').doc(id));
+        if (aff) {
+          liste(S.affectations).filter(function (a) { return a.personnel_id === id; }).forEach(function (a) { b.delete(col('affectations').doc(a.id)); });
+          classesTriees().forEach(function (c) {
+            var ch = {}; if (c.titulaire_fr_id === id) { ch.titulaire_fr = ''; ch.titulaire_fr_id = ''; } if (c.titulaire_ar_id === id) { ch.titulaire_ar = ''; ch.titulaire_ar_id = ''; }
+            if (Object.keys(ch).length && peut('PARAMETRES')) b.update(col('classes').doc(c.id), Object.assign(ch, meta(), { version: (c.version || 0) + 1 }));
+          });
+        }
+      });
+      var noms = ids.map(function (i) { return nomPers(S.personnel[i]); }).join(', ');
+      return suivre(b.commit()).then(function () { toast(ids.length + ' agent(s) purgé(s).', 'ok'); journal('PURGE_PERSONNEL', noms); activite('Purge du personnel : ' + ids.length + ' agent(s)'); });
+    }).catch(function (x) { if (!(x instanceof Erreur && x.message === 'Action annulée.')) erreurEcriture(x); });
+  }
+
+  /* ---------- actions de l'étape 2 ---------- */
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    var a = b.dataset.act;
+    try {
+      switch (a) {
+        case 'fermer': fermerBoite(); rendre(); break;
+        case 'el-ouvrir': ouvrirFicheEleve(b.dataset.id); break;
+        case 'el-fermer': fermerBoite(); rendre(); break;
+        case 'el-onglet':
+          ev.preventDefault(); ui2.ongletEleve = b.dataset.o;
+          $$('#f-eleve [data-onglet]').forEach(function (d) { d.classList.toggle('cache', d.dataset.onglet !== ui2.ongletEleve); });
+          $$('#f-eleve [data-act=el-onglet]').forEach(function (x) { x.classList.toggle('actif', x.dataset.o === ui2.ongletEleve); });
+          break;
+        case 'el-page': ui2.page += Number(b.dataset.p); rendre(); window.scrollTo(0, 0); break;
+        case 'el-sortie': boiteSortie(b.dataset.id); break;
+        case 'el-reactiver': {
+          var x = S.eleves[b.dataset.id];
+          modifier('eleves', x.id, { statut: 'ACTIF', motif_sortie: '', cause_exclusion: '', date_sortie: '' }, x.version, 'ELEVES').then(function (ok) { if (ok) { fermerBoite(); toast('Élève réactivé.', 'ok'); activite('Élève réactivé : ' + nomEleve(x)); } });
+          break;
+        }
+        case 'el-csv': {
+          var l = filtrerEleves();
+          csv([['MATRICULE', 'PRENOM', 'NOM', 'PRENOM_AR', 'NOM_AR', 'SEXE', 'DATE_NAISS', 'LIEU_NAISS', 'EXTRAIT_NAISS', 'CLASSE', 'ADRESSE', 'PARENT', 'TELEPHONE', 'TYPE_ELEVE', 'STATUT', 'MOTIF_SORTIE', 'DATE_ENTREE', 'DATE_SORTIE', 'OBSERVATIONS']]
+            .concat(l.map(function (x) { return [x.matricule, x.prenom, x.nom, x.prenom_ar, x.nom_ar, x.sexe, dateFr(x.date_naiss), x.lieu_naiss, x.extrait_naiss, (classeDe(x.classe_id) || {}).nom, x.adresse, x.parent, x.telephone, x.type_eleve, x.statut, x.motif_sortie, dateFr(x.date_entree), dateFr(x.date_sortie), x.observations]; })), 'eleves.csv');
+          break;
+        }
+        case 'el-imprimer': {
+          var li = filtrerEleves(), cl = classeDe(ui2.filtreClasse);
+          imprimer('<div class="document">' + enteteDocument('LISTE DES ÉLÈVES' + (cl ? ' — ' + cl.nom : '')) + tableDoc(['N°', 'Matricule', 'Prénom', 'Nom', 'Sexe', 'Date et lieu de naissance', 'Parent', 'Téléphone'],
+            li.map(function (x, i) { return [i + 1, x.matricule, x.prenom, x.nom, x.sexe === 'F' ? 'F' : 'G', dateFr(x.date_naiss) + (x.lieu_naiss ? ' à ' + x.lieu_naiss : ''), x.parent, x.telephone]; })) +
+            '<p>Effectif : ' + li.length + ' (' + li.filter(function (x) { return x.sexe === 'F'; }).length + ' filles)</p>' + visa() + '</div>');
+          break;
+        }
+        case 'imp-colle': { var t = $('#imp-colle').value; if (!t.trim()) return toast('Collez d\'abord les lignes.', 'ko'); nouvelImport(decouperTexte(t)); break; }
+        case 'imp-retour': ui2.import = null; rendre(); break;
+        case 'imp-etape': ui2.import.etape = Number(b.dataset.n); rendre(); break;
+        case 'imp-controler': {
+          var im = ui2.import, map = {};
+          $$('.imp-map').forEach(function (s) { if (s.value !== '') map[s.dataset.champ] = Number(s.value); });
+          im.map = map; im.classeDefaut = $('#imp-classe-def').value;
+          if (map.prenom === undefined || map.nom === undefined) return toast('Indiquez au moins les colonnes Prénom et Nom.', 'ko');
+          controlerImport(); im.etape = 3; rendre(); break;
+        }
+        case 'imp-rapport-csv': csv([['LIGNE', 'PRENOM', 'NOM', 'CLASSE', 'RAPPORT']].concat(ui2.import.rapport.map(function (r) { return [r.ligne, r.x.prenom, r.x.nom, (classeDe(r.x.classe_id) || {}).nom || r.classeTexte, r.ok ? 'OK' : r.erreurs.join(' ')]; })), 'rapport_import.csv'); break;
+        case 'imp-lancer': b.disabled = true; lancerImport(); break;
+        case 're-valider': {
+          verifierEcriture('ELEVES');
+          var cases = $$('.re-case:checked'); if (!cases.length) return toast('Cochez au moins un élève.', 'ko');
+          var bt = db.batch(), n = 0, jour = new Date().toISOString().slice(0, 10), manque = 0;
+          cases.forEach(function (c) {
+            var cid = $('.re-classe[data-id="' + c.value + '"]').value, x2 = S.eleves[c.value];
+            if (!cid) { manque++; return; }
+            bt.update(col('eleves').doc(c.value), Object.assign({ statut: 'ACTIF', classe_id: cid, motif_sortie: '', cause_exclusion: '', date_sortie: '', date_entree: jour, redoublant: cid === x2.classe_id, version: (x2.version || 0) + 1 }, meta())); n++;
+          });
+          if (manque) return toast(manque + ' élève(s) coché(s) sans nouvelle classe.', 'ko');
+          suivre(bt.commit()).then(function () { toast(n + ' élève(s) réinscrit(s).', 'ok'); activite(n + ' élève(s) réinscrit(s)'); }).catch(erreurEcriture);
+          break;
+        }
+        case 'pers-nouveau': ficheAgent(); break;
+        case 'pers-ouvrir': ficheAgent(S.personnel[b.dataset.id]); break;
+        case 'aff-enr': {
+          verifierEcriture('PERSONNEL');
+          var c2 = classeDe(ui2.affClasse), ba = db.batch(), mt = meta(true), k = 0;
+          $$('.aff-sel').forEach(function (s) {
+            var ref = col('affectations').doc(idAffectation(c2.id, s.dataset.matiere));
+            if (s.value) { ba.set(ref, Object.assign({ classe_id: c2.id, matiere: s.dataset.matiere, langue: s.dataset.langue, personnel_id: s.value }, mt)); k++; } else ba.delete(ref);
+          });
+          suivre(ba.commit()).then(function () { toast(k + ' affectation(s) enregistrée(s) pour ' + c2.nom + '.', 'ok'); activite('Affectations de ' + c2.nom + ' mises à jour'); }).catch(erreurEcriture);
+          break;
+        }
+        case 'rep-recalculer': ui2.repartition = proposerRepartition(); rendre(); break;
+        case 'rep-valider': validerRepartition(); break;
+        case 'pl-imprimer': imprimer(documentListe()); break;
+        case 'pl-csv': {
+          var tab = $('#pl-apercu table'); if (!tab) return;
+          csv($$('tr', tab).map(function (tr) { return $$('th,td', tr).map(function (c) { return c.textContent.trim(); }); }), 'personnel_' + ui2.modele + '.csv'); break;
+        }
+        case 'pers-export':
+          csv([CHAMPS_PERSONNEL.map(function (c) { return c[0].toUpperCase(); }).concat(['CLASSES', 'MULT'])].concat(personnelTrie().map(function (p) {
+            return CHAMPS_PERSONNEL.map(function (c) { return /date/.test(c[0]) ? dateFr(p[c[0]]) : p[c[0]]; }).concat([(p.classes || []).map(function (id) { return (classeDe(id) || {}).code; }).join(','), p.mult ? 'OUI' : 'NON']);
+          })), 'personnel.csv');
+          break;
+        case 'pu-lancer': purgerPersonnel(); break;
+      }
+    } catch (x) { erreurEcriture(x); }
+  });
+
 
   /* ===================================================================
    *  9. ACTIONS
@@ -1217,7 +2135,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
    * =================================================================== */
   var REGLES = [
     "rules_version = '2';",
-    "// CTEFA-CLASSIC Web : règles de sécurité (étape 1)",
+    "// CTEFA-CLASSIC Web : règles de sécurité (étapes 1 et 2)",
     "service cloud.firestore {",
     "  match /databases/{database}/documents {",
     "    match /ecoles/{ecole} {",
@@ -1249,6 +2167,10 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     "                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doit_changer', 'derniere_connexion', 'modifie_le', 'modifie_par']))",
     "                      || (principal() && uid == request.auth.uid);",
     "        allow delete: if principal();",
+    "      }",
+    "      match /matricules/{m} {",
+    "        allow read: if membre();",
+    "        allow create, delete: if droit('ELEVES') && libre();",
     "      }",
     "      match /journal_acces/{id} {",
     "        allow read: if droit('UTILISATEURS');",

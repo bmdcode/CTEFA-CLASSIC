@@ -16,6 +16,22 @@ Gestion scolaire multi-utilisateurs (direction, secrétariat, caisse, enseignant
 - Sauvegarde .json, restauration (administrateur principal, mot de passe redemandé, copie automatique avant), mode maintenance.
 - Mode clair / sombre, adapté au téléphone.
 
+## Étape 2 — élèves et personnel
+- **Fiche élève en 3 onglets** (identité avec noms en arabe, famille et contacts, scolarité). Date de naissance tapée en 8 chiffres (JJMMAAAA), mise en forme automatique.
+- **Matricule automatique et unique** : compteur en transaction + réservation du numéro dans la base (deux postes ne peuvent jamais obtenir le même). Modèle réglable dans École (`{AAAA}{NNNN}`, `{NIV}`, `{CLASSE}`). Hors ligne : matricule provisoire remplacé au retour du réseau.
+- **Contrôles** : champs obligatoires, date impossible ou âge improbable, téléphone sénégalais, classe inexistante, matricule en double, homonyme (même nom et date de naissance) avec case « Forcer ».
+- **Registre** filtrable (classe, statut, sexe, recherche), triable, paginé par 100, export CSV et impression avec en-tête de l'école et visa du chef d'établissement.
+- **Sorties** avec motif et date ; **réinscription rapide** des inactifs avec la classe suivante proposée.
+- **Import** en 5 étapes : coller depuis Excel ou fichier CSV / Excel → aperçu → correspondance des colonnes (devinée automatiquement) → rapport ligne par ligne (colonne RAPPORT, export CSV) → import.
+- **Personnel** : fiche complète (les 29 champs de la feuille PERSONNEL V3.4), sexe pour les accords, langue, fonction, classes tenues qui alimentent les titulaires des classes.
+- **Affectations** classe × matière (une seule par couple, sans doublon).
+- **Répartition des enseignants d'arabe** : proposition automatique sur toutes les matières en langue arabe, équilibrée par nombre d'élèves, corrigeable, puis validée en affectations.
+- **7 listes du personnel** : nominative, contacts, émargement (titre et colonnes vides au choix), fiche IEF, affectations, effectifs par classe, colonnes au choix ; filtres fonction / langue / sexe, tri, visa « Le Directeur / La Directrice » déduit du registre.
+- **Import / export du personnel** (CSV, mise à jour par matricule) et **purge** (cases à cocher, double confirmation avec le mot PURGER, mot de passe redemandé, sauvegarde automatique avant, journal).
+- Correctifs de l'étape 1 : messages Firebase en français, refus clair d'une adresse e-mail à la place de l'identifiant, un formulaire en cours de saisie n'est plus effacé par une mise à jour venue d'un autre poste.
+
+**Après la mise à jour : republier les règles** (`firestore.rules` → Firestore → Règles → Publier) : elles protègent maintenant les matricules.
+
 ## Mise en place (une seule fois)
 1. **Firebase** : console.firebase.google.com → nouveau projet (ex. `ctefa-efa-yassi`), puis :
    - Authentication → Commencer → E-mail/Mot de passe → Activer. **Laissez la création de comptes autorisée** : l'application crée les comptes des utilisateurs elle-même ; un compte sans fiche dans l'école n'a accès à rien.
@@ -33,4 +49,4 @@ Gestion scolaire multi-utilisateurs (direction, secrétariat, caisse, enseignant
 - Données d'élèves hébergées en ligne : informer les parents et vérifier les obligations auprès de la CDP (loi 2008-12).
 
 ## Étapes suivantes
-2. Élèves et personnel · 3. Notes, bulletins, conseil de classe (règle : matière sans note = 0 si l'élève a d'autres notes) · 4. Caisse et finances · 5. Documents (QR) · 6. Vie scolaire et tableau de bord · 7. Migration, purges, reprise · 8. Guides et tests de charge.
+3. Notes, bulletins, conseil de classe (règle : matière sans note = 0 si l'élève a d'autres notes) · 4. Caisse et finances · 5. Documents (QR) · 6. Vie scolaire et tableau de bord · 7. Migration, purges, reprise · 8. Guides et tests de charge.

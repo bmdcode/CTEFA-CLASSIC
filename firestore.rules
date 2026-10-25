@@ -1,5 +1,5 @@
 rules_version = '2';
-// CTEFA-CLASSIC Web : règles de sécurité (étape 1)
+// CTEFA-CLASSIC Web : règles de sécurité (étapes 1 et 2)
 service cloud.firestore {
   match /databases/{database}/documents {
     match /ecoles/{ecole} {
@@ -31,6 +31,10 @@ service cloud.firestore {
                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doit_changer', 'derniere_connexion', 'modifie_le', 'modifie_par']))
                       || (principal() && uid == request.auth.uid);
         allow delete: if principal();
+      }
+      match /matricules/{m} {
+        allow read: if membre();
+        allow create, delete: if droit('ELEVES') && libre();
       }
       match /journal_acces/{id} {
         allow read: if droit('UTILISATEURS');
