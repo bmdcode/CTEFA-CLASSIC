@@ -1439,8 +1439,23 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   /* ---------- import : coller ou fichier (CSV / Excel), correspondance des colonnes ---------- */
   var COLONNES_IMPORT = [['prenom', 'Prénom *'], ['nom', 'Nom *'], ['sexe', 'Sexe *'], ['date_naiss', 'Date de naissance'], ['lieu_naiss', 'Lieu de naissance'], ['classe', 'Classe *'],
     ['adresse', 'Adresse'], ['parent', 'Parent'], ['telephone', 'Téléphone'], ['matricule', 'Matricule'], ['type_eleve', 'Type d\'élève'], ['prenom_ar', 'Prénom arabe'], ['nom_ar', 'Nom arabe']];
-  var SYNONYMES = { prenom: /^pr[ée]nom/i, nom: /^nom$|^nom\s|^nom_?famille|^nom$/i, sexe: /^sexe|^genre/i, date_naiss: /naiss|^date/i, lieu_naiss: /^lieu/i, classe: /^classe/i, adresse: /adresse|quartier/i,
-    parent: /parent|tuteur|p[eè]re|m[eè]re/i, telephone: /t[ée]l/i, matricule: /matric/i, type_eleve: /type|r[ée]gime/i, prenom_ar: /pr[ée]nom.*ar/i, nom_ar: /nom.*ar/i };
+  /* Titres reconnus (on compare en majuscules, sans accents, « _ » remplacé par une espace) */
+  var SYNONYMES = {
+    prenom: /^PRENOMS?$|^PRENOM (DE L )?ELEVE|^PRENOM(?! AR)/, nom: /^NOM$|^NOMS$|^NOM (DE FAMILLE|DE L ELEVE|ELEVE)$|^NOM(?! AR)(?! COMPLET)(?! DU)(?! PARENT)(?! TUTEUR)/,
+    sexe: /^SEXE|^GENRE/, date_naiss: /^DATE (DE )?NAISS|^DATE$|^NE\(?E?\)? LE|^NAISSANCE$/, lieu_naiss: /^LIEU/, classe: /^CLASSE$|^CLASSE /,
+    adresse: /ADRESSE|QUARTIER/, parent: /PARENT|TUTEUR|^PERE|^MERE/, telephone: /^TEL|TELEPHONE|CONTACT/, matricule: /MATRIC/, type_eleve: /^TYPE|REGIME/,
+    prenom_ar: /^PRENOM AR/, nom_ar: /^NOM AR/ };
+  function cleTitre(t) { return normal(t).replace(/_/g, ' ').trim(); }
+  /** Cherche, dans les 12 premières lignes, celle qui ressemble le plus à une ligne de titres */
+  function ligneDesTitres(lignes, motifs) {
+    var meilleur = -1, score = 1;
+    lignes.slice(0, 12).forEach(function (r, i) {
+      var n = 0, vus = {};
+      r.forEach(function (c) { var t = cleTitre(c); Object.keys(motifs).forEach(function (k) { if (!vus[k] && t && motifs[k].test(t)) { vus[k] = 1; n++; } }); });
+      if (n > score) { score = n; meilleur = i; }
+    });
+    return meilleur;
+  }
   EL.import = function () {
     var im = ui2.import;
     var etapes = ['1. Source', '2. Aperçu', '3. Colonnes', '4. Contrôle', '5. Import'];
@@ -1449,7 +1464,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     if (n === 0) return h + '<div class="grille">' +
       carte('Coller depuis Excel', '<p class="aide" style="margin-top:0">Dans Excel, sélectionnez les lignes (avec ou sans la ligne de titres), copiez, puis collez ici. Ordre conseillé (comme la feuille IMPORT_ELEVES) : PRENOM · NOM · SEXE · DATE_NAISS · LIEU_NAISS · CLASSE · ADRESSE · PARENT · TELEPHONE.</p>' +
         '<textarea id="imp-colle" rows="8" placeholder="Awa&#9;DIOP&#9;F&#9;15032016&#9;Mbacké&#9;CM2"></textarea>', '<button class="btn plein" data-act="imp-colle">Continuer</button>') +
-      carte('Depuis un fichier', '<p class="aide" style="margin-top:0">Fichier CSV (séparateur ; ou ,) ou Excel (.xlsx / .xlsm). La première ligne doit contenir les titres.</p><input type="file" id="imp-fichier" accept=".csv,.txt,.xlsx,.xlsm,.xls">') + '</div>';
+      carte('Depuis un fichier', '<p class="aide" style="margin-top:0">Votre classeur <strong>CTEFA V3.4</strong> (la feuille ELEVES est trouvée toute seule), ou tout fichier Excel / CSV. La ligne des titres est repérée automatiquement, même sous un titre.</p><input type="file" id="imp-fichier" accept=".csv,.txt,.xlsx,.xlsm,.xls">') + '</div>';
     if (n === 1) {
       var apercu = im.lignes.slice(0, 8);
       return h + carte('Aperçu · ' + im.lignes.length + ' ligne(s)' + (im.feuilles && im.feuilles.length > 1 ? '' : ''),
@@ -1469,7 +1484,12 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     }
     if (n === 3) {
       var ok = im.rapport.filter(function (r) { return r.ok; }).length;
+      var lib = {}; COLONNES_IMPORT.forEach(function (c) { lib[c[0]] = c[1].replace(' *', ''); });
+      var tetesF = im.lignes[0] || [];
       return h + carte('Contrôle · ' + ok + ' ligne(s) prête(s), ' + (im.rapport.length - ok) + ' en erreur',
+        '<div class="alerte" style="margin-top:0"><strong>Colonnes utilisées</strong>' + (im.feuille ? ' (feuille ' + e(im.feuille) + ')' : '') + ' : ' +
+        Object.keys(im.map).map(function (k) { return e(lib[k]) + ' ← ' + e(tetesF[im.map[k]] || 'colonne ' + (im.map[k] + 1)); }).join(' · ') +
+        ' <a href="#" data-act="imp-etape" data-n="2">Modifier</a></div>' +
         '<label style="display:flex;gap:8px;align-items:center;color:var(--texte);margin-bottom:8px"><input type="checkbox" id="imp-forcer"' + (im.forcer ? ' checked' : '') + '> Forcer les homonymes (élèves réellement différents)</label>' +
         '<div class="table-defil"><table><thead><tr><th>Ligne</th><th>Élève</th><th>Classe</th><th>RAPPORT</th></tr></thead><tbody>' +
         im.rapport.map(function (r) { return '<tr><td class="c">' + r.ligne + '</td><td>' + e(nomEleve(r.x)) + '</td><td>' + e((classeDe(r.x.classe_id) || {}).nom || r.classeTexte) + '</td><td>' + (r.ok ? '<span class="pastille ok">OK</span>' : '<span class="pastille ko">' + e(r.erreurs.join(' ')) + '</span>') + '</td></tr>'; }).join('') +
@@ -1483,7 +1503,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     var fi = $('#imp-fichier');
     if (fi) fi.onchange = function () { if (fi.files[0]) lireFichierImport(fi.files[0]); };
     var t = $('#imp-titres'); if (t) t.onchange = function () { ui2.import.titres = t.checked; devinerColonnes(); rendre(); };
-    var fe = $('#imp-feuille'); if (fe) fe.onchange = function () { ui2.import.feuille = fe.value; ui2.import.lignes = ui2.import.parFeuille[fe.value]; devinerColonnes(); rendre(); };
+    var fe = $('#imp-feuille'); if (fe) fe.onchange = function () { var im = ui2.import; nouvelImport(im.parFeuille[fe.value], { feuilles: im.feuilles, feuille: fe.value, parFeuille: im.parFeuille }); };
     var fo = $('#imp-forcer'); if (fo) fo.onchange = function () { ui2.import.forcer = fo.checked; controlerImport(); rendre(); };
   };
   function decouperTexte(t) {
@@ -1501,16 +1521,23 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     });
   }
   function nouvelImport(lignes, extra) {
-    var premier = (lignes[0] || []).join(' ');
-    ui2.import = Object.assign({ etape: 1, lignes: lignes, titres: /pr[ée]nom|nom|classe|sexe/i.test(premier), map: {}, classeDefaut: '', rapport: [], forcer: false }, extra || {});
-    devinerColonnes(); rendre();
+    var t = ligneDesTitres(lignes, SYNONYMES);
+    ui2.import = Object.assign({ etape: 1, lignes: t > 0 ? lignes.slice(t) : lignes, titres: t >= 0, ignorees: Math.max(t, 0), map: {}, classeDefaut: '', rapport: [], forcer: false }, extra || {});
+    devinerColonnes();
+    var m = ui2.import.map;
+    /* Fichier reconnu (titres + prénom, nom et classe trouvés) : on passe directement au contrôle */
+    if (ui2.import.titres && m.prenom !== undefined && m.nom !== undefined && m.classe !== undefined) {
+      controlerImport(); ui2.import.etape = 3; ui2.import.auto = true;
+      toast('Colonnes reconnues automatiquement' + (ui2.import.ignorees ? ' (' + ui2.import.ignorees + ' ligne(s) de titre ignorée(s))' : '') + '.', 'ok');
+    }
+    rendre();
   }
   function devinerColonnes() {
-    var im = ui2.import, tetes = im.lignes[0] || [], map = {};
+    var im = ui2.import, tetes = (im.lignes[0] || []).map(cleTitre), map = {}, pris = {};
     if (im.titres) {
-      COLONNES_IMPORT.forEach(function (c) {
-        var i = tetes.findIndex(function (t, k) { return SYNONYMES[c[0]].test(String(t).trim()) && Object.keys(map).every(function (m) { return map[m] !== k; }); });
-        if (i >= 0) map[c[0]] = i;
+      ['prenom_ar', 'nom_ar', 'matricule', 'date_naiss', 'lieu_naiss', 'prenom', 'nom', 'sexe', 'classe', 'adresse', 'parent', 'telephone', 'type_eleve'].forEach(function (c) {
+        var i = tetes.findIndex(function (t, k) { return !pris[k] && t && SYNONYMES[c].test(t); });
+        if (i >= 0) { map[c] = i; pris[i] = 1; }
       });
     } else ['prenom', 'nom', 'sexe', 'date_naiss', 'lieu_naiss', 'classe', 'adresse', 'parent', 'telephone'].forEach(function (c, i) { if (i < tetes.length) map[c] = i; });
     im.map = map;
@@ -1523,26 +1550,41 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
       document.head.appendChild(s);
     });
   }
-  function lireFichierImport(fichier) {
-    if (/\.(xlsx|xlsm|xls)$/i.test(fichier.name)) {
-      toast('Lecture du fichier Excel…');
-      chargerSheetJS().then(function () {
-        return fichier.arrayBuffer();
-      }).then(function (buf) {
-        var wb = XLSX.read(buf, { type: 'array', cellDates: true }), par = {};
-        wb.SheetNames.forEach(function (n) {
-          par[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, dateNF: 'dd/mm/yyyy', defval: '' })
-            .filter(function (r) { return r.some(function (c) { return String(c).trim(); }); }).map(function (r) { return r.map(function (c) { return String(c).trim(); }); });
-        });
-        var feuille = wb.SheetNames.find(function (n) { return /eleve|élève|import/i.test(n) && par[n].length; }) || wb.SheetNames.find(function (n) { return par[n].length; });
-        if (!feuille) throw new Erreur('Ce fichier ne contient aucune donnée.');
-        nouvelImport(par[feuille], { feuilles: wb.SheetNames.filter(function (n) { return par[n].length; }), feuille: feuille, parFeuille: par });
-      }).catch(erreurEcriture);
-    } else {
-      var r = new FileReader();
-      r.onload = function () { var l = decouperTexte(r.result); if (!l.length) return toast('Fichier vide.', 'ko'); nouvelImport(l); };
-      r.readAsText(fichier, 'utf-8');
+  /** Lit un CSV ou un classeur Excel ; les dates Excel deviennent AAAA-MM-JJ (jamais au format américain) */
+  function lireTableur(fichier) {
+    if (!/\.(xlsx|xlsm|xls)$/i.test(fichier.name)) {
+      return fichier.text().then(function (t) { var l = decouperTexte(t); if (!l.length) throw new Erreur('Fichier vide.'); return { par: { Fichier: l }, feuilles: ['Fichier'] }; });
     }
+    toast('Lecture du fichier Excel…');
+    return chargerSheetJS().then(function () { return fichier.arrayBuffer(); }).then(function (buf) {
+      var wb = XLSX.read(buf, { type: 'array', cellNF: true }), par = {};
+      wb.SheetNames.forEach(function (n) {
+        var ws = wb.Sheets[n]; if (!ws['!ref']) { par[n] = []; return; }
+        var R = XLSX.utils.decode_range(ws['!ref']), lignes = [];
+        for (var r = R.s.r; r <= Math.min(R.e.r, R.s.r + 5000); r++) {
+          var ligne = [];
+          for (var c = R.s.c; c <= Math.min(R.e.c, R.s.c + 60); c++) {
+            var cel = ws[XLSX.utils.encode_cell({ r: r, c: c })], v = '';
+            if (cel && cel.v !== undefined && cel.v !== null) {
+              if (cel.t === 'n' && cel.z && XLSX.SSF.is_date(cel.z)) { var d = XLSX.SSF.parse_date_code(cel.v); v = d ? d.y + '-' + String(d.m).padStart(2, '0') + '-' + String(d.d).padStart(2, '0') : ''; }
+              else if (cel.t === 'd') v = cel.v.toISOString().slice(0, 10);
+              else v = String(cel.t === 'n' ? cel.v : (cel.w !== undefined ? cel.w : cel.v)).trim();
+            }
+            ligne.push(v);
+          }
+          if (ligne.some(function (x) { return x; })) lignes.push(ligne);
+        }
+        par[n] = lignes;
+      });
+      return { par: par, feuilles: wb.SheetNames.filter(function (n) { return par[n].length; }) };
+    });
+  }
+  function lireFichierImport(fichier) {
+    lireTableur(fichier).then(function (t) {
+      var feuille = t.feuilles.find(function (n) { return /^eleves?$|élèves|import_eleves/i.test(n); }) || t.feuilles.find(function (n) { return /eleve|élève/i.test(n); }) || t.feuilles[0];
+      if (!feuille) throw new Erreur('Ce fichier ne contient aucune donnée.');
+      nouvelImport(t.par[feuille], { feuilles: t.feuilles, feuille: feuille, parFeuille: t.par });
+    }).catch(erreurEcriture);
   }
   function trouverClasse(t) {
     var n = normal(t); if (!n) return null;
@@ -1550,9 +1592,9 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
            classesTriees().filter(function (c) { return normal(S.niveaux[c.niveau] ? S.niveaux[c.niveau].nom : '') === n || normal(c.niveau) === n; })[0] || null;
   }
   function controlerImport() {
-    var im = ui2.import, debut = im.titres ? 1 : 0, vus = {};
+    var im = ui2.import, debut = im.titres ? 1 : 0, decal = im.ignorees || 0, vus = {};
     var get = function (r, c) { return im.map[c] !== undefined && im.map[c] !== '' ? (r[im.map[c]] || '') : ''; };
-    im.rapport = im.lignes.slice(debut).map(function (r, i) {
+    im.rapport = im.lignes.slice(debut).filter(function (r) { return r.some(function (x) { return String(x).trim(); }); }).map(function (r, i) {
       var v = {}; COLONNES_IMPORT.forEach(function (c) { v[c[0]] = get(r, c[0]); });
       var cl = trouverClasse(v.classe) || (!v.classe && im.classeDefaut ? classeDe(im.classeDefaut) : null);
       v.classe_id = cl ? cl.id : '';
@@ -1560,9 +1602,9 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
       if (v.classe && !cl) err = err.filter(function (m) { return m !== 'Classe inexistante.'; }).concat(['Classe « ' + v.classe + ' » inexistante.']);
       var cle = normal(x.prenom + ' ' + x.nom) + '|' + (x.date_naiss || '');
       if (!im.forcer && vus[cle]) err.push('Doublon dans le fichier (ligne ' + vus[cle] + ').');
-      vus[cle] = vus[cle] || i + debut + 1;
+      vus[cle] = vus[cle] || i + debut + decal + 1;
       if (x.matricule && im.rapport && 0) err.push('');
-      return { ligne: i + debut + 1, x: x, ok: !err.length, erreurs: err, classeTexte: v.classe };
+      return { ligne: i + debut + decal + 1, x: x, ok: !err.length, erreurs: err, classeTexte: v.classe };
     });
     var mats = {};
     im.rapport.forEach(function (r) { if (r.x.matricule) { var k = cleMatricule(r.x.matricule); if (mats[k]) { r.ok = false; r.erreurs.push('Matricule en double dans le fichier.'); } mats[k] = 1; } });
@@ -1855,39 +1897,43 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   /* ---------- import / export du personnel ---------- */
   PE.import = function () {
     return '<div class="grille">' + carte('Exporter', '<p style="margin-top:0">Tout le registre du personnel avec les ' + CHAMPS_PERSONNEL.length + ' champs et les classes tenues (fichier CSV lisible par Excel).</p>', '<button class="btn plein" data-act="pers-export">⬇ Exporter le personnel</button>') +
-      carte('Importer', '<p style="margin-top:0">Fichier CSV avec une ligne de titres. Les titres reconnus sont ceux de l\'export (ou de la feuille PERSONNEL de CTEFA V3.4 : PRENOM, NOM, SEXE, FONCTION…). Un agent dont le matricule existe déjà est mis à jour ; sinon il est ajouté.</p>' +
-        '<input type="file" id="pers-fichier" accept=".csv,.txt">') + '</div>';
+      carte('Importer', '<p style="margin-top:0">Choisissez directement votre classeur <strong>CTEFA V3.4</strong> (la feuille PERSONNEL est trouvée toute seule), ou un fichier CSV / Excel exporté. Un agent déjà présent (même matricule ou même nom) est mis à jour ; sinon il est ajouté.</p>' +
+        '<input type="file" id="pers-fichier" accept=".csv,.txt,.xlsx,.xlsm,.xls">') + '</div>';
   };
   PE.import.apres = function () { var f = $('#pers-fichier'); if (f) f.onchange = function () { if (f.files[0]) importerPersonnel(f.files[0]); }; };
+  var MOTIFS_PERSONNEL = { PRENOM: /^PRENOM/, NOM: /^NOM$/, SEXE: /^SEXE/, FONCTION: /^FONCTION/, LANGUE: /^LANGUE/, TELEPHONE: /^TELEPHONE$/, MATRICULE: /^MATRICULE/, CLASSE: /^CLASSE/ };
   function importerPersonnel(fichier) {
-    var r = new FileReader();
-    r.onload = function () {
-      try {
-        verifierEcriture('PERSONNEL');
-        var lignes = decouperTexte(r.result); if (lignes.length < 2) throw new Erreur('Fichier vide.');
-        var tetes = lignes[0].map(function (t) { return normal(t).replace(/ /g, '_'); }), ok = 0, maj = 0, err = [];
-        var idx = {}; CHAMPS_PERSONNEL.forEach(function (c) { var i = tetes.indexOf(normal(c[0]).replace(/ /g, '_')); if (i < 0) i = tetes.indexOf(normal(c[1]).replace(/ /g, '_')); if (i >= 0) idx[c[0]] = i; });
-        var iCl = tetes.findIndex(function (t) { return /^CLASSES?(_TENUES)?$|^CLASSE_1$/.test(t); }), iCl2 = tetes.indexOf('CLASSE_2');
-        if (idx.prenom === undefined || idx.nom === undefined) throw new Erreur('Colonnes PRENOM et NOM introuvables dans la ligne de titres.');
-        var b = db.batch(), mt = meta(true);
-        lignes.slice(1).forEach(function (row, n) {
-          var v = {}; Object.keys(idx).forEach(function (k) { v[k] = String(row[idx[k]] || '').trim(); });
-          if (!v.prenom || !v.nom) { err.push('Ligne ' + (n + 2) + ' : prénom ou nom manquant.'); return; }
-          v.nom = v.nom.toUpperCase(); v.sexe = /^f/i.test(v.sexe || '') ? 'F' : 'M'; v.langue = /^a/i.test(v.langue || '') ? 'AR' : /^l/i.test(v.langue || '') ? 'LN' : 'FR';
-          ['date_naissance', 'date_entree_enseignement', 'date_entree_etablissement'].forEach(function (k) { if (v[k]) v[k] = dateVersIso(v[k]) || ''; });
-          var cl = [].concat(iCl >= 0 ? String(row[iCl] || '').split(/[,;]/) : [], iCl2 >= 0 ? [row[iCl2]] : []).map(function (t) { var c = trouverClasse(t); return c && c.id; }).filter(Boolean);
-          v.classes = cl;
-          var ex = v.matricule && liste(S.personnel).find(function (p) { return p.matricule && p.matricule.toUpperCase() === v.matricule.toUpperCase(); });
-          if (ex) { b.update(col('personnel').doc(ex.id), Object.assign({}, v, meta(), { version: (ex.version || 0) + 1 })); maj++; }
-          else { b.set(col('personnel').doc(), Object.assign({}, v, mt)); ok++; }
-        });
-        suivre(b.commit()).then(function () {
-          toast(ok + ' agent(s) ajouté(s), ' + maj + ' mis à jour' + (err.length ? ', ' + err.length + ' ligne(s) ignorée(s)' : '') + '.', 'ok');
-          if (err.length) alert(err.join('\n')); activite('Import du personnel : ' + ok + ' ajout(s), ' + maj + ' mise(s) à jour'); journal('IMPORT_PERSONNEL', ok + ' + ' + maj);
-        }).catch(erreurEcriture);
-      } catch (x) { erreurEcriture(x); }
-    };
-    r.readAsText(fichier, 'utf-8');
+    lireTableur(fichier).then(function (t) {
+      verifierEcriture('PERSONNEL');
+      var feuille = t.feuilles.find(function (n) { return /^personnel$/i.test(n); }) || t.feuilles.find(function (n) { return /personnel/i.test(n) && !/liste/i.test(n); }) || t.feuilles[0];
+      var toutes = t.par[feuille] || [], it = ligneDesTitres(toutes, MOTIFS_PERSONNEL);
+      if (it < 0) throw new Erreur('Ligne de titres introuvable (PRENOM, NOM…) dans la feuille « ' + feuille + ' ».');
+      var lignes = toutes.slice(it);
+      var tetes = lignes[0].map(function (x) { return cleTitre(x).replace(/ /g, '_'); }), ok = 0, maj = 0, err = [];
+      var idx = {}; CHAMPS_PERSONNEL.forEach(function (c) { var i = tetes.indexOf(c[0].toUpperCase()); if (i < 0) i = tetes.indexOf(cleTitre(c[1]).replace(/ /g, '_')); if (i >= 0) idx[c[0]] = i; });
+      var iCl = tetes.findIndex(function (x) { return /^CLASSES?(_TENUES)?$|^CLASSE_1$/.test(x); }), iCl2 = tetes.indexOf('CLASSE_2'), iMult = tetes.indexOf('MULT');
+      if (idx.prenom === undefined || idx.nom === undefined) throw new Erreur('Colonnes PRENOM et NOM introuvables dans la ligne de titres.');
+      var b = db.batch(), mt = meta(true);
+      lignes.slice(1).forEach(function (row, n) {
+        var v = {}; Object.keys(idx).forEach(function (k) { v[k] = String(row[idx[k]] || '').trim(); });
+        if (!v.prenom && !v.nom) return;
+        if (!v.prenom || !v.nom) { err.push('Ligne ' + (n + it + 2) + ' : prénom ou nom manquant.'); return; }
+        v.nom = v.nom.toUpperCase(); v.prenom = v.prenom.toLowerCase().replace(/(^|[\s-])\S/g, function (c) { return c.toUpperCase(); }); v.sexe = /^f/i.test(v.sexe || '') ? 'F' : 'M'; v.langue = /^a/i.test(v.langue || '') ? 'AR' : /^l/i.test(v.langue || '') ? 'LN' : 'FR';
+        ['date_naissance', 'date_entree_enseignement', 'date_entree_etablissement'].forEach(function (k) { if (v[k]) v[k] = dateVersIso(v[k]) || ''; });
+        v.classes = [].concat(iCl >= 0 ? String(row[iCl] || '').split(/[,;]/) : [], iCl2 >= 0 ? [row[iCl2]] : []).map(function (x) { var c = trouverClasse(x); return c && c.id; }).filter(Boolean);
+        v.mult = iMult >= 0 && /^(oui|o|1|x|vrai)$/i.test(String(row[iMult] || '').trim());
+        var ex = liste(S.personnel).find(function (p) { return (v.matricule && p.matricule && p.matricule.toUpperCase() === v.matricule.toUpperCase()) || normal(nomPers(p)) === normal(v.prenom + ' ' + v.nom); });
+        if (ex) { b.update(col('personnel').doc(ex.id), Object.assign({}, v, meta(), { version: (ex.version || 0) + 1 })); maj++; }
+        else { b.set(col('personnel').doc(), Object.assign({}, v, mt)); ok++; }
+      });
+      if (!ok && !maj) throw new Erreur('Aucun agent trouvé dans la feuille « ' + feuille + ' ».');
+      return suivre(b.commit()).then(function () {
+        toast(ok + ' agent(s) ajouté(s), ' + maj + ' mis à jour (feuille ' + feuille + ')' + (err.length ? ', ' + err.length + ' ligne(s) ignorée(s)' : '') + '.', 'ok');
+        if (err.length) alert(err.join('\n'));
+        activite('Import du personnel : ' + ok + ' ajout(s), ' + maj + ' mise(s) à jour'); journal('IMPORT_PERSONNEL', ok + ' + ' + maj);
+        liste(S.personnel).forEach(function (p) { if ((p.classes || []).length) majTitulaires(p.id, p); });
+      });
+    }).catch(erreurEcriture);
   }
 
   /* ---------- purge du personnel ---------- */
