@@ -106,6 +106,7 @@ td input, td select { min-height: 34px; padding: 5px 7px; }
 .pied { text-align: center; font-size: .8rem; color: var(--doux); padding: 10px 16px 24px; }
 .cache { display: none !important; }
 @media (max-width: 600px) { .mm { display: none; } main { padding: 12px; } }
+input.a-verifier, span.a-verifier { border-color: var(--ambre) !important; box-shadow: 0 0 0 2px rgba(191,143,0,.35); }
 tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--survol); }
 .barre { height: 8px; background: var(--survol); border-radius: 4px; overflow: hidden; min-width: 80px; }
 .barre > span { display: block; height: 100%; background: var(--vert); }
@@ -1137,7 +1138,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   var MOTIFS_SORTIE = ['Abandon', 'Transfert', 'Exclusion', 'Décès', 'Autre'];
   var FONCTIONS = ['Directeur', 'Directrice', 'Directeur adjoint', 'Enseignant', 'Enseignante', 'Maître d\'arabe', 'Professeur', 'Secrétaire', 'Comptable', 'Surveillant', 'Gardien', 'Agent d\'entretien', 'Vacataire', 'Autre'];
   var CHAMPS_PERSONNEL = [
-    ['matricule', 'Matricule'], ['civilite', 'Civilité'], ['prenom', 'Prénom'], ['nom', 'Nom'], ['sexe', 'Sexe'], ['fonction', 'Fonction'], ['langue', 'Langue'],
+    ['matricule', 'Matricule'], ['civilite', 'Civilité'], ['prenom', 'Prénom'], ['nom', 'Nom'], ['prenom_ar', 'Prénom en arabe'], ['nom_ar', 'Nom en arabe'], ['sexe', 'Sexe'], ['fonction', 'Fonction'], ['langue', 'Langue'],
     ['telephone', 'Téléphone'], ['telephone_2', 'Téléphone 2'], ['telephone_3', 'Téléphone 3'], ['mail_perso', 'E-mail personnel'], ['mail_pro', 'E-mail professionnel'],
     ['date_naissance', 'Date de naissance'], ['lieu_naissance', 'Lieu de naissance'], ['adresse', 'Adresse'], ['cni', 'N° CNI'], ['situation_matrimoniale', 'Situation matrimoniale'],
     ['grade', 'Grade'], ['diplome_academique', 'Diplôme académique'], ['diplome_professionnel', 'Diplôme professionnel'], ['date_entree_enseignement', 'Entrée dans l\'enseignement'],
@@ -1237,9 +1238,18 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   }
 
   /** Inscrit un élève : matricule automatique (ou saisi) réservé de façon unique */
+  /** Calcule les noms en arabe manquants ; ar_a_verifier si une partie est transcrite phonétiquement */
+  function completerArabe(x) {
+    var ver = false;
+    if (!x.prenom_ar && x.prenom) { var p = arabiser(x.prenom, 'prenom'); x.prenom_ar = p.texte; ver = ver || !p.sur; }
+    if (!x.nom_ar && x.nom) { var n = arabiser(x.nom, 'nom'); x.nom_ar = n.texte; ver = ver || !n.sur; }
+    x.ar_a_verifier = ver;
+    return x;
+  }
   function inscrireEleve(f) {
     verifierEcriture('ELEVES');
     var refEl = col('eleves').doc();
+    completerArabe(f);
     var donnees = Object.assign({}, f, { statut: 'ACTIF', motif_sortie: '', cause_exclusion: '', date_sortie: '', date_entree: f.date_entree || new Date().toISOString().slice(0, 10) });
     if (!donnees.date_1ere_inscription) donnees.date_1ere_inscription = donnees.date_entree;
     if (!S.enLigne && !f.matricule) {   /* hors ligne : matricule provisoire, remplacé au retour du réseau */
@@ -1320,14 +1330,14 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
       (morceau.map(function (x, i) {
         var c = classeDe(x.classe_id);
         return '<tr class="cliquable" data-act="el-ouvrir" data-id="' + x.id + '"><td class="c">' + (ui2.page * PAR_PAGE + i + 1) + '</td><td>' + e(x.matricule) + (x.matricule_provisoire ? ' <span class="pastille att">provisoire</span>' : '') + '</td>' +
-          '<td><strong>' + e(x.nom) + '</strong> ' + e(x.prenom) + (x.nom_ar || x.prenom_ar ? '<br><span dir="rtl" class="aide">' + e(x.prenom_ar + ' ' + x.nom_ar) + '</span>' : '') + '</td><td class="c">' + (x.sexe === 'F' ? 'F' : 'G') + '</td>' +
+          '<td><strong>' + e(x.nom) + '</strong> ' + e(x.prenom) + (x.nom_ar || x.prenom_ar ? '<br><span dir="rtl" class="aide">' + e(x.prenom_ar + ' ' + x.nom_ar) + '</span>' + (x.ar_a_verifier ? ' <span class="pastille att" title="Écriture arabe transcrite automatiquement">à vérifier</span>' : '') : '') + '</td><td class="c">' + (x.sexe === 'F' ? 'F' : 'G') + '</td>' +
           '<td class="mm">' + dateFr(x.date_naiss) + (x.lieu_naiss ? ' à ' + e(x.lieu_naiss) : '') + '</td><td>' + (c ? e(c.nom) : '<span class="pastille ko">sans classe</span>') + '</td>' +
           '<td class="mm">' + e(x.parent) + (x.telephone ? ' · ' + e(x.telephone) : '') + '</td><td class="c"><span class="pastille ' + (x.statut === 'ACTIF' ? 'ok' : 'att') + '">' + (x.statut === 'ACTIF' ? 'Actif' : 'Inactif') + '</span></td></tr>';
       }).join('') || '<tr><td colspan="8" class="aide">Aucun élève' + (liste(S.eleves).length ? ' pour ces filtres' : ' : utilisez « Nouvelle fiche » ou « Importer »') + '.</td></tr>') + '</tbody></table></div>';
     var nav = pages > 1 ? '<div class="ligne pas-imprimer" style="margin-top:10px;align-items:center"><div class="fixe"><button class="btn petit" data-act="el-page" data-p="-1"' + (ui2.page ? '' : ' disabled') + '>‹ Précédents</button></div>' +
       '<div class="fixe aide">Page ' + (ui2.page + 1) + ' / ' + pages + '</div><div class="fixe"><button class="btn petit" data-act="el-page" data-p="1"' + (ui2.page < pages - 1 ? '' : ' disabled') + '>Suivants ›</button></div></div>' : '';
     return carte('Registre des élèves · ' + l.length + ' (' + g + ' G, ' + (l.length - g) + ' F)', filtres + t + nav,
-      '<button class="btn" data-act="el-csv">⬇ Exporter (Excel/CSV)</button><button class="btn" data-act="el-imprimer">🖨 Imprimer la liste</button>');
+      (peut('ELEVES') ? '<button class="btn" data-act="ar-serie">✨ Compléter les noms en arabe</button>' : '') + '<button class="btn" data-act="el-csv">⬇ Exporter (Excel/CSV)</button><button class="btn" data-act="el-imprimer">🖨 Imprimer la liste</button>');
   };
   EL.registre.apres = function () {
     var r = $('#el-recherche');
@@ -1348,7 +1358,8 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
       '<nav class="onglets">' + onglet('identite', '1. Identité') + onglet('famille', '2. Famille et contacts') + onglet('scolarite', '3. Scolarité') + '</nav>' +
       '<div class="grille' + (ui2.ongletEleve === 'identite' ? '' : ' cache') + '" data-onglet="identite">' +
         champ('prenom', 'Prénom *', x.prenom, ' required') + champ('nom', 'Nom *', x.nom, ' required') +
-        champ('prenom_ar', 'Prénom en arabe', x.prenom_ar, ' dir="rtl"') + champ('nom_ar', 'Nom en arabe', x.nom_ar, ' dir="rtl"') +
+        champ('prenom_ar', 'Prénom en arabe', x.prenom_ar, ' dir="rtl"' + (x.ar_a_verifier ? ' class="a-verifier"' : '')) + champ('nom_ar', 'Nom en arabe', x.nom_ar, ' dir="rtl"' + (x.ar_a_verifier ? ' class="a-verifier"' : '')) +
+        (ro ? '' : '<div class="champ" style="align-self:end"><button type="button" class="btn petit" data-act="ar-proposer">✨ Écrire en arabe automatiquement</button></div>') +
         '<div class="champ"><label>Sexe *</label><select name="sexe"' + ro + '>' + opt([['', '—'], ['M', 'Garçon'], ['F', 'Fille']], x.sexe) + '</select></div>' +
         champ('date_naiss', 'Date de naissance (8 chiffres : JJMMAAAA)', dateFr(x.date_naiss), ' class="date8" inputmode="numeric" placeholder="15032016"') +
         champ('lieu_naiss', 'Lieu de naissance', x.lieu_naiss) + champ('extrait_naiss', 'N° extrait de naissance', x.extrait_naiss) + '</div>' +
@@ -1392,6 +1403,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
         }).catch(function (er) { erreurEcriture(er); f.querySelector('button.plein').disabled = false; });
       } else {
         var ancien = S.eleves[id], ch = Object.assign({}, x);
+        if (ch.prenom_ar !== ancien.prenom_ar || ch.nom_ar !== ancien.nom_ar) ch.ar_a_verifier = false;
         var nouveauMat = ch.matricule && cleMatricule(ch.matricule) !== cleMatricule(ancien.matricule);
         if (!ch.matricule) delete ch.matricule;
         var suite = nouveauMat ? suivre(db.runTransaction(function (tx) {
@@ -1403,7 +1415,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
           });
         })) : Promise.resolve();
         suite.then(function () { return modifier('eleves', id, ch, Number(f.dataset.version), 'ELEVES'); }).then(function (ok) {
-          if (ok) { toast('Fiche enregistrée.', 'ok'); activite('Fiche de ' + nomEleve(x) + ' modifiée'); fermerBoite(); }
+          if (ok) { toast('Fiche enregistrée.', 'ok'); activite('Fiche de ' + nomEleve(x) + ' modifiée'); fermerBoite(); apprendreNoms([[x.prenom, x.prenom_ar, 'prenom'], [x.nom, x.nom_ar, 'nom']]); }
         }).catch(erreurEcriture);
       }
     };
@@ -1619,6 +1631,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
       var n = premier, ops = [], jour = new Date().toISOString().slice(0, 10);
       prets.forEach(function (r) {
         var ref = col('eleves').doc(), mat = r.x.matricule || construireMatricule(n++, r.x.classe_id);
+        completerArabe(r.x);
         var d = Object.assign({}, r.x, { matricule: mat, matricule_provisoire: false, statut: 'ACTIF', motif_sortie: '', cause_exclusion: '', date_sortie: '',
           date_entree: r.x.date_entree || jour, date_1ere_inscription: r.x.date_1ere_inscription || jour }, meta(true));
         ops.push([col('matricules').doc(cleMatricule(mat)), Object.assign({ eleve_id: ref.id }, meta(true))]);
@@ -1709,6 +1722,8 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
       '<h3 style="margin:6px 0">Identité et fonction</h3><div class="grille">' +
       '<div class="champ"><label>Civilité</label><select name="civilite"' + ro + '>' + opt(['', 'M.', 'Mme', 'Mlle', 'Oustaz', 'Serigne', 'Sokhna'], p.civilite) + '</select></div>' +
       champ('prenom', 'Prénom *', ' required') + champ('nom', 'Nom *', ' required') +
+      champ('prenom_ar', 'Prénom en arabe', ' dir="rtl"') + champ('nom_ar', 'Nom en arabe', ' dir="rtl"') +
+      (ro ? '' : '<div class="champ" style="align-self:end"><button type="button" class="btn petit" data-act="ar-proposer">✨ Écrire en arabe automatiquement</button></div>') +
       '<div class="champ"><label>Sexe * (accords des documents)</label><select name="sexe"' + ro + '>' + opt([['M', 'Homme'], ['F', 'Femme']], p.sexe) + '</select></div>' +
       '<div class="champ"><label>Fonction *</label><select name="fonction"' + ro + '>' + opt(FONCTIONS, p.fonction || 'Enseignant') + '</select></div>' +
       '<div class="champ"><label>Langue d\'enseignement</label><select name="langue"' + ro + '>' + opt([['FR', 'Français'], ['AR', 'Arabe'], ['LN', 'Langue nationale']], p.langue) + '</select></div>' +
@@ -1739,6 +1754,8 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     if (err.length) { var b = $('#ag-err'); b.innerHTML = err.map(e).join('<br>'); b.classList.remove('cache'); return; }
     v.classes = $$('[name=classe]:checked', f).map(function (c) { return c.value; });
     v.mult = f.mult.checked;
+    var auto = completerArabe({ prenom: v.prenom, nom: v.nom, prenom_ar: v.prenom_ar, nom_ar: v.nom_ar }); v.prenom_ar = auto.prenom_ar; v.nom_ar = auto.nom_ar;
+    apprendreNoms([[v.prenom, v.prenom_ar, 'prenom'], [v.nom, v.nom_ar, 'nom']]);
     var fin = function () { fermerBoite(); toast('Agent enregistré.', 'ok'); activite((id ? 'Fiche modifiée : ' : 'Agent ajouté : ') + nomPers(v)); };
     try {
       if (id) modifier('personnel', id, v, Number(f.dataset.version), 'PERSONNEL').then(function (ok) { if (ok) { majTitulaires(id, v); fin(); } });
@@ -1921,6 +1938,7 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
         v.nom = v.nom.toUpperCase(); v.prenom = v.prenom.toLowerCase().replace(/(^|[\s-])\S/g, function (c) { return c.toUpperCase(); }); v.sexe = /^f/i.test(v.sexe || '') ? 'F' : 'M'; v.langue = /^a/i.test(v.langue || '') ? 'AR' : /^l/i.test(v.langue || '') ? 'LN' : 'FR';
         ['date_naissance', 'date_entree_enseignement', 'date_entree_etablissement'].forEach(function (k) { if (v[k]) v[k] = dateVersIso(v[k]) || ''; });
         v.classes = [].concat(iCl >= 0 ? String(row[iCl] || '').split(/[,;]/) : [], iCl2 >= 0 ? [row[iCl2]] : []).map(function (x) { var c = trouverClasse(x); return c && c.id; }).filter(Boolean);
+        completerArabe(v); delete v.ar_a_verifier;
         v.mult = iMult >= 0 && /^(oui|o|1|x|vrai)$/i.test(String(row[iMult] || '').trim());
         var ex = liste(S.personnel).find(function (p) { return (v.matricule && p.matricule && p.matricule.toUpperCase() === v.matricule.toUpperCase()) || normal(nomPers(p)) === normal(v.prenom + ' ' + v.nom); });
         if (ex) { b.update(col('personnel').doc(ex.id), Object.assign({}, v, meta(), { version: (ex.version || 0) + 1 })); maj++; }
@@ -2057,6 +2075,151 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
       }
     } catch (x) { erreurEcriture(x); }
   });
+
+
+  /* ===================================================================
+   *  NOMS EN ARABE : dictionnaire de l'école → dictionnaire intégré → transcription
+   * =================================================================== */
+  var DICO_PRENOMS = {
+    'MOUHAMED': 'محمد', 'MOHAMED': 'محمد', 'MOHAMMED': 'محمد', 'MOUHAMMAD': 'محمد', 'MUHAMMAD': 'محمد', 'MOUHAMADOU': 'محمد', 'MOHAMADOU': 'محمد', 'MAMADOU': 'محمد', 'MODOU': 'محمد', 'MOUHAMMED': 'محمد',
+    'AHMED': 'أحمد', 'AHMAD': 'أحمد', 'AHMADOU': 'أحمد', 'AMADOU': 'أحمد', 'HAMADOU': 'أحمد',
+    'ABDOULAYE': 'عبد الله', 'ABDALLAH': 'عبد الله', 'ABDOULLAH': 'عبد الله', 'ABDOU': 'عبده', 'ABDOURAHMANE': 'عبد الرحمن', 'ABDERRAHMANE': 'عبد الرحمن', 'ABDOULAHAT': 'عبد الأحد',
+    'ABDOULAZIZ': 'عبد العزيز', 'ABDOULKARIM': 'عبد الكريم', 'ABDOUSSALAM': 'عبد السلام', 'ABDOULKADER': 'عبد القادر', 'ABDOUL': 'عبد', 'AZIZ': 'عزيز', 'KARIM': 'كريم',
+    'IBRAHIMA': 'إبراهيم', 'IBRAHIM': 'إبراهيم', 'BRAHIM': 'إبراهيم', 'ISMAILA': 'إسماعيل', 'ISMAEL': 'إسماعيل', 'ISMAIL': 'إسماعيل', 'MOUSSA': 'موسى', 'MUSA': 'موسى', 'ISSA': 'عيسى',
+    'OUSMANE': 'عثمان', 'OUSSMANE': 'عثمان', 'OTHMANE': 'عثمان', 'OUMAR': 'عمر', 'OMAR': 'عمر', 'ALIOU': 'علي', 'ALI': 'علي', 'ALY': 'علي',
+    'BABACAR': 'أبو بكر', 'ABOUBACAR': 'أبو بكر', 'ABOUBAKAR': 'أبو بكر', 'BOUBACAR': 'أبو بكر', 'ABOUBACRY': 'أبو بكر',
+    'ASSANE': 'حسن', 'HASSANE': 'حسن', 'HASSAN': 'حسن', 'ALASSANE': 'الحسن', 'OUSSEYNOU': 'حسين', 'HOUSSEYNOU': 'حسين', 'HOUSSEINE': 'حسين', 'HUSSEIN': 'حسين', 'ALHOUSSEYNOU': 'الحسين',
+    'LAMINE': 'الأمين', 'ALAMINE': 'الأمين', 'AMINE': 'أمين', 'MALICK': 'مالك', 'MALIK': 'مالك', 'SALIOU': 'صالح', 'SALIH': 'صالح', 'SOULEYMANE': 'سليمان', 'SOULAYMANE': 'سليمان', 'SULEYMAN': 'سليمان',
+    'DAOUDA': 'داود', 'DAOUD': 'داود', 'YOUSSOUF': 'يوسف', 'YOUSSOUPHA': 'يوسف', 'YOUSOUF': 'يوسف', 'YACINE': 'ياسين', 'YASSINE': 'ياسين', 'YAKHYA': 'يحيى', 'YAHYA': 'يحيى', 'ZAKARIA': 'زكريا', 'ZAKARIYA': 'زكريا',
+    'IDRISSA': 'إدريس', 'IDRISS': 'إدريس', 'ILYAS': 'إلياس', 'ELIAS': 'إلياس', 'HAMID': 'حامد', 'HAMIDOU': 'حامد', 'KHALIFA': 'خليفة', 'KHADIM': 'خادم', 'BASSIROU': 'بشير', 'BACHIR': 'بشير', 'BASSIR': 'بشير',
+    'MOUSTAPHA': 'مصطفى', 'MOUSTAFA': 'مصطفى', 'MUSTAPHA': 'مصطفى', 'MAHMOUD': 'محمود', 'MAMOUDOU': 'محمود', 'MANSOUR': 'منصور', 'MOURTADA': 'مرتضى', 'MOURTALA': 'مرتضى', 'MOUNTAKHA': 'منتقى',
+    'SERIGNE': 'سرين', 'CHEIKH': 'الشيخ', 'CHEIKHOU': 'الشيخ', 'ELHADJI': 'الحاج', 'HADJI': 'الحاج', 'ELHADJ': 'الحاج', 'FALLOU': 'فاضل', 'FADEL': 'فاضل', 'TIDIANE': 'التجاني', 'BAMBA': 'بمب',
+    'HAMZA': 'حمزة', 'BILAL': 'بلال', 'OUSSAMA': 'أسامة', 'ADAMA': 'آدم', 'ADAM': 'آدم', 'NOUH': 'نوح', 'HAROUNA': 'هارون', 'HAROUN': 'هارون', 'DJIBRIL': 'جبريل', 'JIBRIL': 'جبريل', 'MIKAIL': 'ميكائيل',
+    'ISHAQ': 'إسحاق', 'YACOUBA': 'يعقوب', 'YACOUB': 'يعقوب', 'AYOUB': 'أيوب', 'ABASS': 'عباس', 'ABBAS': 'عباس', 'SADIKH': 'صادق', 'SADIK': 'صادق', 'SIDY': 'سيدي', 'SIDI': 'سيدي', 'HABIB': 'حبيب',
+    'MAKHTAR': 'مختار', 'MOKHTAR': 'مختار', 'ELIMANE': 'الإمام', 'IMAM': 'إمام', 'KABIR': 'كبير', 'TAHIR': 'طاهر', 'TAHIROU': 'طاهر', 'SEYDOU': 'سيد', 'SEYDINA': 'سيدنا', 'AMAR': 'عمار', 'AMMAR': 'عمار',
+    'RAMADANE': 'رمضان', 'SAID': 'سعيد', 'SAIDOU': 'سعيد', 'SAAD': 'سعد', 'NASSIR': 'ناصر', 'SALAM': 'سلام', 'MAHDI': 'مهدي', 'ANAS': 'أنس', 'IMRAN': 'عمران', 'SOUFIANE': 'سفيان', 'HAMDI': 'حمدي',
+    'FATOU': 'فاطُ', 'FATOUMATA': 'فاطمة', 'FATIMA': 'فاطمة', 'FATIMATA': 'فاطمة', 'FATMA': 'فاطمة', 'FATIMATOU': 'فاطمة',
+    'AWA': 'حواء', 'HAWA': 'حواء', 'HAOUA': 'حواء', 'AMINATA': 'آمنة', 'AMINA': 'آمنة', 'AMINATOU': 'آمنة',
+    'MARIAMA': 'مريم', 'MARIAME': 'مريم', 'MARIAM': 'مريم', 'MARYAM': 'مريم', 'MARIEME': 'مريم',
+    'KHADY': 'خديجة', 'KHADIJA': 'خديجة', 'KHADIDJA': 'خديجة', 'KADIATOU': 'خديجة', 'KHADIDIATOU': 'خديجة', 'KHADIJATOU': 'خديجة',
+    'AISSATOU': 'عائشة', 'AISSATA': 'عائشة', 'AICHA': 'عائشة', 'AISHA': 'عائشة', 'ASTOU': 'عائشة',
+    'ROKHAYA': 'رقية', 'ROKAYA': 'رقية', 'ROUGUIYATOU': 'رقية', 'SEYNABOU': 'زينب', 'ZEYNABOU': 'زينب', 'ZEYNAB': 'زينب', 'ZAINAB': 'زينب', 'DIEYNABA': 'زينب', 'ZEINAB': 'زينب',
+    'RAMATOULAYE': 'رحمة الله', 'RAHMATOULAYE': 'رحمة الله', 'MAIMOUNA': 'ميمونة', 'SAFIATOU': 'صفية', 'SAFIA': 'صفية', 'SALIMATA': 'سليمة', 'SALIMATOU': 'سليمة', 'SALIMA': 'سليمة',
+    'HABIBATOU': 'حبيبة', 'HABIBA': 'حبيبة', 'ASMA': 'أسماء', 'ASMAOU': 'أسماء', 'SOKHNA': 'سخنا', 'NAFISSATOU': 'نفيسة', 'NAFISSA': 'نفيسة', 'HAFSA': 'حفصة', 'SAKINA': 'سكينة', 'SOUKEYNA': 'سكينة',
+    'ADJA': 'الحاجة', 'ZAHRA': 'زهراء', 'ASSIA': 'آسية', 'SAWDA': 'سودة', 'AIDA': 'عايدة', 'JAMILA': 'جميلة', 'HALIMA': 'حليمة', 'MAME': 'مام', 'OUMOU': 'أم', 'OUMY': 'أمي', 'KOULTHOUM': 'كلثوم', 'COUMBA': 'كمبا', 'KOUMBA': 'كمبا'
+  };
+  var DICO_NOMS = {
+    'DIOP': 'جوب', 'NDIAYE': 'انجاي', 'FALL': 'فال', 'SARR': 'سار', 'SECK': 'سك', 'GUEYE': 'غاي', 'GAYE': 'غاي', 'MBAYE': 'امباي', 'NIANG': 'نيانغ', 'DIENG': 'جينغ', 'CISSE': 'سيسي', 'BA': 'با', 'BAH': 'با',
+    'SOW': 'صو', 'DIALLO': 'جالو', 'KA': 'كا', 'SY': 'سي', 'THIAM': 'تيام', 'FAYE': 'فاي', 'LO': 'لو', 'LOUM': 'لوم', 'DIOUF': 'جوف', 'NDOYE': 'اندوي', 'SAMB': 'سامب', 'MBACKE': 'امباكي', 'TOURE': 'توري',
+    'KANE': 'كان', 'LY': 'لي', 'DIA': 'جا', 'WADE': 'واد', 'SALL': 'سال', 'DIEYE': 'جيي', 'NIASS': 'نياس', 'NIASSE': 'نياس', 'KEBE': 'كيبي', 'SYLLA': 'سيلا', 'DRAME': 'درامي', 'CAMARA': 'كمارا', 'DIAW': 'جاو',
+    'MBENGUE': 'امبينغ', 'NDOUR': 'اندور', 'DIAGNE': 'جان', 'SENE': 'سين', 'THIAW': 'تياو', 'TALL': 'تال', 'KANTE': 'كانتي', 'BADJI': 'باجي', 'SANE': 'ساني', 'MANE': 'ماني', 'DIAKHATE': 'جاخاتي', 'NDAO': 'انداو',
+    'MBOUP': 'امبوب', 'BALDE': 'بالدي', 'BARRY': 'باري', 'DIATTA': 'جاتا', 'KONATE': 'كوناتي', 'KEITA': 'كيتا', 'COULIBALY': 'كوليبالي', 'TRAORE': 'تراوري', 'BOUSSO': 'بوسو', 'NIANE': 'نيان', 'DEME': 'ديمي',
+    'SOUMARE': 'سوماري', 'GUEYE': 'غاي', 'MBOW': 'امبو', 'NDIONE': 'انجون', 'DIOME': 'جوم', 'DIEDHIOU': 'جيجو', 'SAGNA': 'سانيا', 'FAYE': 'فاي', 'TINE': 'تين', 'NGOM': 'انغوم', 'NDIAYE': 'انجاي', 'GOUDIABY': 'غوجابي'
+  };
+
+  function dicoEcole() { return (S.listes.noms_arabes && S.listes.noms_arabes.valeurs && !Array.isArray(S.listes.noms_arabes.valeurs)) ? S.listes.noms_arabes.valeurs : {}; }
+  function cleNom(m) { return normal(m).replace(/[^A-Z]/g, ''); }
+
+  /** Transcription phonétique (dernier recours) : à faire vérifier */
+  function transcrire(mot) {
+    var w = String(mot).toLowerCase().normalize('NFD').replace(/[̀-́]/g, '').replace(/[̂-ͯ]/g, '').replace(/[^a-z]/g, '');
+    var accentE = /é|è/.test(String(mot).toLowerCase());
+    if (!w) return '';
+    var r = '', i = 0, debut = true;
+    var voy = function (c) { return 'aeiouy'.indexOf(c) >= 0; };
+    if (/^(nd|mb|ng|nj)/.test(w)) { r = 'ا'; }
+    while (i < w.length) {
+      var t3 = w.substr(i, 3), t2 = w.substr(i, 2), c = w[i], s = w[i + 1] || '';
+      if (debut && voy(c)) { r += (c === 'i' || c === 'e') ? 'إ' : (t2 === 'ou' || c === 'o' || c === 'u') ? 'أو' : 'أ'; i += (t2 === 'ou') ? 2 : 1; debut = false; continue; }
+      debut = false;
+      if (t3 === 'dia' || t3 === 'dio' || t3 === 'die') { r += 'ج'; i += 2; continue; }
+      var map2 = { ch: 'ش', sh: 'ش', kh: 'خ', gn: 'ني', ny: 'ني', dj: 'ج', th: 'ت', ph: 'ف', qu: 'ق', ou: 'و', oo: 'و', ee: 'ي', ai: 'اي', ay: 'اي', ei: 'ي', ey: 'ي', gu: 'غ' };
+      if (map2[t2] && !(t2 === 'gu' && !voy(w[i + 2] || ''))) { r += map2[t2]; i += 2; continue; }
+      if (c === 'c') { r += (s === 'e' || s === 'i') ? 'س' : 'ك'; i++; continue; }
+      if (c === s && !voy(c)) { i++; continue; }   /* consonne doublée */
+      var map1 = { b: 'ب', d: 'د', f: 'ف', g: 'غ', h: 'ه', j: 'ج', k: 'ك', l: 'ل', m: 'م', n: 'ن', p: 'ب', q: 'ق', r: 'ر', s: 'س', t: 'ت', v: 'ف', w: 'و', x: 'كس', y: 'ي', z: 'ز', a: 'ا', i: 'ي', o: 'و', u: 'و' };
+      if (c === 'e') { if (i < w.length - 1 || accentE) r += (i === w.length - 1 && accentE) ? 'ي' : ''; i++; continue; }
+      r += map1[c] || ''; i++;
+    }
+    return r.replace(/اا+/g, 'ا').replace(/وو+/g, 'و').replace(/يي+/g, 'ي');
+  }
+  /** Propose l'écriture arabe d'un prénom ou d'un nom ; renvoie { texte, sur } (sur = tout trouvé dans un dictionnaire) */
+  function arabiser(latin, type) {
+    var mots = String(latin || '').replace(/-/g, ' ').trim().split(/\s+/).filter(Boolean), sur = true, ecole = dicoEcole();
+    var res = [];
+    for (var i = 0; i < mots.length; i++) {
+      var k = cleNom(mots[i]), k2 = i + 1 < mots.length ? k + cleNom(mots[i + 1]) : null;
+      /* noms composés écrits en deux mots : El Hadji, Abdou Rahmane, Abdoul Aziz… */
+      if (k2 && (ecole[k2] || DICO_PRENOMS[k2])) { res.push(ecole[k2] || DICO_PRENOMS[k2]); i++; continue; }
+      var a = ecole[k] || (type === 'nom' ? (DICO_NOMS[k] || DICO_PRENOMS[k]) : (DICO_PRENOMS[k] || DICO_NOMS[k]));
+      if (!a) { a = transcrire(mots[i]); sur = false; }
+      res.push(a);
+    }
+    return { texte: res.join(' '), sur: sur && res.length > 0 };
+  }
+  /** Retient les écritures validées par l'école (mot à mot quand le nombre de mots correspond) */
+  function apprendreNoms(paires) {
+    if (!peut('PARAMETRES') || enMaintenancePourMoi()) return;
+    var ajout = {}, ecole = dicoEcole();
+    paires.forEach(function (p) {
+      var l = String(p[0] || '').replace(/-/g, ' ').trim().split(/\s+/).filter(Boolean), a = String(p[1] || '').trim().split(/\s+/).filter(Boolean);
+      if (!l.length || !a.length) return;
+      if (l.length === a.length) l.forEach(function (m, i) { var k = cleNom(m), auto = arabiser(m, p[2]).texte; if (k && a[i] !== auto && ecole[k] !== a[i]) ajout[k] = a[i]; });
+      else { var k = cleNom(l.join('')), t = a.join(' '); if (k && arabiser(l.join(' '), p[2]).texte !== t && ecole[k] !== t) ajout[k] = t; }
+    });
+    if (!Object.keys(ajout).length) return;
+    var ch = { valeurs: ajout }; Object.assign(ch, meta(!S.listes.noms_arabes));
+    suivre(col('listes').doc('noms_arabes').set(ch, { merge: true })).then(function () { activite(Object.keys(ajout).length + ' écriture(s) arabe(s) ajoutée(s) au dictionnaire de l\'école'); }).catch(function () {});
+  }
+  function remplirArabe(form) {
+    var champs = [['prenom', 'prenom_ar', 'prenom'], ['nom', 'nom_ar', 'nom']], avert = false, rempli = 0;
+    champs.forEach(function (c) {
+      var src = form[c[0]], dst = form[c[1]]; if (!src || !dst) return;
+      if (dst.value.trim() && !confirm('Remplacer « ' + dst.value + ' » par la proposition automatique ?')) return;
+      var p = arabiser(src.value, c[2]); if (!p.texte) return;
+      dst.value = p.texte; dst.dataset.auto = p.texte; dst.classList.toggle('a-verifier', !p.sur); if (!p.sur) avert = true; rempli++;
+      dst.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    if (rempli) toast(avert ? 'Proposition faite. Les mots soulignés en orange sont transcrits phonétiquement : vérifiez-les.' : 'Écriture arabe proposée depuis le dictionnaire.', avert ? '' : 'ok');
+  }
+
+  /* Complétion en série : registre des élèves */
+  function boiteCompleterArabe() {
+    var l = filtrerEleves().filter(function (x) { return !x.prenom_ar || !x.nom_ar; });
+    if (!l.length) return toast('Tous les élèves affichés ont déjà leur nom en arabe.', 'ok');
+    var lignes = l.slice(0, 300).map(function (x) {
+      var p = x.prenom_ar ? { texte: x.prenom_ar, sur: true } : arabiser(x.prenom, 'prenom'), n = x.nom_ar ? { texte: x.nom_ar, sur: true } : arabiser(x.nom, 'nom');
+      return '<tr data-id="' + x.id + '"><td>' + e(x.prenom + ' ' + x.nom) + '<br><span class="aide">' + e((classeDe(x.classe_id) || {}).nom || '') + '</span></td>' +
+        '<td><input class="ar-p' + (p.sur ? '' : ' a-verifier') + '" dir="rtl" value="' + e(p.texte) + '" data-auto="' + e(p.texte) + '"></td><td><input class="ar-n' + (n.sur ? '' : ' a-verifier') + '" dir="rtl" value="' + e(n.texte) + '" data-auto="' + e(n.texte) + '"></td></tr>';
+    }).join('');
+    var nb = l.slice(0, 300).length;
+    ouvrirBoite('<div class="boite large"><h2>Compléter les noms en arabe · ' + nb + ' élève(s)</h2>' +
+      '<p class="aide">Propositions : <strong>dictionnaire de l\'école</strong>, puis dictionnaire intégré des noms sénégalais courants, puis transcription phonétique (<span class="a-verifier" style="padding:0 4px">bordure orange = à vérifier</span>). Corrigez si besoin : vos corrections enrichissent le dictionnaire de l\'école.</p>' +
+      '<div class="table-defil" style="max-height:55vh"><table><thead><tr><th>Élève</th><th>Prénom en arabe</th><th>Nom en arabe</th></tr></thead><tbody>' + lignes + '</tbody></table></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn plein" data-act="ar-enr">Enregistrer</button><button class="btn" data-act="fermer">Annuler</button></div></div>');
+  }
+  function enregistrerArabeSerie() {
+    verifierEcriture('ELEVES');
+    var b = db.batch(), n = 0, apprises = [];
+    $$('#voile tr[data-id]').forEach(function (tr) {
+      var x = S.eleves[tr.dataset.id], p = $('.ar-p', tr).value.trim(), nm = $('.ar-n', tr).value.trim();
+      if (!x || (p === (x.prenom_ar || '') && nm === (x.nom_ar || ''))) return;
+      b.update(col('eleves').doc(x.id), Object.assign({ prenom_ar: p, nom_ar: nm, version: (x.version || 0) + 1 }, meta())); n++;
+      if (p !== $('.ar-p', tr).dataset.auto) apprises.push([x.prenom, p, 'prenom']);
+      if (nm !== $('.ar-n', tr).dataset.auto) apprises.push([x.nom, nm, 'nom']);
+    });
+    if (!n) { fermerBoite(); return; }
+    suivre(b.commit()).then(function () { fermerBoite(); toast(n + ' élève(s) mis à jour.', 'ok'); activite('Noms en arabe complétés pour ' + n + ' élève(s)'); apprendreNoms(apprises); }).catch(erreurEcriture);
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    try {
+      if (b.dataset.act === 'ar-proposer') { ev.preventDefault(); remplirArabe(b.closest('form')); }
+      else if (b.dataset.act === 'ar-serie') boiteCompleterArabe();
+      else if (b.dataset.act === 'ar-enr') enregistrerArabeSerie();
+    } catch (x) { erreurEcriture(x); }
+  });
+  document.addEventListener('input', function (ev) { var t = ev.target; if (t.dataset && t.dataset.auto !== undefined && t.value !== t.dataset.auto) t.classList.remove('a-verifier'); });
 
 
   /* ===================================================================
