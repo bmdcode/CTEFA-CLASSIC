@@ -839,11 +839,11 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   }
 
   /* ---------- Référentiels ---------- */
-  var ONGLETS_REF = { niveaux: 'Niveaux', classes: 'Classes', matieres: 'Matières', tarifs: 'Tarifs', listes: 'Listes' };
+  var ONGLETS_REF = { niveaux: 'Niveaux', classes: 'Classes', matieres: 'Matières', tarifs: 'Tarifs', listes: 'Listes', purge: 'Purge' };
   var refNiveau = null;
   VUES.referentiels = function () {
     var o = ONGLETS_REF[sousVue()] ? sousVue() : 'classes';
-    var h = '<h2>Référentiels</h2><nav class="onglets">' + Object.keys(ONGLETS_REF).map(function (k) { return '<a href="#referentiels/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_REF[k] + '</a>'; }).join('') + '</nav>';
+    var h = '<h2>Référentiels</h2><nav class="onglets">' + Object.keys(ONGLETS_REF).filter(function (k) { return k !== 'purge' || estAdmin(); }).map(function (k) { return '<a href="#referentiels/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_REF[k] + '</a>'; }).join('') + '</nav>';
     if (!peut('PARAMETRES')) h += '<div class="alerte">Lecture seule : votre compte n\'a pas le droit « Paramètres ».</div>';
     return h + REF[o]();
   };
@@ -1288,11 +1288,11 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   /* ---------------------------------------------------------------
    *  VUE : ÉLÈVES
    * --------------------------------------------------------------- */
-  var ONGLETS_EL = { registre: 'Registre', fiche: 'Nouvelle fiche', import: 'Importer', reinscription: 'Réinscription', sorties: 'Sorties' };
+  var ONGLETS_EL = { registre: 'Registre', fiche: 'Nouvelle fiche', import: 'Importer', reinscription: 'Réinscription', sorties: 'Sorties', purge: 'Purge' };
   VUES.eleves = function () {
     var o = ONGLETS_EL[sousVue()] ? sousVue() : 'registre';
     if (!peut('ELEVES')) o = 'registre';
-    var h = '<h2>Élèves</h2>' + (peut('ELEVES') ? '<nav class="onglets">' + Object.keys(ONGLETS_EL).map(function (k) { return '<a href="#eleves/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_EL[k] + '</a>'; }).join('') + '</nav>' : '');
+    var h = '<h2>Élèves</h2>' + (peut('ELEVES') ? '<nav class="onglets">' + Object.keys(ONGLETS_EL).filter(function (k) { return k !== 'purge' || estAdmin(); }).map(function (k) { return '<a href="#eleves/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_EL[k] + '</a>'; }).join('') + '</nav>' : '');
     return h + EL[o]();
   };
   VUES.eleves.apres = function () { var o = ONGLETS_EL[sousVue()] ? sousVue() : 'registre'; if (EL[o] && EL[o].apres) EL[o].apres(); };
@@ -2220,6 +2220,145 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
     } catch (x) { erreurEcriture(x); }
   });
   document.addEventListener('input', function (ev) { var t = ev.target; if (t.dataset && t.dataset.auto !== undefined && t.value !== t.dataset.auto) t.classList.remove('a-verifier'); });
+
+
+  /* ===================================================================
+   *  PURGES : élèves, classes, matières (double confirmation + sauvegarde)
+   * =================================================================== */
+  var uiP = { classes: [], statut: '', annee: '', avecEleves: false, niveaux: [] };
+  function estAdmin() { return S.profil.role === 'ADMIN_PRINCIPAL' || S.profil.role === 'ADMIN_SECONDAIRE'; }
+  /** Enchaîne les protections : confirmation, mot PURGER, mot de passe, sauvegarde complète */
+  function protegerPurge(resume) {
+    if (!confirm(resume + '\n\nCette suppression est définitive.')) return Promise.reject(new Erreur('Action annulée.'));
+    var mot = prompt('Pour confirmer, tapez le mot PURGER en majuscules :');
+    if (mot !== 'PURGER') { toast('Purge annulée.', 'ko'); return Promise.reject(new Erreur('Action annulée.')); }
+    return confirmerMdp('La purge est définitive.').then(function () { toast('Copie de sécurité…'); return sauver(); });
+  }
+  function supprimerParLots(refs) {
+    var lots = [];
+    for (var i = 0; i < refs.length; i += 450) { var b = db.batch(); refs.slice(i, i + 450).forEach(function (r) { b.delete(r); }); lots.push(suivre(b.commit())); }
+    return Promise.all(lots);
+  }
+  function finPurge(err) { if (!(err instanceof Erreur && err.message === 'Action annulée.')) erreurEcriture(err); }
+
+  /* ---------- élèves ---------- */
+  function elevesAPurger() {
+    return liste(S.eleves).filter(function (x) {
+      if (uiP.classes.length && uiP.classes.indexOf(x.classe_id || '_SANS') < 0) return false;
+      if (uiP.statut && x.statut !== uiP.statut) return false;
+      if (uiP.annee && String(x.date_entree || '').slice(0, 4) !== uiP.annee) return false;
+      return true;
+    }).sort(function (a, b) { return String((classeDe(a.classe_id) || {}).nom).localeCompare(String((classeDe(b.classe_id) || {}).nom)) || a.nom.localeCompare(b.nom); });
+  }
+  EL.purge = function () {
+    if (!estAdmin()) return carte('Purge', '<p>Réservé aux administrateurs.</p>');
+    var l = elevesAPurger(), annees = Array.from(new Set(liste(S.eleves).map(function (x) { return String(x.date_entree || '').slice(0, 4); }).filter(Boolean))).sort();
+    var cases = classesTriees().map(function (c) { return '<label><input type="checkbox" class="pg-cl" value="' + c.id + '"' + (uiP.classes.indexOf(c.id) >= 0 ? ' checked' : '') + '> ' + e(c.nom) + ' <span class="aide">(' + liste(S.eleves).filter(function (x) { return x.classe_id === c.id; }).length + ')</span></label>'; }).join('') +
+      '<label><input type="checkbox" class="pg-cl" value="_SANS"' + (uiP.classes.indexOf('_SANS') >= 0 ? ' checked' : '') + '> Sans classe</label>';
+    return carte('Purger des élèves', '<div class="alerte att" style="margin-top:0">Supprime définitivement les fiches choisies et libère leurs matricules. Une sauvegarde complète est téléchargée avant. ' +
+      'Pour un élève simplement parti, utilisez plutôt « Enregistrer une sortie » : il reste dans l\'historique.</div>' +
+      '<label>Classes (aucune cochée = toutes)</label><div class="droits" style="margin-bottom:10px">' + cases + '</div>' +
+      '<div class="ligne"><div><label>Statut</label><select id="pg-statut">' + opt([['', 'Tous'], ['ACTIF', 'Actifs'], ['INACTIF', 'Inactifs (sortis)']], uiP.statut) + '</select></div>' +
+      '<div><label>Année d\'entrée</label><select id="pg-annee">' + opt(annees, uiP.annee, 'Toutes') + '</select></div></div>' +
+      '<div class="table-defil" style="max-height:45vh;margin-top:10px"><table><thead><tr><th><input type="checkbox" id="pg-tous" checked></th><th>Élève</th><th>Matricule</th><th>Classe</th><th>Statut</th><th>Entrée</th></tr></thead><tbody>' +
+      (l.map(function (x) { return '<tr><td><input type="checkbox" class="pg-el" value="' + x.id + '" checked></td><td>' + e(nomEleve(x)) + '</td><td>' + e(x.matricule) + '</td><td>' + e((classeDe(x.classe_id) || {}).nom || '—') + '</td><td>' + (x.statut === 'ACTIF' ? 'Actif' : 'Inactif') + '</td><td>' + dateFr(x.date_entree) + '</td></tr>'; }).join('') ||
+       '<tr><td colspan="6" class="aide">Aucun élève pour ces critères.</td></tr>') + '</tbody></table></div>',
+      l.length ? '<button class="btn danger" data-act="pg-eleves">Purger les élèves cochés…</button><span class="aide">' + l.length + ' élève(s) correspondent aux critères.</span>' : '');
+  };
+  EL.purge.apres = function () {
+    $$('.pg-cl').forEach(function (c) { c.onchange = function () { uiP.classes = $$('.pg-cl:checked').map(function (x) { return x.value; }); rendre(); }; });
+    var s = $('#pg-statut'); if (s) s.onchange = function () { uiP.statut = s.value; rendre(); };
+    var a = $('#pg-annee'); if (a) a.onchange = function () { uiP.annee = a.value; rendre(); };
+    var t = $('#pg-tous'); if (t) t.onchange = function () { $$('.pg-el').forEach(function (c) { c.checked = t.checked; }); };
+  };
+  function purgerEleves() {
+    var ids = $$('.pg-el:checked').map(function (c) { return c.value; });
+    if (!ids.length) return toast('Cochez au moins un élève.', 'ko');
+    var parClasse = {};
+    ids.forEach(function (id) { var c = (classeDe(S.eleves[id].classe_id) || {}).nom || 'sans classe'; parClasse[c] = (parClasse[c] || 0) + 1; });
+    var resume = 'Purger ' + ids.length + ' élève(s) : ' + Object.keys(parClasse).map(function (k) { return k + ' (' + parClasse[k] + ')'; }).join(', ') + ' ?';
+    protegerPurge(resume).then(function () {
+      verifierEcriture('ELEVES');
+      var refs = [];
+      ids.forEach(function (id) {
+        var x = S.eleves[id]; refs.push(col('eleves').doc(id));
+        if (x && x.matricule && !x.matricule_provisoire) refs.push(col('matricules').doc(cleMatricule(x.matricule)));
+      });
+      /* notes et décisions rattachées (étape 3) */
+      return Promise.all(['notes', 'decisions'].map(function (n) { return col(n).get().then(function (q) { q.docs.forEach(function (d) { if (ids.indexOf(d.data().eleve_id) >= 0) refs.push(d.ref); }); }).catch(function () {}); }))
+        .then(function () { return supprimerParLots(refs); })
+        .then(function () { toast(ids.length + ' élève(s) purgé(s).', 'ok'); journal('PURGE_ELEVES', resume.replace('Purger ', '').replace(' ?', '')); activite('Purge : ' + ids.length + ' élève(s) supprimé(s)'); });
+    }).catch(finPurge);
+  }
+
+  /* ---------- classes et matières (Référentiels) ---------- */
+  REF.purge = function () {
+    if (!estAdmin()) return carte('Purge', '<p>Réservé aux administrateurs.</p>');
+    var cl = classesTriees(), niv = niveauxEcole();
+    var lignesCl = cl.map(function (c) {
+      var n = liste(S.eleves).filter(function (x) { return x.classe_id === c.id; }).length;
+      return '<tr><td><input type="checkbox" class="pc-cl" value="' + c.id + '"></td><td><strong>' + e(c.nom) + '</strong></td><td>' + e(nomNiveau(c.niveau)) + '</td><td class="c">' + n + '</td><td>' + e([c.titulaire_fr, c.titulaire_ar].filter(Boolean).join(' · ')) + '</td></tr>';
+    }).join('');
+    var lignesNiv = niv.map(function (n) {
+      var nb = liste(S.matieres).filter(function (m) { return m.niveau === n.code; }).length, cls = cl.filter(function (c) { return c.niveau === n.code; }).map(function (c) { return c.nom; });
+      return '<tr><td><input type="checkbox" class="pc-niv" value="' + n.code + '"' + (nb ? '' : ' disabled') + '></td><td><strong>' + e(n.nom) + '</strong></td><td class="c">' + nb + '</td><td class="aide">' + e(cls.join(', ') || '—') + '</td></tr>';
+    }).join('');
+    return carte('Purger des classes', '<div class="alerte att" style="margin-top:0">Une classe qui contient des élèves ne peut être purgée que si vous cochez aussi « avec ses élèves ». Les affectations de la classe sont supprimées avec elle.</div>' +
+      '<div class="table-defil"><table><thead><tr><th></th><th>Classe</th><th>Niveau</th><th class="c">Élèves</th><th>Titulaires</th></tr></thead><tbody>' + (lignesCl || '<tr><td colspan="5" class="aide">Aucune classe.</td></tr>') + '</tbody></table></div>' +
+      '<label style="display:flex;gap:8px;align-items:center;color:var(--texte);margin-top:8px"><input type="checkbox" id="pc-avec"> Purger aussi les élèves de ces classes (sinon ils restent « sans classe »)</label>',
+      '<button class="btn danger" data-act="pg-classes">Purger les classes cochées…</button>') +
+      carte('Purger les matières d\'un niveau', '<div class="alerte" style="margin-top:0">Les matières sont définies <strong>par niveau</strong> : toutes les classes du même niveau (ex. CM2 A et CM2 B) partagent les mêmes matières. ' +
+        'Pour retirer une seule matière, utilisez la croix ✕ dans Référentiels → Matières. Après une purge, « Réparer les référentiels » remet les matières d\'origine de CTEFA V3.4.</div>' +
+        '<div class="table-defil"><table><thead><tr><th></th><th>Niveau</th><th class="c">Rubriques</th><th>Classes concernées</th></tr></thead><tbody>' + lignesNiv + '</tbody></table></div>',
+        '<button class="btn danger" data-act="pg-matieres">Purger les matières des niveaux cochés…</button>');
+  };
+  REF.purge.apres = function () {};
+  function purgerClasses() {
+    var ids = $$('.pc-cl:checked').map(function (c) { return c.value; }), avec = $('#pc-avec').checked;
+    if (!ids.length) return toast('Cochez au moins une classe.', 'ko');
+    var eleves = liste(S.eleves).filter(function (x) { return ids.indexOf(x.classe_id) >= 0; });
+    if (eleves.length && !avec) {
+      if (!confirm(eleves.length + ' élève(s) sont dans ces classes. Ils resteront dans le registre « sans classe ». Continuer ?')) return;
+    }
+    var noms = ids.map(function (id) { return classeDe(id).nom; }).join(', ');
+    var resume = 'Purger ' + ids.length + ' classe(s) : ' + noms + (avec && eleves.length ? ' ET leurs ' + eleves.length + ' élève(s)' : '') + ' ?';
+    protegerPurge(resume).then(function () {
+      verifierEcriture('PARAMETRES'); if (avec && eleves.length) verifierEcriture('ELEVES');
+      var refs = ids.map(function (id) { return col('classes').doc(id); });
+      liste(S.affectations).filter(function (a) { return ids.indexOf(a.classe_id) >= 0; }).forEach(function (a) { refs.push(col('affectations').doc(a.id)); });
+      var majs = [];
+      if (avec) eleves.forEach(function (x) { refs.push(col('eleves').doc(x.id)); if (x.matricule && !x.matricule_provisoire) refs.push(col('matricules').doc(cleMatricule(x.matricule))); });
+      else eleves.forEach(function (x) { majs.push(x); });
+      liste(S.personnel).filter(function (p) { return (p.classes || []).some(function (c) { return ids.indexOf(c) >= 0; }); }).forEach(function (p) { majs.push({ pers: p }); });
+      return supprimerParLots(refs).then(function () {
+        var b = db.batch(), n = 0;
+        majs.forEach(function (m) {
+          if (m.pers) { b.update(col('personnel').doc(m.pers.id), Object.assign({ classes: m.pers.classes.filter(function (c) { return ids.indexOf(c) < 0; }), version: (m.pers.version || 0) + 1 }, meta())); n++; }
+          else if (peut('ELEVES')) { b.update(col('eleves').doc(m.id), Object.assign({ classe_id: '', version: (m.version || 0) + 1 }, meta())); n++; }
+        });
+        return n ? suivre(b.commit()) : null;
+      }).then(function () { toast(ids.length + ' classe(s) purgée(s).', 'ok'); journal('PURGE_CLASSES', resume.replace('Purger ', '').replace(' ?', '')); activite('Purge : classes ' + noms); });
+    }).catch(finPurge);
+  }
+  function purgerMatieres() {
+    var niv = $$('.pc-niv:checked').map(function (c) { return c.value; });
+    if (!niv.length) return toast('Cochez au moins un niveau.', 'ko');
+    var mats = liste(S.matieres).filter(function (m) { return niv.indexOf(m.niveau) >= 0; });
+    var resume = 'Purger les ' + mats.length + ' rubrique(s) de matières de : ' + niv.map(nomNiveau).join(', ') + ' ?';
+    protegerPurge(resume).then(function () {
+      verifierEcriture('PARAMETRES');
+      var refs = mats.map(function (m) { return col('matieres').doc(m.id); });
+      var idsCl = classesTriees().filter(function (c) { return niv.indexOf(c.niveau) >= 0; }).map(function (c) { return c.id; });
+      liste(S.affectations).filter(function (a) { return idsCl.indexOf(a.classe_id) >= 0; }).forEach(function (a) { refs.push(col('affectations').doc(a.id)); });
+      return supprimerParLots(refs).then(function () { toast(mats.length + ' rubrique(s) purgée(s).', 'ok'); journal('PURGE_MATIERES', niv.join(', ')); activite('Purge : matières de ' + niv.map(nomNiveau).join(', ')); });
+    }).catch(finPurge);
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    if (b.dataset.act === 'pg-eleves') purgerEleves();
+    else if (b.dataset.act === 'pg-classes') purgerClasses();
+    else if (b.dataset.act === 'pg-matieres') purgerMatieres();
+  });
 
 
   /* ===================================================================
