@@ -122,7 +122,14 @@ tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surv
   .entete, .nav, .carte-pied, #toasts, .pas-imprimer { display: none !important; } body { background: #fff; } .carte { border: 0; }
   body.mode-impression > *:not(#impression) { display: none !important; }
   body.mode-impression #impression { display: block; }
-  @page { size: A4; margin: 10mm; }
+  @page { size: A4; margin: 0; }
+  html, body { margin: 0 !important; padding: 0 !important; }
+  table.cadre-impression { width: 100%; border-collapse: collapse; }
+  table.cadre-impression > thead > tr > td, table.cadre-impression > tfoot > tr > td, table.cadre-impression > tbody > tr > td { border: 0; padding: 0 12mm; background: #fff; }
+  .marge-imp { height: 10mm; }
+  .document { padding: 0; }
+  .doc-table thead { display: table-header-group; }
+  .doc-table tr, .doc-visa { page-break-inside: avoid; break-inside: avoid; }
 }
 </style>
 </head>
@@ -1905,10 +1912,15 @@ var SEMENCE = {"niveaux":[{"code":"PS","nom":"Petite section","cycle":"PRESCOLAI
   }
   function imprimer(html) {
     var z = $('#impression'); if (!z) { z = document.createElement('div'); z.id = 'impression'; document.body.appendChild(z); }
-    z.innerHTML = html; document.body.classList.add('mode-impression');
+    /* Marges dessinées par l'application (répétées sur chaque page) : le navigateur n'a plus de marge où écrire date, titre et adresse */
+    z.innerHTML = '<table class="cadre-impression"><thead><tr><td><div class="marge-imp"></div></td></tr></thead><tbody><tr><td>' + html +
+      '</td></tr></tbody><tfoot><tr><td><div class="marge-imp"></div></td></tr></tfoot></table>';
+    ancienTitre = document.title; document.title = ' ';
+    document.body.classList.add('mode-impression');
     setTimeout(function () { window.print(); }, 150);
   }
-  window.addEventListener('afterprint', function () { document.body.classList.remove('mode-impression'); var z = $('#impression'); if (z) z.innerHTML = ''; });
+  var ancienTitre = '';
+  window.addEventListener('afterprint', function () { document.body.classList.remove('mode-impression'); var z = $('#impression'); if (z) z.innerHTML = ''; if (ancienTitre) document.title = ancienTitre; });
   function csv(lignes, nom) { telecharger('﻿' + lignes.map(function (r) { return r.map(function (x) { return '"' + String(x === undefined || x === null ? '' : x).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n'), nom, 'text/csv'); }
 
   /* ---------- import / export du personnel ---------- */
