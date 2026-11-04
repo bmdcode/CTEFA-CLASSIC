@@ -175,6 +175,8 @@ tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surv
   .ligne-annul td { color: #b00; } table.etat td, table.etat th { font-size: 12px; white-space: nowrap; } table.etat tr.total td { font-weight: 700; border-top: 2px solid #999; } tr.optionnel td { opacity: .85; }
   .liste-simple { list-style: none; padding: 0; } .liste-simple li { padding: 6px 0; border-bottom: 1px solid var(--bord, #ddd); }
   .document.saut-page { page-break-after: always; } .appel td, .appel th { padding: 2px 3px; font-size: 10px; }
+  .barre { display:inline-block; width:110px; height:10px; background:#e5e7eb; border-radius:5px; vertical-align:middle; overflow:hidden } .barre span { display:block; height:100%; background:#2563eb } .barre span.ok { background:#16a34a } .barre span.ko { background:#dc2626 }
+  .histo { display:flex; gap:10px; align-items:flex-end; height:170px; padding-top:18px } .histo .col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; position:relative } .histo .b { width:100%; background:#2563eb; border-radius:4px 4px 0 0; min-height:2px } .histo .n { font-weight:700 } .histo small { white-space:nowrap; font-size:11px }
 </style>
 </head>
 <body>
@@ -2151,9 +2153,9 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     'ABDOULAZIZ': 'عبد العزيز', 'ABDOULKARIM': 'عبد الكريم', 'ABDOUSSALAM': 'عبد السلام', 'ABDOULKADER': 'عبد القادر', 'ABDOUL': 'عبد', 'AZIZ': 'عزيز', 'KARIM': 'كريم',
     'IBRAHIMA': 'إبراهيم', 'IBRAHIM': 'إبراهيم', 'BRAHIM': 'إبراهيم', 'ISMAILA': 'إسماعيل', 'ISMAEL': 'إسماعيل', 'ISMAIL': 'إسماعيل', 'MOUSSA': 'موسى', 'MUSA': 'موسى', 'ISSA': 'عيسى',
     'OUSMANE': 'عثمان', 'OUSSMANE': 'عثمان', 'OTHMANE': 'عثمان', 'OUMAR': 'عمر', 'OMAR': 'عمر', 'ALIOU': 'علي', 'ALI': 'علي', 'ALY': 'علي',
-    'BABACAR': 'أبو بكر', 'ABOUBACAR': 'أبو بكر', 'ABOUBAKAR': 'أبو بكر', 'BOUBACAR': 'أبو بكر', 'ABOUBACRY': 'أبو بكر',
+    'BABACAR': 'بابكر', 'ABOUBACAR': 'أبو بكر', 'ABOUBAKAR': 'أبو بكر', 'BOUBACAR': 'أبو بكر', 'ABOUBACRY': 'أبو بكر',
     'ASSANE': 'حسن', 'HASSANE': 'حسن', 'HASSAN': 'حسن', 'ALASSANE': 'الحسن', 'OUSSEYNOU': 'حسين', 'HOUSSEYNOU': 'حسين', 'HOUSSEINE': 'حسين', 'HUSSEIN': 'حسين', 'ALHOUSSEYNOU': 'الحسين',
-    'LAMINE': 'الأمين', 'ALAMINE': 'الأمين', 'AMINE': 'أمين', 'MALICK': 'مالك', 'MALIK': 'مالك', 'SALIOU': 'صالح', 'SALIH': 'صالح', 'SOULEYMANE': 'سليمان', 'SOULAYMANE': 'سليمان', 'SULEYMAN': 'سليمان',
+    'LAMINE': 'لمين', 'ALAMINE': 'الأمين', 'AMINE': 'أمين', 'MALICK': 'مالك', 'MALIK': 'مالك', 'SALIOU': 'صالح', 'SALIH': 'صالح', 'SOULEYMANE': 'سليمان', 'SOULAYMANE': 'سليمان', 'SULEYMAN': 'سليمان',
     'DAOUDA': 'داود', 'DAOUD': 'داود', 'YOUSSOUF': 'يوسف', 'YOUSSOUPHA': 'يوسف', 'YOUSOUF': 'يوسف', 'YACINE': 'ياسين', 'YASSINE': 'ياسين', 'YAKHYA': 'يحيى', 'YAHYA': 'يحيى', 'ZAKARIA': 'زكريا', 'ZAKARIYA': 'زكريا',
     'IDRISSA': 'إدريس', 'IDRISS': 'إدريس', 'ILYAS': 'إلياس', 'ELIAS': 'إلياس', 'HAMID': 'حامد', 'HAMIDOU': 'حامد', 'KHALIFA': 'خليفة', 'KHADIM': 'خادم', 'BASSIROU': 'بشير', 'BACHIR': 'بشير', 'BASSIR': 'بشير',
     'MOUSTAPHA': 'مصطفى', 'MOUSTAFA': 'مصطفى', 'MUSTAPHA': 'مصطفى', 'MAHMOUD': 'محمود', 'MAMOUDOU': 'محمود', 'MANSOUR': 'منصور', 'MOURTADA': 'مرتضى', 'MOURTALA': 'مرتضى', 'MOUNTAKHA': 'منتقى',
@@ -2170,7 +2172,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     'ROKHAYA': 'رقية', 'ROKAYA': 'رقية', 'ROUGUIYATOU': 'رقية', 'SEYNABOU': 'زينب', 'ZEYNABOU': 'زينب', 'ZEYNAB': 'زينب', 'ZAINAB': 'زينب', 'DIEYNABA': 'زينب', 'ZEINAB': 'زينب',
     'RAMATOULAYE': 'رحمة الله', 'RAHMATOULAYE': 'رحمة الله', 'MAIMOUNA': 'ميمونة', 'SAFIATOU': 'صفية', 'SAFIA': 'صفية', 'SALIMATA': 'سليمة', 'SALIMATOU': 'سليمة', 'SALIMA': 'سليمة',
     'HABIBATOU': 'حبيبة', 'HABIBA': 'حبيبة', 'ASMA': 'أسماء', 'ASMAOU': 'أسماء', 'SOKHNA': 'سخنا', 'NAFISSATOU': 'نفيسة', 'NAFISSA': 'نفيسة', 'HAFSA': 'حفصة', 'SAKINA': 'سكينة', 'SOUKEYNA': 'سكينة',
-    'ADJA': 'الحاجة', 'ZAHRA': 'زهراء', 'ASSIA': 'آسية', 'SAWDA': 'سودة', 'AIDA': 'عايدة', 'JAMILA': 'جميلة', 'HALIMA': 'حليمة', 'MAME': 'مام', 'OUMOU': 'أم', 'OUMY': 'أمي', 'KOULTHOUM': 'كلثوم', 'COUMBA': 'كمبا', 'KOUMBA': 'كمبا'
+    'ADJA': 'الحاجة', 'ZAHRA': 'زهراء', 'ASSIA': 'آسية', 'SAWDA': 'سودة', 'AIDA': 'أَيدة', 'JAMILA': 'جميلة', 'HALIMA': 'حليمة', 'MAME': 'مام', 'OUMOU': 'أم', 'OUMY': 'أمي', 'KOULTHOUM': 'كلثوم', 'COUMBA': 'كمبا', 'KOUMBA': 'كمبا'
   };
   var DICO_NOMS = {
     'DIOP': 'جوب', 'NDIAYE': 'انجاي', 'FALL': 'فال', 'SARR': 'سار', 'SECK': 'سك', 'GUEYE': 'غاي', 'GAYE': 'غاي', 'MBAYE': 'امباي', 'NIANG': 'نيانغ', 'DIENG': 'جينغ', 'CISSE': 'سيسي', 'BA': 'با', 'BAH': 'با',
@@ -2656,7 +2658,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
       '<p class="aide" style="margin-top:0">Chaque note est enregistrée dès que vous quittez la case. <strong>Entrée</strong> = élève suivant. Tapez <strong>ABS</strong> pour un absent (compte 0). Une épreuve que personne n\'a passée n\'est pas comptée ; ' +
       'pour un élève qui a composé, une case vide compte 0. Notes au-dessus du barème refusées.</p>' +
       '<div class="table-defil grille-notes"><table class="notes"><thead>' + tete + '</thead><tbody>' + corps + '</tbody></table></div>',
-      ro ? '' : '<button class="btn danger" data-act="n-effacer">Effacer les notes de cette grille…</button><a class="btn" href="#notes/resultats">Voir les résultats</a>');
+      '<button class="btn" data-act="n-export">⬇ Exporter la grille (Excel)</button><button class="btn" data-act="n-vierge">⬇ Grille vierge à remplir</button>' + (ro ? '' : '<button class="btn" data-act="n-import">⬆ Importer des notes</button><button class="btn danger" data-act="n-effacer">Effacer les notes de cette grille…</button>') + '<a class="btn" href="#notes/resultats">Voir les résultats</a>');
   };
   NO.saisie.apres = function () {};
   function abreger(m) { return String(m).replace(/\s*\(.*\)$/, '').replace('Langue et Communication', 'Langue & Com.').replace('Découverte du Monde', 'Découverte').replace('Éducation au Développement Durable', 'EDD'); }
@@ -2793,17 +2795,20 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   NO.editions = function () {
     var opts = '<div class="ligne pas-imprimer"><div><label>Document</label><select id="ed-type">' + opt(Object.keys(EDITIONS).map(function (k) { return [k, EDITIONS[k]]; }), ui3.edType) + '</select></div>';
     if (ui3.edType === 'bulletins') {
-      var el = elevesActifsDe(ui3.classe).sort(function (a, b) { return a.nom.localeCompare(b.nom); });
+      var Rc = ui3.resPeriode === 'A' ? calculerAnnee(ui3.classe) : calculer(ui3.classe, ui3.resPeriode), compos = Rc.lignes.filter(function (l) { return l.classe; }).map(function (l) { return l.eleve.id; });
+      var el = elevesActifsDe(ui3.classe).filter(function (x) { return ui3.edTous || compos.indexOf(x.id) >= 0; }).sort(function (a, b) { return a.nom.localeCompare(b.nom); });
       opts += '<div><label>Format</label><select id="ed-format">' + opt([['detaille', 'Détaillé (1 par page)'], ['compact', 'Compact (2 par page)']], ui3.edFormat) + '</select></div>' +
         '<div><label>Ordre</label><select id="ed-ordre">' + opt([['alpha', 'Alphabétique'], ['merite', 'Ordre de mérite']], ui3.edOrdre) + '</select></div>' +
-        '<div><label>Élève</label><select id="ed-eleve">' + opt(el.map(function (x) { return [x.id, x.nom + ' ' + x.prenom]; }), ui3.edEleve, 'Toute la classe') + '</select></div>';
+        '<div><label>Élève</label><select id="ed-eleve">' + opt(el.map(function (x) { return [x.id, x.nom + ' ' + x.prenom]; }), ui3.edEleve, 'Toute la classe') + '</select></div>' +
+        '<label class="fixe" style="display:flex;gap:6px;align-items:center;color:var(--texte)"><input type="checkbox" id="ed-tous"' + (ui3.edTous ? ' checked' : '') + '> Inclure les élèves qui n\'ont pas composé</label>';
     }
     opts += '</div>';
     var doc = documentEdition();
-    return carte('Éditions', opts, '<button class="btn plein" data-act="ed-imprimer">🖨 Aperçu / Imprimer / PDF</button>' + (ui3.edType === 'bulletins' && !ui3.edEleve ? '<span class="aide">' + elevesActifsDe(ui3.classe).length + ' bulletin(s)</span>' : '')) +
+    return carte('Éditions', opts, '<button class="btn plein" data-act="ed-imprimer">🖨 Aperçu / Imprimer / PDF</button>' + (ui3.edType === 'bulletins' && !ui3.edEleve ? '<span class="aide">' + (bulletinsClasse().match(/class="(document bulletin|bulletin-compact)"/g) || []).length + ' bulletin(s) · élèves ayant composé' + (ui3.edTous ? ' et non composés' : '') + '</span>' : '')) +
       '<div class="carte"><div class="carte-corps" style="overflow-x:auto;background:#fff">' + (ui3.edType === 'bulletins' && !ui3.edEleve ? doc.split('<div class="saut"></div>').slice(0, 2).join('<div class="saut"></div>') + (elevesActifsDe(ui3.classe).length > 2 ? '<p class="aide">… aperçu limité aux 2 premiers bulletins ; tous seront imprimés.</p>' : '') : doc) + '</div></div>';
   };
   NO.editions.apres = function () {
+    var tt = $('#ed-tous'); if (tt) tt.onchange = function () { ui3.edTous = tt.checked; ui3.edEleve = ''; rendre(); };
     [['#ed-type', 'edType'], ['#ed-format', 'edFormat'], ['#ed-ordre', 'edOrdre'], ['#ed-eleve', 'edEleve']].forEach(function (x) { var s = $(x[0]); if (s) s.onchange = function () { ui3[x[1]] = s.value; rendre(); }; });
   };
   function documentEdition() {
@@ -2826,7 +2831,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     var per = ui3.resPeriode, R = per === 'A' ? calculerAnnee(ui3.classe) : calculer(ui3.classe, per);
     var ls = R.lignes.slice();
     if (ui3.edOrdre === 'merite') ls.sort(function (a, b) { return (a.rang_g || 9999) - (b.rang_g || 9999); }); else ls.sort(function (a, b) { return a.eleve.nom.localeCompare(b.eleve.nom) || a.eleve.prenom.localeCompare(b.eleve.prenom); });
-    if (ui3.edEleve) ls = ls.filter(function (l) { return l.eleve.id === ui3.edEleve; });
+    if (ui3.edEleve) ls = ls.filter(function (l) { return l.eleve.id === ui3.edEleve; }); else if (!ui3.edTous) ls = ls.filter(function (l) { return l.classe; });
     var html = ls.map(function (l) { return ui3.edFormat === 'compact' ? bulletinCompact(R, l) : bulletinDetaille(R, l); });
     if (ui3.edFormat === 'compact') { var p = []; for (var i = 0; i < html.length; i += 2) p.push('<div class="page-compacte">' + html.slice(i, i + 2).join('') + '</div>'); return p.join('<div class="saut"></div>'); }
     return html.join('<div class="saut"></div>');
@@ -3792,6 +3797,117 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
       $$('table', tmp).forEach(function (t) { $$('tr', t).forEach(function (r) { lignes.push($$('th,td', r).map(function (c) { return c.textContent.trim(); })); }); lignes.push([]); });
       csv(lignes, 'liste_' + ui5.modele + '.csv');
     }
+  });
+
+  /* ===================================================================
+   *  ÉVALUATIONS (suite) : import / export des notes, statistiques
+   * =================================================================== */
+  function exporterGrille(vierge) {
+    var c = classeDe(ui3.classe), niv = S.niveaux[c.niveau] || {}, compo = ui3.compo, rubs = rubriquesDe(c.niveau);
+    var el = elevesActifsDe(c.id).sort(function (a, b) { return a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom); });
+    var l1 = ['MATRICULE', 'PRENOM', 'NOM'].concat(rubs.map(function (r) { return '#' + r.id; }));
+    var l2 = ['', '', ''].concat(rubs.map(function (r) { return r.langue + ' · ' + r.matiere + ' · ' + r.rubrique + ' /' + (((r.baremes || [])[compo - 1]) || niv.base || 10); }));
+    var corps = el.map(function (x) { return [x.matricule, x.prenom, x.nom].concat(rubs.map(function (r) { if (vierge) return ''; var v = valeurNote(c.id, x.id, compo, r.id); return v === null || v === undefined ? '' : v; })); });
+    return chargerSheetJS().then(function () {
+      var ws = XLSX.utils.aoa_to_sheet([l1, l2].concat(corps)), wb = XLSX.utils.book_new();
+      ws['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 14 }].concat(rubs.map(function () { return { wch: 12 }; }));
+      XLSX.utils.book_append_sheet(wb, ws, 'NOTES');
+      XLSX.writeFile(wb, 'notes_' + c.nom.replace(/\W+/g, '_') + '_C' + compo + (vierge ? '_vierge' : '') + '.xlsx');
+    });
+  }
+  function importerGrille(fichier) {
+    var c = classeDe(ui3.classe), niv = S.niveaux[c.niveau] || {}, compo = ui3.compo, rubs = rubriquesDe(c.niveau), el = elevesActifsDe(c.id);
+    lireTableur(fichier).then(function (T) {
+      var lignes = T.par[T.feuilles[0]] || [], iTete = -1, cols = {};
+      /* 1) en-tête exporté par l'application (#id) ; 2) sinon libellés « matière · rubrique » ou rubrique seule */
+      for (var i = 0; i < Math.min(lignes.length, 10) && iTete < 0; i++) {
+        lignes[i].forEach(function (v, j) { var id = String(v).replace(/^#/, ''); if (/^#/.test(v) && S.matieres[id]) { cols[j] = S.matieres[id]; iTete = i; } });
+      }
+      if (iTete < 0) for (i = 0; i < Math.min(lignes.length, 10) && iTete < 0; i++) {
+        lignes[i].forEach(function (v, j) { var t = normal(String(v).replace(/\/\s*\d+\s*$/, '')); var r = rubs.find(function (r) { return t && (normal(r.matiere + ' ' + r.rubrique) === t || normal(r.langue + ' · ' + r.matiere + ' · ' + r.rubrique) === t || normal(r.rubrique) === t); }); if (r) { cols[j] = r; iTete = i; } });
+      }
+      if (iTete < 0) throw new Erreur('Aucune colonne de matière reconnue. Partez du fichier « Exporter la grille » de l\'application.');
+      var tete = lignes.find(function (l) { return l.some(function (v) { return /matricule/i.test(v); }); }) || [], jM = tete.findIndex(function (v) { return /matricule/i.test(v); }), jP = tete.findIndex(function (v) { return /^pr[eé]nom/i.test(v); }), jN = tete.findIndex(function (v) { return /^nom$/i.test(String(v).trim()); });
+      var ops = [], erreurs = [], inconnus = 0;
+      lignes.slice(iTete + 1).forEach(function (l, k) {
+        var x = (jM >= 0 && el.find(function (y) { return y.matricule && String(y.matricule) === String(l[jM]).trim(); })) ||
+          (jP >= 0 && jN >= 0 && el.find(function (y) { return normal(y.prenom + ' ' + y.nom) === normal(l[jP] + ' ' + l[jN]); }));
+        if (!x) { if (l.slice(3).some(function (v) { return /\d|abs/i.test(v); })) inconnus++; return; }
+        Object.keys(cols).forEach(function (j) {
+          var r = cols[j], v = l[j]; if (v === '' || v === undefined) return;
+          var b = Number((r.baremes || [])[compo - 1]) || niv.base || 10, n = lireNote(String(v), b);
+          if (n.err) { erreurs.push(x.prenom + ' ' + x.nom + ' / ' + r.rubrique + ' : ' + v + ' (' + n.err + ')'); return; }
+          if (!n.vide) ops.push({ x: x, r: r, v: n.v });
+        });
+      });
+      ouvrirBoite('<div class="boite large"><h2>Importer des notes · ' + e(c.nom) + ' · ' + libPeriode(niv, compo) + '</h2><p><strong>' + ops.length + '</strong> note(s) reconnue(s) sur ' + Object.keys(cols).length + ' colonne(s).' +
+        (inconnus ? ' <span class="pastille att">' + inconnus + ' ligne(s) d\'élève non reconnue(s)</span>' : '') + '</p>' +
+        (erreurs.length ? '<div class="alerte ko">' + erreurs.length + ' note(s) refusée(s) :<br>' + erreurs.slice(0, 15).map(e).join('<br>') + '</div>' : '') +
+        '<p class="aide">Les notes importées remplacent celles déjà saisies pour les mêmes cases. Les cases vides du fichier ne changent rien.</p>' +
+        '<div style="display:flex;gap:8px">' + (ops.length ? '<button class="btn plein" id="imp-notes-ok">Importer ' + ops.length + ' note(s)</button>' : '') + '<button class="btn" data-act="fermer">Annuler</button></div></div>');
+      var ok = $('#imp-notes-ok'); if (ok) ok.onclick = function () {
+        try {
+          verifierEcriture('NOTES'); if (ui3.verrou && ui3.verrou.lecture) throw new Erreur('Grille en lecture seule (ouverte par un autre poste).');
+          ok.disabled = true; var lots = [];
+          for (var a = 0; a < ops.length; a += 400) {
+            var bt = db.batch();
+            ops.slice(a, a + 400).forEach(function (o) { var id = idNote(o.x.id, compo, o.r.id), ex = NOTES[c.id][id];
+              bt.set(col('notes').doc(id), Object.assign({ eleve_id: o.x.id, classe_id: c.id, compo: compo, rubrique_id: o.r.id, matiere: o.r.matiere, langue: o.r.langue, valeur: o.v, annee: S.ecole.annee },
+                ex ? Object.assign({ cree_par: ex.cree_par, cree_le: ex.cree_le, version: (ex.version || 0) + 1 }, meta()) : meta(true))); });
+            lots.push(suivre(bt.commit()));
+          }
+          Promise.all(lots).then(function () { fermerBoite(); toast(ops.length + ' note(s) importée(s).', 'ok'); activite('Import de ' + ops.length + ' notes : ' + c.nom + ', ' + libPeriode(niv, compo)); rendre(); }).catch(erreurEcriture);
+        } catch (x) { erreurEcriture(x); }
+      };
+    }).catch(erreurEcriture);
+  }
+  function exporterResultats() {
+    var R = resultatsCourants(), langs = ['FR', 'AR', 'LN'].filter(function (lg) { return R.lignes.some(function (l) { return l.langues[lg] !== undefined; }); });
+    var t = [['RANG', 'MATRICULE', 'PRENOM', 'NOM', 'SEXE'].concat(langs.map(function (lg) { return 'MOY_' + lg; })).concat(['MOYENNE', 'OBSERVATION'])];
+    R.lignes.slice().sort(function (a, b) { return (a.rang_g || 9999) - (b.rang_g || 9999); }).forEach(function (l) {
+      t.push([l.classe ? l.rang_g + (l.ex_g ? ' ex' : '') : 'NC', l.eleve.matricule, l.eleve.prenom, l.eleve.nom, l.eleve.sexe === 'F' ? 'F' : 'G'].concat(langs.map(function (lg) { return l.langues[lg] === undefined ? '' : l.langues[lg]; })).concat([l.classe ? l.g : '', l.classe ? (l.g >= R.stats.seuil ? 'Moyenne atteinte' : '') : 'N\'a pas composé']));
+    });
+    csv(t, 'resultats_' + R.classe.nom.replace(/\W+/g, '_') + '_' + (R.compo || 'annee') + '.csv');
+  }
+
+  /* ---------- statistiques ---------- */
+  (function () { var es = ONGLETS_NOTES.essais; delete ONGLETS_NOTES.essais; ONGLETS_NOTES.stats = 'Statistiques'; ONGLETS_NOTES.essais = es; })();
+  function barre(p, cls) { p = Math.max(0, Math.min(100, p || 0)); return '<div class="barre"><span class="' + (cls || '') + '" style="width:' + p + '%"></span></div>'; }
+  NO.stats = function () {
+    var R = resultatsCourants(), s = R.stats, base = s.base, cl = R.lignes.filter(function (l) { return l.classe; }), lib = R.compo === 'A' || ui3.resPeriode === 'A' ? 'Année' : libPeriode(R.niveau, ui3.resPeriode);
+    if (!cl.length) return carte('Statistiques · ' + e(R.classe.nom) + ' · ' + lib, '<p class="aide">Aucun élève n\'a encore composé pour cette période.</p>');
+    var g = cl.filter(function (l) { return l.eleve.sexe !== 'F'; }), f = cl.filter(function (l) { return l.eleve.sexe === 'F'; });
+    var moy = function (a) { return a.length ? arr(a.reduce(function (t, l) { return t + l.g; }, 0) / a.length) : null; }, taux = function (a) { return a.length ? arr(100 * a.filter(function (l) { return l.g >= s.seuil; }).length / a.length, 1) : null; };
+    var tranches = [[0, base / 4], [base / 4, base / 2], [base / 2, base * 0.6], [base * 0.6, base * 0.7], [base * 0.7, base * 0.8], [base * 0.8, base + 0.001]];
+    var dist = tranches.map(function (t) { return cl.filter(function (l) { return l.g >= t[0] && l.g < t[1]; }).length; }), mx = Math.max.apply(null, dist.concat([1]));
+    var mats = {};
+    cl.forEach(function (l) { (l.matieres || []).forEach(function (m) { if (m.note === null || m.note === undefined) return; var k = m.langue + '|' + m.matiere, x = mats[k] = mats[k] || { langue: m.langue, matiere: m.matiere, v: [], b: base }; x.v.push(m.note); }); });
+    var tuiles = '<div class="tuiles">' + tuile('Inscrits', s.inscrits) + tuile('Ont composé', s.classes + ' (' + s.classes_f + ' F)') + tuile('Non composés', s.inscrits - s.classes) + tuile('Moyenne de la classe', nb(s.moyenne) + ' / ' + base) +
+      tuile('Plus forte / plus faible', nb(s.max) + ' · ' + nb(s.min)) + tuile('Moyenne atteinte (≥ ' + nb(s.seuil) + ')', s.admis + ' · ' + nb(s.taux) + ' %') + '</div>';
+    var sexe = '<table><thead><tr><th></th><th class="c">Composés</th><th class="c">Moyenne</th><th class="c">≥ seuil</th><th>Taux</th></tr></thead><tbody>' +
+      [['Garçons', g], ['Filles', f], ['Ensemble', cl]].map(function (z) { var t = taux(z[1]); return '<tr><td><strong>' + z[0] + '</strong></td><td class="c">' + z[1].length + '</td><td class="c">' + nb(moy(z[1])) + '</td><td class="c">' + z[1].filter(function (l) { return l.g >= s.seuil; }).length + '</td><td style="min-width:160px">' + barre(t, t >= 50 ? 'ok' : 'ko') + ' ' + nb(t) + ' %</td></tr>'; }).join('') + '</tbody></table>';
+    var histo = '<div class="histo">' + tranches.map(function (t, i) { return '<div class="col"><span class="n">' + dist[i] + '</span><div class="b" style="height:' + Math.round(100 * dist[i] / mx) + '%"></div><small>' + nb(arr(t[0], 1)) + '–' + nb(arr(Math.min(t[1], base), 1)) + '</small></div>'; }).join('') + '</div>';
+    var tm = '<table><thead><tr><th>Matière</th><th class="c">Moyenne</th><th class="c">Max · Min</th><th>Réussite (≥ moitié)</th></tr></thead><tbody>' + Object.keys(mats).map(function (k) {
+      var x = mats[k], n = x.v.length, m = x.v.reduce(function (a, b) { return a + b; }, 0) / n, ok = x.v.filter(function (v) { return v >= x.b / 2; }).length, p = arr(100 * ok / n, 1);
+      return '<tr><td><span class="lg lg-' + x.langue + '">' + x.langue + '</span> ' + e(x.matiere) + '</td><td class="c">' + nb(arr(m)) + ' / ' + x.b + '</td><td class="c">' + nb(Math.max.apply(null, x.v)) + ' · ' + nb(Math.min.apply(null, x.v)) + '</td><td style="min-width:160px">' + barre(p, p >= 50 ? 'ok' : 'ko') + ' ' + nb(p) + ' %</td></tr>';
+    }).join('') + '</tbody></table>';
+    var tete = cl.slice().sort(function (a, b) { return a.rang_g - b.rang_g; }), top = tete.slice(0, 5), bas = tete.slice(-5).reverse();
+    var nomL = function (l) { return '<li>' + rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) + ' · ' + e(l.eleve.prenom + ' ' + l.eleve.nom) + ' — <strong>' + nb(l.g) + '</strong></li>'; };
+    var nonC = R.lignes.filter(function (l) { return !l.classe; });
+    return '<div id="stats-doc">' + carte('Statistiques · ' + e(R.classe.nom) + ' · ' + lib, tuiles, '<button class="btn" data-act="st-imprimer">🖨 Imprimer</button>') +
+      '<div class="grille">' + carte('Garçons / filles', sexe) + carte('Répartition des moyennes (/' + base + ')', histo) + '</div>' + carte('Par matière', '<div class="table-defil">' + tm + '</div>') +
+      '<div class="grille">' + carte('Les 5 premiers', '<ol class="liste-simple">' + top.map(nomL).join('') + '</ol>') + carte('Les 5 derniers', '<ul class="liste-simple">' + bas.map(nomL).join('') + '</ul>') + '</div>' +
+      (nonC.length ? carte('N\'ont pas composé (' + nonC.length + ')', '<p>' + nonC.map(function (l) { return e(l.eleve.prenom + ' ' + l.eleve.nom); }).join(', ') + '</p>') : '') + '</div>';
+  };
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    try {
+      if (b.dataset.act === 'n-export') exporterGrille(false).catch(erreurEcriture);
+      if (b.dataset.act === 'n-vierge') exporterGrille(true).catch(erreurEcriture);
+      if (b.dataset.act === 'n-import') { var i = document.createElement('input'); i.type = 'file'; i.accept = '.xlsx,.xls,.xlsm,.csv'; i.onchange = function () { if (i.files[0]) importerGrille(i.files[0]); }; i.click(); }
+      if (b.dataset.act === 'res-export') exporterResultats();
+      if (b.dataset.act === 'st-imprimer') imprimer('<div class="document">' + enteteBulletin('') + $('#stats-doc').innerHTML.replace(/<button[^>]*>.*?<\/button>/g, '') + visa() + '</div>');
+    } catch (x) { erreurEcriture(x); }
   });
 
   /* ===================================================================
