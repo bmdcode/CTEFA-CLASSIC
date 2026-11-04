@@ -174,6 +174,7 @@ tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surv
   .billetage { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; } .billetage input { width: 70px; }
   .ligne-annul td { color: #b00; } table.etat td, table.etat th { font-size: 12px; white-space: nowrap; } table.etat tr.total td { font-weight: 700; border-top: 2px solid #999; } tr.optionnel td { opacity: .85; }
   .liste-simple { list-style: none; padding: 0; } .liste-simple li { padding: 6px 0; border-bottom: 1px solid var(--bord, #ddd); }
+  .document.saut-page { page-break-after: always; } .appel td, .appel th { padding: 2px 3px; font-size: 10px; }
 </style>
 </head>
 <body>
@@ -1340,11 +1341,11 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   /* ---------------------------------------------------------------
    *  VUE : ÉLÈVES
    * --------------------------------------------------------------- */
-  var ONGLETS_EL = { registre: 'Registre', fiche: 'Nouvelle fiche', import: 'Importer', reinscription: 'Réinscription', sorties: 'Sorties', purge: 'Purge' };
+  var ONGLETS_EL = { registre: 'Registre', fiche: 'Nouvelle fiche', listes: 'Listes et éditions', import: 'Importer', reinscription: 'Réinscription', sorties: 'Sorties', purge: 'Purge' };
   VUES.eleves = function () {
     var o = ONGLETS_EL[sousVue()] ? sousVue() : 'registre';
-    if (!peut('ELEVES')) o = 'registre';
-    var h = '<h2>Élèves</h2>' + (peut('ELEVES') ? '<nav class="onglets">' + Object.keys(ONGLETS_EL).filter(function (k) { return k !== 'purge' || estAdmin(); }).map(function (k) { return '<a href="#eleves/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_EL[k] + '</a>'; }).join('') + '</nav>' : '');
+    if (!peut('ELEVES') && !(o === 'listes' && peut('LISTES'))) o = 'registre';
+    var h = '<h2>Élèves</h2>' + (peut('ELEVES') || peut('LISTES') ? '<nav class="onglets">' + Object.keys(ONGLETS_EL).filter(function (k) { return (peut('ELEVES') || k === 'registre' || k === 'listes') && (k !== 'purge' || estAdmin()); }).map(function (k) { return '<a href="#eleves/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_EL[k] + '</a>'; }).join('') + '</nav>' : '');
     return h + EL[o]();
   };
   VUES.eleves.apres = function () { var o = ONGLETS_EL[sousVue()] ? sousVue() : 'registre'; if (EL[o] && EL[o].apres) EL[o].apres(); };
@@ -3668,6 +3669,104 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
       if (b.dataset.act === 'aligner') boiteAlignement(b.dataset.tous === '1');
       if (b.dataset.act === 'aligner-go') { b.disabled = true; appliquerAlignement(b.dataset.tous === '1').catch(erreurEcriture); }
     } catch (x) { erreurEcriture(x); }
+  });
+
+  /* ===================================================================
+   *  ÉLÈVES — LISTES ET ÉDITIONS (12 modèles, par classe ou toute l'école)
+   * =================================================================== */
+  var MODELES_EL = { nominative: 'Liste nominative', bilingue: 'Liste nominative bilingue (FR / AR)', appel: 'Feuille d\'appel (jours du mois)', emargement: 'Feuille d\'émargement / signature',
+    contacts: 'Contacts des parents', notation: 'Fiche de notation vierge (colonnes libres)', nouveaux: 'Nouveaux inscrits', redoublants: 'Redoublants', sortis: 'Élèves sortis (abandon, transfert…)',
+    effectifs: 'Effectifs par classe et par sexe', ages: 'Effectifs par âge et par sexe (statistiques IEF)', choix: 'Colonnes au choix' };
+  var CHAMPS_EL = [['matricule', 'Matricule'], ['prenom', 'Prénom'], ['nom', 'Nom'], ['prenom_ar', 'Prénom (arabe)'], ['nom_ar', 'Nom (arabe)'], ['sexe', 'Sexe'], ['date_naiss', 'Date de naissance'], ['lieu_naiss', 'Lieu de naissance'],
+    ['age', 'Âge'], ['extrait_naiss', 'N° extrait'], ['classe', 'Classe'], ['type_eleve', 'Type'], ['redoublant', 'Redoublant'], ['parent', 'Parent'], ['lien_parent', 'Lien'], ['telephone', 'Téléphone'], ['telephone_2', 'Autre téléphone'],
+    ['adresse', 'Adresse'], ['date_entree', 'Date d\'entrée'], ['profil_tarif', 'Profil tarifaire'], ['observations', 'Observations']];
+  var ui5 = { modele: 'nominative', classe: '', sexe: '', mois: '', cols: 'Signature', nbCols: 6, titreCols: '', choix: ['matricule', 'prenom', 'nom', 'sexe', 'date_naiss', 'telephone'], parPage: true, anneeNouv: '' };
+  function valEl(x, k) {
+    if (k === 'sexe') return x.sexe === 'F' ? 'F' : x.sexe === 'M' ? 'G' : '';
+    if (k === 'age') { var a = ageAu(x.date_naiss); return a === null ? '' : a; }
+    if (k === 'classe') return (classeDe(x.classe_id) || {}).nom || '';
+    if (k === 'redoublant') return x.redoublant ? 'Oui' : '';
+    if (/^date/.test(k)) return dateFr(x[k]);
+    return x[k] === undefined || x[k] === null ? '' : x[k];
+  }
+  function elevesListe(classeId) {
+    var m = ui5.modele, l = liste(S.eleves).filter(function (x) {
+      if (m === 'sortis') return x.statut !== 'ACTIF'; if (x.statut !== 'ACTIF') return false;
+      if (m === 'redoublants' && !x.redoublant) return false;
+      if (m === 'nouveaux') { var d = x.date_1ere_inscription || x.date_entree; if (!d || d < String(anneeDebut()) + '-08-01') return false; }
+      return true;
+    }).filter(function (x) { return (!classeId || x.classe_id === classeId) && (!ui5.sexe || x.sexe === ui5.sexe); });
+    return l.sort(function (a, b) { return (a.nom + ' ' + a.prenom).localeCompare(b.nom + ' ' + b.prenom, 'fr'); });
+  }
+  function joursDuMois(nomMois) {
+    var i = NOMS_MOIS_EL.indexOf(nomMois); if (i < 0) return [];
+    var an = anneeDebut() + (i < 8 ? 1 : 0), n = new Date(an, i + 1, 0).getDate(), j = [];
+    for (var d = 1; d <= n; d++) { var w = new Date(an, i, d).getDay(); if (w !== 0) j.push(d); }   /* dimanches exclus */
+    return j;
+  }
+  var NOMS_MOIS_EL = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+  function docListeClasse(c) {
+    var m = ui5.modele, l = elevesListe(c ? c.id : ''), titreCl = c ? ' — ' + c.nom : '', f = l.filter(function (x) { return x.sexe === 'F'; }).length;
+    var tit = c ? '<p class="doc-texte">Classe : <strong>' + e(c.nom) + '</strong>' + (c.titulaire_fr ? ' · Maître(sse) : ' + e(c.titulaire_fr) : '') + (c.titulaire_ar ? ' · Arabe : ' + e(c.titulaire_ar) : '') + '</p>' : '';
+    var pied = '<p class="doc-texte">Effectif : <strong>' + l.length + '</strong> (' + (l.length - f) + ' garçons, ' + f + ' filles)</p>';
+    var vides = function (n) { var a = []; for (var i = 0; i < n; i++) a.push(''); return a; };
+    var h;
+    if (m === 'nominative' || m === 'nouveaux' || m === 'redoublants') h = tableDoc(['N°', 'Matricule', 'Prénom', 'Nom', 'Sexe', 'Date et lieu de naissance', 'Âge'], l.map(function (x, i) { return [i + 1, x.matricule, x.prenom, x.nom, valEl(x, 'sexe'), dateFr(x.date_naiss) + (x.lieu_naiss ? ' à ' + x.lieu_naiss : ''), valEl(x, 'age')]; }));
+    else if (m === 'bilingue') h = tableDoc(['N°', 'Prénom et nom', 'Sexe', 'Né(e) le', { html: 'الاسم واللقب' }, 'رقم'], l.map(function (x, i) { return [i + 1, x.prenom + ' ' + x.nom, valEl(x, 'sexe'), dateFr(x.date_naiss), { html: '<span dir="rtl">' + e((x.prenom_ar || '') + ' ' + (x.nom_ar || '')) + '</span>' }, i + 1]; }));
+    else if (m === 'appel') { var j = joursDuMois(ui5.mois || NOMS_MOIS_EL[new Date().getMonth()]); h = '<div class="appel">' + tableDoc(['N°', 'Prénom et nom'].concat(j.map(String)).concat(['Abs.']), l.map(function (x, i) { return [i + 1, x.prenom + ' ' + x.nom].concat(vides(j.length + 1)); })) + '</div>'; }
+    else if (m === 'emargement' || m === 'notation') {
+      var cols = m === 'notation' ? (ui5.titreCols ? ui5.titreCols.split(',').map(function (s) { return s.trim(); }) : vides(Number(ui5.nbCols) || 6).map(function (z, i) { return 'N° ' + (i + 1); })) : String(ui5.cols || 'Signature').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+      h = tableDoc(['N°', 'Prénom', 'Nom'].concat(cols), l.map(function (x, i) { return [i + 1, x.prenom, x.nom].concat(vides(cols.length)); }));
+    }
+    else if (m === 'contacts') h = tableDoc(['N°', 'Élève', 'Parent / tuteur', 'Lien', 'Téléphone', 'Autre téléphone', 'Adresse'], l.map(function (x, i) { return [i + 1, x.prenom + ' ' + x.nom, x.parent, x.lien_parent, x.telephone, x.telephone_2, x.adresse]; }));
+    else if (m === 'sortis') h = tableDoc(['N°', 'Matricule', 'Prénom et nom', 'Classe', 'Date de sortie', 'Motif'], l.map(function (x, i) { return [i + 1, x.matricule, x.prenom + ' ' + x.nom, valEl(x, 'classe'), dateFr(x.date_sortie), x.motif_sortie || '']; }));
+    else { var lib = {}; CHAMPS_EL.forEach(function (z) { lib[z[0]] = z[1]; }); h = tableDoc(['N°'].concat(ui5.choix.map(function (k) { return lib[k]; })), l.map(function (x, i) { return [i + 1].concat(ui5.choix.map(function (k) { return valEl(x, k); })); })); }
+    return '<div class="document' + (c && ui5.parPage ? ' saut-page' : '') + '">' + enteteDocument(MODELES_EL[m].toUpperCase() + (m === 'appel' ? ' — ' + (ui5.mois || NOMS_MOIS_EL[new Date().getMonth()]) : '') + titreCl) + tit + h + pied + visa() + '</div>';
+  }
+  function docStatsEl() {
+    var cl = classesTriees().filter(function (c) { return !ui5.classe || c.id === ui5.classe; });
+    if (ui5.modele === 'effectifs') {
+      var tg = 0, tf = 0, rows = cl.map(function (c) { var l = elevesActifsDe(c.id), f = l.filter(function (x) { return x.sexe === 'F'; }).length, r = l.filter(function (x) { return x.redoublant; }).length; tg += l.length - f; tf += f; return [c.nom, l.length - f, f, l.length, r, c.effectif_max || '', c.titulaire_fr || '', c.titulaire_ar || '']; });
+      rows.push([{ html: '<strong>TOTAL</strong>' }, tg, tf, tg + tf, '', '', '', '']);
+      return '<div class="document">' + enteteDocument('EFFECTIFS PAR CLASSE ET PAR SEXE') + tableDoc(['Classe', 'Garçons', 'Filles', 'Total', 'Redoublants', 'Effectif max', 'Titulaire (FR)', 'Titulaire (AR)'], rows) + visa() + '</div>';
+    }
+    var ages = {}, mx = 0, mn = 99;
+    cl.forEach(function (c) { elevesActifsDe(c.id).forEach(function (x) { var a = ageAu(x.date_naiss); if (a === null) a = '?'; else { mx = Math.max(mx, a); mn = Math.min(mn, a); } ages[a] = ages[a] || {}; var k = c.id + x.sexe; ages[a][k] = (ages[a][k] || 0) + 1; }); });
+    var cols = []; for (var a = mn; a <= mx; a++) cols.push(a); if (ages['?']) cols.push('?');
+    var tete = ['Classe'].concat(cols.map(function (a) { return a === '?' ? 'Âge inconnu' : a + ' ans'; })).concat(['Total']);
+    var rows2 = []; cl.forEach(function (c) { ['M', 'F'].forEach(function (s) { var t = 0; rows2.push([c.nom + (s === 'M' ? ' — G' : ' — F')].concat(cols.map(function (a) { var n = (ages[a] || {})[c.id + s] || 0; t += n; return n || ''; })).concat([t])); }); });
+    return '<div class="document">' + enteteDocument('RÉPARTITION DES ÉLÈVES PAR ÂGE ET PAR SEXE (âge au ' + dateFr(new Date().toISOString().slice(0, 10)) + ')') + tableDoc(tete, rows2) + visa() + '</div>';
+  }
+  function documentListeEl() {
+    if (ui5.modele === 'effectifs' || ui5.modele === 'ages') return docStatsEl();
+    if (ui5.classe === '_TOUTES') return classesTriees().filter(function (c) { return elevesListe(c.id).length; }).map(function (c) { return docListeClasse(c); }).join('');
+    return docListeClasse(classeDe(ui5.classe) || null);
+  }
+  EL.listes = function () {
+    var m = ui5.modele, parClasse = m !== 'effectifs' && m !== 'ages';
+    var opts = '<div class="ligne pas-imprimer"><div><label>Modèle</label><select id="le-modele">' + opt(Object.keys(MODELES_EL).map(function (k) { return [k, MODELES_EL[k]]; }), m) + '</select></div>' +
+      '<div><label>Classe</label><select id="le-classe">' + '<option value="">' + (parClasse ? 'Toute l\'école (une seule liste)' : 'Toutes les classes') + '</option>' + (parClasse ? '<option value="_TOUTES"' + (ui5.classe === '_TOUTES' ? ' selected' : '') + '>Chaque classe (une page par classe)</option>' : '') + optClasses(ui5.classe) + '</select></div>' +
+      (parClasse ? '<div><label>Sexe</label><select id="le-sexe">' + opt([['', 'Tous'], ['M', 'Garçons'], ['F', 'Filles']], ui5.sexe) + '</select></div>' : '') +
+      (m === 'appel' ? '<div><label>Mois</label><select id="le-mois">' + opt(moisListe(), ui5.mois || NOMS_MOIS_EL[new Date().getMonth()]) + '</select></div>' : '') +
+      (m === 'emargement' ? '<div><label>Colonnes (séparées par des virgules)</label><input id="le-cols" value="' + e(ui5.cols) + '"></div>' : '') +
+      (m === 'notation' ? '<div><label>Nombre de colonnes</label><input id="le-nb" type="number" min="1" max="20" value="' + e(ui5.nbCols) + '"></div><div><label>ou titres des colonnes (virgules)</label><input id="le-titres" value="' + e(ui5.titreCols) + '"></div>' : '') + '</div>' +
+      (m === 'choix' ? '<div class="droits pas-imprimer" style="margin:8px 0">' + CHAMPS_EL.map(function (z) { return '<label><input type="checkbox" class="le-col" value="' + z[0] + '"' + (ui5.choix.indexOf(z[0]) >= 0 ? ' checked' : '') + '> ' + z[1] + '</label>'; }).join('') + '</div>' : '');
+    var paysage = m === 'appel' || m === 'ages' || (m === 'choix' && ui5.choix.length > 7);
+    return carte('Listes des élèves', opts, '<button class="btn plein" data-act="le-imprimer">🖨 Aperçu / Imprimer' + (paysage ? ' (paysage)' : '') + '</button><button class="btn" data-act="le-csv">⬇ Exporter (Excel/CSV)</button>') +
+      '<div class="carte"><div class="carte-corps" style="overflow-x:auto">' + documentListeEl() + '</div></div>';
+  };
+  EL.listes.apres = function () {
+    [['#le-modele', 'modele'], ['#le-classe', 'classe'], ['#le-sexe', 'sexe'], ['#le-mois', 'mois'], ['#le-cols', 'cols'], ['#le-nb', 'nbCols'], ['#le-titres', 'titreCols']].forEach(function (z) { var s = $(z[0]); if (s) s.onchange = function () { ui5[z[1]] = s.value; rendre(); }; });
+    $$('.le-col').forEach(function (c) { c.onchange = function () { ui5.choix = $$('.le-col:checked').map(function (x) { return x.value; }); rendre(); }; });
+  };
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    if (b.dataset.act === 'le-imprimer') { var m = ui5.modele; imprimer(documentListeEl(), { page: m === 'appel' || m === 'ages' || (m === 'choix' && ui5.choix.length > 7) ? 'paysage' : '' }); }
+    if (b.dataset.act === 'le-csv') {
+      var tmp = document.createElement('div'); tmp.innerHTML = documentListeEl(); var lignes = [];
+      $$('table', tmp).forEach(function (t) { $$('tr', t).forEach(function (r) { lignes.push($$('th,td', r).map(function (c) { return c.textContent.trim(); })); }); lignes.push([]); });
+      csv(lignes, 'liste_' + ui5.modele + '.csv');
+    }
   });
 
   /* ===================================================================
