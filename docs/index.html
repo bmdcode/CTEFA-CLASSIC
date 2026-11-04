@@ -3676,14 +3676,14 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
    * =================================================================== */
   var MODELES_EL = { nominative: 'Liste nominative', bilingue: 'Liste nominative bilingue (FR / AR)', appel: 'Feuille d\'appel (jours du mois)', emargement: 'Feuille d\'émargement / signature',
     contacts: 'Contacts des parents', notation: 'Fiche de notation vierge (colonnes libres)', nouveaux: 'Nouveaux inscrits', redoublants: 'Redoublants', sortis: 'Élèves sortis (abandon, transfert…)',
-    effectifs: 'Effectifs par classe et par sexe', ages: 'Effectifs par âge et par sexe (statistiques IEF)', choix: 'Colonnes au choix' };
+    effectifs: 'Effectifs par classe et par sexe', ages: 'Effectifs par âge et par sexe (statistiques IEF)', dates: 'Élèves sans date de naissance (à compléter)', choix: 'Colonnes au choix' };
   var CHAMPS_EL = [['matricule', 'Matricule'], ['prenom', 'Prénom'], ['nom', 'Nom'], ['prenom_ar', 'Prénom (arabe)'], ['nom_ar', 'Nom (arabe)'], ['sexe', 'Sexe'], ['date_naiss', 'Date de naissance'], ['lieu_naiss', 'Lieu de naissance'],
     ['age', 'Âge'], ['extrait_naiss', 'N° extrait'], ['classe', 'Classe'], ['type_eleve', 'Type'], ['redoublant', 'Redoublant'], ['parent', 'Parent'], ['lien_parent', 'Lien'], ['telephone', 'Téléphone'], ['telephone_2', 'Autre téléphone'],
     ['adresse', 'Adresse'], ['date_entree', 'Date d\'entrée'], ['profil_tarif', 'Profil tarifaire'], ['observations', 'Observations']];
   var ui5 = { modele: 'nominative', classe: '', sexe: '', mois: '', cols: 'Signature', nbCols: 6, titreCols: '', choix: ['matricule', 'prenom', 'nom', 'sexe', 'date_naiss', 'telephone'], parPage: true, anneeNouv: '' };
   function valEl(x, k) {
     if (k === 'sexe') return x.sexe === 'F' ? 'F' : x.sexe === 'M' ? 'G' : '';
-    if (k === 'age') { var a = ageAu(x.date_naiss); return a === null ? '' : a; }
+    if (k === 'age') { var a = ageSimule(x); return a.age === null ? '' : a.age + (a.estime ? ' (est.)' : ''); }
     if (k === 'classe') return (classeDe(x.classe_id) || {}).nom || '';
     if (k === 'redoublant') return x.redoublant ? 'Oui' : '';
     if (/^date/.test(k)) return dateFr(x[k]);
@@ -3730,20 +3730,45 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
       rows.push([{ html: '<strong>TOTAL</strong>' }, tg, tf, tg + tf, '', '', '', '']);
       return '<div class="document">' + enteteDocument('EFFECTIFS PAR CLASSE ET PAR SEXE') + tableDoc(['Classe', 'Garçons', 'Filles', 'Total', 'Redoublants', 'Effectif max', 'Titulaire (FR)', 'Titulaire (AR)'], rows) + visa() + '</div>';
     }
-    var ages = {}, mx = 0, mn = 99;
-    cl.forEach(function (c) { elevesActifsDe(c.id).forEach(function (x) { var a = ageAu(x.date_naiss); if (a === null) a = '?'; else { mx = Math.max(mx, a); mn = Math.min(mn, a); } ages[a] = ages[a] || {}; var k = c.id + x.sexe; ages[a][k] = (ages[a][k] || 0) + 1; }); });
-    var cols = []; for (var a = mn; a <= mx; a++) cols.push(a); if (ages['?']) cols.push('?');
-    var tete = ['Classe'].concat(cols.map(function (a) { return a === '?' ? 'Âge inconnu' : a + ' ans'; })).concat(['Total']);
-    var rows2 = []; cl.forEach(function (c) { ['M', 'F'].forEach(function (s) { var t = 0; rows2.push([c.nom + (s === 'M' ? ' — G' : ' — F')].concat(cols.map(function (a) { var n = (ages[a] || {})[c.id + s] || 0; t += n; return n || ''; })).concat([t])); }); });
-    return '<div class="document">' + enteteDocument('RÉPARTITION DES ÉLÈVES PAR ÂGE ET PAR SEXE (âge au ' + dateFr(new Date().toISOString().slice(0, 10)) + ')') + tableDoc(tete, rows2) + visa() + '</div>';
+    var ref = dateRefAge(), z = function () { return [0,0,0,0,0,0,0,0,0,0,0,0,0,0]; }, tot = z(), rows2 = [];
+    cl.filter(function (c) { return elevesActifsDe(c.id).length; }).forEach(function (c) { ['M', 'F'].forEach(function (s) {
+      var t = z(); elevesActifsDe(c.id).filter(function (x) { return x.sexe === s; }).forEach(function (x) {
+        var a = ageSimule(x, c); if (a.age === null) { t[13]++; return; }
+        t[a.age <= 5 ? 0 : a.age >= 15 ? 10 : a.age - 5]++; t[12] += a.age; if (a.estime) t[11]++;
+      });
+      var n = t.slice(0, 11).reduce(function (u, v) { return u + v; }, 0); t.forEach(function (v, k) { tot[k] += v; });
+      rows2.push([c.nom + (s === 'M' ? ' — G' : ' — F')].concat(t.slice(0, 11).map(function (v) { return v || ''; })).concat([t[11] || '', t[13] || '', n + t[13], n ? (t[12] / n).toFixed(1).replace('.', ',') : '']));
+    }); });
+    var nt = tot.slice(0, 11).reduce(function (u, v) { return u + v; }, 0);
+    rows2.push([{ html: '<strong>TOTAL</strong>' }].concat(tot.slice(0, 11)).concat([tot[11], tot[13], nt + tot[13], nt ? (tot[12] / nt).toFixed(1).replace('.', ',') : '']));
+    var tete = ['Classe', '5 ans et −'].concat([6, 7, 8, 9, 10, 11, 12, 13, 14].map(function (a) { return a + ' ans'; })).concat(['15 ans et +', 'dont âge estimé', 'Sans âge', 'Total', 'Âge moyen']);
+    return '<div class="document">' + enteteDocument('RÉPARTITION DES ÉLÈVES PAR ÂGE ET PAR SEXE (âge au ' + dateFr(ref) + ')') + tableDoc(tete, rows2) +
+      '<p class="aide">Âge révolu au 1er octobre de l\'année de rentrée. Sans date de naissance valide, l\'âge est estimé d\'après le niveau (recrutement au CI à 7 ans), comme dans CTEFA-CLASSIC.</p>' + visa() + '</div>';
+  }
+  /** Date de référence des âges : 1er octobre de l'année de rentrée (ex. 2026-2027 → 01/10/2026) */
+  function dateRefAge() { var y = parseInt(String((S.ecole || {}).annee || ''), 10); return (y >= 2000 && y <= 2100 ? y : new Date().getFullYear()) + '-10-01'; }
+  function ageRevolu(dn, ref) { var a = +ref.slice(0, 4) - +dn.slice(0, 4); if (dn.slice(5) > ref.slice(5)) a--; return a; }
+  var NORME_AGE = { PS: 3, MS: 4, GS: 5, CI: 7, CP: 8, CE1: 9, CE2: 10, CM1: 11, CM2: 12, '6E': 13, '5E': 14, '4E': 15, '3E': 16, '2ND': 16, '1RE': 17, TLE: 18 };
+  function normeAge(niv) { var s = String(niv || '').toUpperCase().split(/[-_ ]/)[0]; return NORME_AGE[s] || NORME_AGE[s.slice(0, 3)] || NORME_AGE[s.slice(0, 2)] || 0; }
+  /** Âge « simulé » : âge révolu à la date de référence ; à défaut, âge normal du niveau (estimé) */
+  function ageSimule(x, c) {
+    if (x.date_naiss && /^\d{4}-\d\d-\d\d$/.test(x.date_naiss)) { var a = ageRevolu(x.date_naiss, dateRefAge()); if (a >= 2 && a <= 25) return { age: a, estime: false }; }
+    c = c || classeDe(x.classe_id); var n = normeAge(c && c.niveau); return n ? { age: n, estime: true } : { age: null, estime: false };
+  }
+  function docDatesManquantes() {
+    var rows = []; classesTriees().filter(function (c) { return !ui5.classe || ui5.classe === '_TOUTES' || c.id === ui5.classe; }).forEach(function (c) {
+      elevesActifsDe(c.id).forEach(function (x) { var a = ageSimule(x, c); if (a.estime || a.age === null) rows.push([rows.length + 1, x.matricule, x.prenom + ' ' + x.nom, c.nom, a.age ? a.age + ' ans' : '', x.extrait_naiss || '', '']); });
+    });
+    return '<div class="document">' + enteteDocument('ÉLÈVES SANS DATE DE NAISSANCE VALIDE (À COMPLÉTER)') + (rows.length ? tableDoc(['N°', 'Matricule', 'Prénom et nom', 'Classe', 'Âge estimé', 'N° extrait', 'Date de naissance (à écrire)'], rows) : '<p>Tous les élèves actifs ont une date de naissance valide.</p>') + visa() + '</div>';
   }
   function documentListeEl() {
+    if (ui5.modele === 'dates') return docDatesManquantes();
     if (ui5.modele === 'effectifs' || ui5.modele === 'ages') return docStatsEl();
     if (ui5.classe === '_TOUTES') return classesTriees().filter(function (c) { return elevesListe(c.id).length; }).map(function (c) { return docListeClasse(c); }).join('');
     return docListeClasse(classeDe(ui5.classe) || null);
   }
   EL.listes = function () {
-    var m = ui5.modele, parClasse = m !== 'effectifs' && m !== 'ages';
+    var m = ui5.modele, parClasse = m !== 'effectifs' && m !== 'ages' && m !== 'dates';
     var opts = '<div class="ligne pas-imprimer"><div><label>Modèle</label><select id="le-modele">' + opt(Object.keys(MODELES_EL).map(function (k) { return [k, MODELES_EL[k]]; }), m) + '</select></div>' +
       '<div><label>Classe</label><select id="le-classe">' + '<option value="">' + (parClasse ? 'Toute l\'école (une seule liste)' : 'Toutes les classes') + '</option>' + (parClasse ? '<option value="_TOUTES"' + (ui5.classe === '_TOUTES' ? ' selected' : '') + '>Chaque classe (une page par classe)</option>' : '') + optClasses(ui5.classe) + '</select></div>' +
       (parClasse ? '<div><label>Sexe</label><select id="le-sexe">' + opt([['', 'Tous'], ['M', 'Garçons'], ['F', 'Filles']], ui5.sexe) + '</select></div>' : '') +
