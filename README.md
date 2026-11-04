@@ -65,3 +65,9 @@ Gestion scolaire multi-utilisateurs (direction, secrétariat, caisse, enseignant
 
 ## Étapes suivantes
 4. Caisse et finances · 5. Documents (QR) · 6. Vie scolaire et tableau de bord · 7. Migration, purges, reprise · 8. Guides et tests de charge.
+
+## Étape 4 — Finances
+Menu **Finances** (droits Caisse / Finances) : guichet d'encaissement (acompte, surplus gardé en avance élève, règlement sur avance), reçus A4 en 2 exemplaires / ticket 80 mm / 58 mm avec montant en lettres et envoi WhatsApp, annulation par contre-écriture tracée, autres opérations (dépenses, dons, cotisations, fonds), salaires et prêts du personnel, journal de caisse (filtres, impression, CSV), arrêté de caisse par caissier et par jour avec billetage et écart, impayés par classe / école et restes dus avec rappel WhatsApp, état financier annuel par catégorie × mois, stock (articles, mouvements, état). Les numéros de pièce sont attribués en transaction : une connexion internet est nécessaire pour encaisser.
+
+## Référentiel CTEFA V3.5
+Les matières du préscolaire, de l'élémentaire et des Majaalis suivent désormais CTEFA-CLASSIC V3.5 (doublons retirés, ordre corrigé). Pour une base déjà créée : Référentiels → Matières → « Aligner ce niveau » ou « Aligner tous les niveaux ». Une rubrique en trop qui a déjà des notes n'est jamais supprimée.
