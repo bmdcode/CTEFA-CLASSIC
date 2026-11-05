@@ -2630,15 +2630,17 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
       (o === 'essais' ? '<div class="carte pas-imprimer"><div class="carte-corps ligne"><div><label>Classe (saisie et affichage des tests)</label><select id="n-classe">' + optClasses(ui3.classe) + '</select></div>' +
         '<label class="fixe" style="display:flex;gap:6px;align-items:center;color:var(--texte)"><input type="checkbox" id="es-tous"' + (ui3.esTousTests ? ' checked' : '') + '> Afficher les tests de toutes les classes</label></div></div>' : '<div class="carte pas-imprimer"><div class="carte-corps ligne"><div><label>Classe active</label><select id="n-classe">' + optClasses(ui3.classe) + '</select></div>' +
         '<div><label>' + (o === 'saisie' ? 'Composition' : 'Période') + '</label><select id="n-compo">' + periodesOpt(niv, o === 'saisie' ? ui3.compo : ui3.resPeriode, o !== 'saisie') + '</select></div>' +
-        (o === 'saisie' ? '<div><label>Matière</label><select id="n-matiere"><option value="">Toutes les matières</option>' + matieresListe(classeDe(ui3.classe).niveau).map(function (m) { return '<option value="' + e(m.cle) + '"' + (m.cle === ui3.matiere ? ' selected' : '') + '>' + e(m.langue + ' · ' + m.matiere) + '</option>'; }).join('') + '</select></div>' : '') +
+        (o === 'saisie' ? '<div><label>Matière</label><select id="n-matiere"><option value="">Toutes les matières</option>' + matieresListe(classeDe(ui3.classe).niveau).map(function (m) { return '<option value="' + e(m.cle) + '"' + (m.cle === ui3.matiere ? ' selected' : '') + '>' + e(m.langue + ' · ' + m.matiere) + '</option>'; }).join('') + '</select></div>' +
+          '<div><label>Épreuve à saisir</label><select id="n-rubrique"><option value="">Toutes les épreuves</option>' + rubriquesDe(classeDe(ui3.classe).niveau).filter(function (r) { return !ui3.matiere || (r.langue + '|' + r.matiere) === ui3.matiere; }).map(function (r) { return '<option value="' + r.id + '"' + (r.id === ui3.rubrique ? ' selected' : '') + '>' + e(r.langue + ' · ' + abreger(r.matiere) + ' · ' + r.rubrique) + '</option>'; }).join('') + '</select></div>' : '') +
         '</div></div>') + (notesChargees(ui3.classe) || o === 'essais' ? NO[o]() : '<p class="aide">Chargement des notes…</p>');
   };
   VUES.notes.apres = function () {
     var o = ONGLETS_NOTES[sousVue()] ? sousVue() : 'saisie';
-    var c = $('#n-classe'); if (c) c.onchange = function () { libererVerrou(); ui3.classe = c.value; ui3.matiere = ''; ui3.esClasse = c.value; rendre(); };
+    var c = $('#n-classe'); if (c) c.onchange = function () { libererVerrou(); ui3.classe = c.value; ui3.matiere = ''; ui3.rubrique = ''; ui3.esClasse = c.value; rendre(); };
     var et = $('#es-tous'); if (et) et.onchange = function () { ui3.esTousTests = et.checked; rendre(); };
     var p = $('#n-compo'); if (p) p.onchange = function () { libererVerrou(); if (o === 'saisie') ui3.compo = Number(p.value); else ui3.resPeriode = p.value === 'A' ? 'A' : Number(p.value); rendre(); };
-    var m = $('#n-matiere'); if (m) m.onchange = function () { libererVerrou(); ui3.matiere = m.value; rendre(); };
+    var m = $('#n-matiere'); if (m) m.onchange = function () { libererVerrou(); ui3.matiere = m.value; ui3.rubrique = ''; rendre(); };
+    var rb = $('#n-rubrique'); if (rb) rb.onchange = function () { ui3.rubrique = rb.value; rendre(); setTimeout(function () { var f = $('input.note:not([disabled])'); if (f) { f.focus(); f.select(); } }, 300); };
     if (NO[o].apres) NO[o].apres();
   };
   function periodesOpt(niv, val, annee) {
@@ -2649,7 +2651,8 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   /* ---------- saisie ---------- */
   NO.saisie = function () {
     var c = classeDe(ui3.classe), niv = S.niveaux[c.niveau] || {}, compo = ui3.compo;
-    var rubs = rubriquesDe(c.niveau).filter(function (r) { return !ui3.matiere || (r.langue + '|' + r.matiere) === ui3.matiere; });
+    var rubs = rubriquesDe(c.niveau).filter(function (r) { return (!ui3.matiere || (r.langue + '|' + r.matiere) === ui3.matiere) && (!ui3.rubrique || r.id === ui3.rubrique); });
+    if (!rubs.length && ui3.rubrique) { ui3.rubrique = ''; return NO.saisie(); }
     var el = elevesActifsDe(c.id).sort(function (a, b) { return a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom); });
     if (!rubs.length) return carte('Aucune matière', '<p>Le niveau ' + e(nomNiveau(c.niveau)) + ' n\'a pas de matières (Référentiels → Matières).</p>');
     if (!el.length) return carte('Aucun élève', '<p>Inscrivez d\'abord les élèves de ' + e(c.nom) + '.</p>');
@@ -2670,7 +2673,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     var bandeau = ui3.verrou.par ? '<div class="alerte att">🔒 Grille en cours de saisie par <strong>' + e(ui3.verrou.par) + '</strong> : lecture seule. Elle se libère quand cette personne quitte la grille (au plus tard 1 minute après).</div>'
       : ui3.verrou.horsLigne ? '<div class="alerte att">Hors ligne : la grille n\'est pas réservée ; vos notes partiront au retour du réseau.</div>' : (ui3.verrou.raison ? '<div class="alerte">' + e(ui3.verrou.raison) + '</div>' : '');
     return bandeau + carte(e(c.nom) + ' · ' + libPeriode(niv, compo) + ' · ' + saisies + ' / ' + el.length * rubs.length + ' notes',
-      '<p class="aide" style="margin-top:0">Chaque note est enregistrée dès que vous quittez la case. <strong>Entrée</strong> = élève suivant. Tapez <strong>ABS</strong> pour un absent (compte 0). Une épreuve que personne n\'a passée n\'est pas comptée ; ' +
+      '<p class="aide" style="margin-top:0">Saisie au clavier : tapez la note puis <strong>Entrée</strong> pour l\'élève suivant (même épreuve) ; en bas de colonne, Entrée passe à l\'épreuve suivante. Flèches ↑ ↓ pour corriger. Pour aller plus vite, choisissez une seule « Épreuve à saisir ». Chaque note est enregistrée dès que vous quittez la case. Tapez <strong>ABS</strong> pour un absent (compte 0). Une épreuve que personne n\'a passée n\'est pas comptée ; ' +
       'pour un élève qui a composé, une case vide compte 0. Notes au-dessus du barème refusées.</p>' +
       '<div class="table-defil grille-notes"><table class="notes"><thead>' + tete + '</thead><tbody>' + corps + '</tbody></table></div>',
       '<button class="btn" data-act="n-export">⬇ Exporter la grille (Excel)</button><button class="btn" data-act="n-vierge">⬇ Grille vierge à remplir</button>' + (ro ? '' : '<button class="btn" data-act="n-import">⬆ Importer des notes</button><button class="btn danger" data-act="n-effacer">Effacer les notes de cette grille…</button>') + '<a class="btn" href="#notes/resultats">Voir les résultats</a>');
