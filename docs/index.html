@@ -6,6 +6,13 @@
 <title>CTEFA-CLASSIC Web</title>
 <meta name="description" content="Gestion scolaire multi-utilisateurs : comptes, droits, école, référentiels, synchronisation en temps réel.">
 <meta name="theme-color" content="#153A62">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone-192.png">
+<link rel="apple-touch-icon" href="icone-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CTEFA">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
 /* =====================================================================
  *  CTEFA-CLASSIC Web — étape 1 : socle (comptes, droits, journal, école,
@@ -192,6 +199,8 @@ tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surv
   input.vs-c { width: 24px; height: 26px; text-align: center; font-weight: 700; text-transform: uppercase; padding: 0; border: 1px solid #ccd } input.vs-c.m-A { background: #fecaca; color: #991b1b } input.vs-c.m-R { background: #fde68a; color: #92400e } input.vs-c:disabled { background: transparent; border-color: transparent }
   tr.ligne-jc td { background: #f8fafc }
   .guides details { border-bottom: 1px solid var(--bord, #ddd); padding: 6px 0 } .guides ol { margin: 6px 0 4px; padding-left: 20px } .faq dt { font-weight: 700; margin-top: 8px } .faq dd { margin: 2px 0 0 }
+  .btn-installer { position: fixed; left: 12px; bottom: 12px; z-index: 50; background: #16a34a; color: #fff; border: 0; border-radius: 999px; padding: 10px 16px; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer }
+  #bandeau-maj { position: fixed; left: 50%; transform: translateX(-50%); bottom: 12px; z-index: 60; background: #153A62; color: #fff; padding: 10px 14px; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.3); display: flex; gap: 10px; align-items: center }
 </style>
 </head>
 <body>
@@ -4704,6 +4713,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
       '<dt>« Enregistrement refusé : Quota exceeded »</dt><dd>Le quota gratuit quotidien de Firebase (50 000 lectures, 20 000 écritures) est atteint. Il se remet à zéro vers 8 h (Dakar). Évitez les rechargements répétés ; pour un usage réel, passez au plan Blaze avec une alerte de budget.</dd>' +
       '<dt>« Permission refusée »</dt><dd>Les règles Firestore ne sont pas à jour : copiez-les ci-dessus et publiez-les dans la console Firebase.</dd>' +
       '<dt>Je ne vois pas la dernière version</dt><dd>Remplacez docs/index.html sur GitHub, attendez une minute, puis Ctrl+F5.</dd>' +
+      '<dt>Installer comme une application</dt><dd>Android / ordinateur (Chrome, Edge) : bouton vert « Installer l\'application » en bas à gauche, ou menu ⋮ → Installer. iPhone (Safari) : Partager → « Sur l\'écran d\'accueil ». L\'icône CTEFA s\'ouvre ensuite en plein écran, même sans internet.</dd>' +
       '<dt>Hors ligne</dt><dd>Les saisies sont gardées et partent au retour du réseau ; les reçus, documents numérotés et la bascule d\'année exigent internet (numéros uniques).</dd>' +
       '<dt>Deux personnes modifient la même fiche</dt><dd>La seconde est avertie et choisit de garder ou d\'écraser ; une grille de notes ouverte est réservée à une seule personne.</dd></dl>');
     var essai = estAdmin() ? carte('Essai de charge (sans toucher à la base)', '<p class="aide" style="margin-top:0">Calcule en mémoire des résultats fictifs pour mesurer la rapidité de cet appareil : aucune donnée n\'est lue ni écrite dans Firebase.</p>' +
@@ -4740,6 +4750,38 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     if (b.dataset.act === 'guide-imprimer') imprimer('<div class="document">' + enteteDocument('GUIDES D\'UTILISATION — CTEFA-CLASSIC WEB') + GUIDES.map(function (g) { return '<h3>' + e(g[0]) + '</h3><ol>' + g[1].map(function (t) { return '<li>' + e(t) + '</li>'; }).join('') + '</ol>'; }).join('') + '</div>');
   });
 
+
+  /* ===================================================================
+   *  MODE APPLICATION (PWA) ET HORS LIGNE
+   *  - service worker (sw.js) : l'application et ses bibliothèques s'ouvrent sans internet ;
+   *  - bouton « Installer » (Android, ordinateur) ; sur iPhone : Partager → Sur l'écran d'accueil ;
+   *  - bandeau « Nouvelle version » quand une mise à jour est publiée.
+   * =================================================================== */
+  var invitationInstall = null;
+  window.addEventListener('beforeinstallprompt', function (ev) { ev.preventDefault(); invitationInstall = ev; var b = $('#b-installer'); if (b) b.classList.remove('cache'); else afficherBoutonInstaller(); });
+  window.addEventListener('appinstalled', function () { invitationInstall = null; var b = $('#b-installer'); if (b) b.remove(); toast('Application installée.', 'ok'); });
+  function afficherBoutonInstaller() {
+    if (!invitationInstall || $('#b-installer')) return;
+    var b = document.createElement('button'); b.id = 'b-installer'; b.className = 'btn-installer'; b.textContent = '⬇ Installer l\'application';
+    b.onclick = function () { invitationInstall.prompt(); invitationInstall.userChoice.then(function () { invitationInstall = null; b.remove(); }); };
+    document.body.appendChild(b);
+  }
+  function enModeApplication() { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
+  if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      var proposer = function (w) {
+        if (!w || $('#bandeau-maj')) return;
+        var d = document.createElement('div'); d.id = 'bandeau-maj'; d.innerHTML = 'Nouvelle version de l\'application disponible. <button class="btn petit plein">Mettre à jour</button>';
+        d.querySelector('button').onclick = function () { w.postMessage('activer'); };
+        document.body.appendChild(d);
+      };
+      if (reg.waiting && navigator.serviceWorker.controller) proposer(reg.waiting);
+      reg.addEventListener('updatefound', function () { var w = reg.installing; w.addEventListener('statechange', function () { if (w.state === 'installed' && navigator.serviceWorker.controller) proposer(w); }); });
+      setInterval(function () { reg.update().catch(function () {}); }, 3600000);
+    }).catch(function () {});
+    var recharge = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () { if (recharge) return; recharge = true; location.reload(); });
+  }
   /* ===================================================================
    *  9. ACTIONS
    * =================================================================== */
@@ -4933,7 +4975,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
    *  11. DÉMARRAGE
    * =================================================================== */
   window.CtefaDebug = { S: S, prochainNumero: prochainNumero, modifier: modifier };
-  if (!window.firebase) { plein('<div class="boite"><h2>Connexion internet nécessaire</h2><p>Le premier chargement de l\'application demande internet.</p><p><button class="btn plein" onclick="location.reload()">Réessayer</button></p></div>'); return; }
+  if (!window.firebase) { plein('<div class="boite"><h2>Connexion internet nécessaire</h2><p>Le tout premier chargement de l\'application demande internet ; ensuite elle s\'ouvre aussi hors ligne.</p><p><button class="btn plein" onclick="location.reload()">Réessayer</button></p></div>'); return; }
   if (!CFG) ecranConfig(); else demarrerFirebase();
 })();
 </script>

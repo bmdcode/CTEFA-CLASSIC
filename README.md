@@ -80,3 +80,6 @@ Menu **Vie scolaire** (droit Listes) : appel des élèves par classe et par mois
 
 ## Étapes 7 et 8 — Fin d'année, guides, essai de charge
 Menu **Fin d'année** (droit Migration) : sauvegarde, destination de chaque élève (décision du conseil ou moyenne annuelle), bascule vers la nouvelle année (passages, redoublants, sortants, impayés reportés en arriéré). Les données de l'année close restent dans la base et sont filtrées par année. **Aide** : guides par rôle, questions fréquentes (dont le quota Firebase), essai de charge local.
+
+## Mode application (PWA) et hors ligne
+`docs/` contient maintenant `manifest.webmanifest`, `sw.js` et deux icônes : l'application s'installe (Android, ordinateur, iPhone via « Sur l'écran d'accueil ») et s'ouvre sans internet ; les données restent synchronisées par Firebase au retour du réseau. Envoyer **tout le dossier docs** sur GitHub.
