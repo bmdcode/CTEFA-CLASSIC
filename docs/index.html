@@ -455,7 +455,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     journal('CONNEXION', ROLES[S.profil.role].nom);
     ecouter();
     presence();
-    minuteurPresence = setInterval(presence, 30000);
+    minuteurPresence = setInterval(presence, 120000);
     setTimeout(remplacerProvisoires, 6000);
     rendreCadre();
   }
@@ -506,7 +506,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     col('presence').doc(S.moi.uid).set({ identifiant: S.profil.identifiant, nom: S.profil.nom, role: S.profil.role, ecran: TITRES[vueCourante()] || '', vu: maintenant() }).catch(function () {});
   }
   function connectes() {
-    return trier(S.presence, function (a, b) { return a.nom.localeCompare(b.nom); }).filter(function (p) { return Date.now() - Date.parse(p.vu) < 75000; });
+    return trier(S.presence, function (a, b) { return a.nom.localeCompare(b.nom); }).filter(function (p) { return Date.now() - Date.parse(p.vu) < 300000; });
   }
 
   /* ===================================================================
@@ -3021,13 +3021,17 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     if (ui3.esClasse && (E.classes || []).indexOf(ui3.esClasse) < 0) ui3.esClasse = (E.classes || []).indexOf(ui3.classe) >= 0 ? ui3.classe : '';
     var choixCl = (E.classes || []).length >= 1 ? '<div class="ligne pas-imprimer" style="margin-bottom:8px"><div><label>Saisie et affichage par classe</label><select id="es-classe">' + opt(E.classes.map(function (id) { return [id, (classeDe(id) || {}).nom || '?']; }), ui3.esClasse, 'Toutes les classes du test') + '</select></div>' + (ui3.esClasse ? '<div class="aide" style="align-self:end">Rang général · (rang dans la classe)</div>' : '') + '</div>' : '';
     var vus = R.lignes.filter(function (l) { return !ui3.esClasse || l.eleve.classe_id === ui3.esClasse; });
+    if (!(ui3.esEpreuve >= 0 && ui3.esEpreuve < E.epreuves.length)) ui3.esEpreuve = -1;
+    var cols = E.epreuves.map(function (p, j) { return j; }).filter(function (j) { return ui3.esEpreuve < 0 || j === ui3.esEpreuve; });
+    choixCl = choixCl.replace(/<\/div>$/, '<div><label>Épreuve à saisir</label><select id="es-epreuve"><option value="-1">Toutes les épreuves</option>' + E.epreuves.map(function (p, j) { return '<option value="' + j + '"' + (j === ui3.esEpreuve ? ' selected' : '') + '>' + e(p.nom) + '</option>'; }).join('') + '</select></div></div>') +
+      '<p class="aide pas-imprimer" style="margin:0 0 8px">Saisie au clavier : tapez la note puis <strong>Entrée</strong> pour l\'élève suivant (même épreuve) ; en bas de colonne, Entrée passe à l\'épreuve suivante. Flèches ↑ ↓ pour monter ou descendre.</p>';
     if (ui3.esClasse) classer(vus, 'cl', function (l) { return l.classe ? l.g : null; });
     var h = carte(e(E.nom) + ' · ' + e(E.examen) + ' · ' + dateFr(E.date), choixCl + '<div class="table-defil grille-notes"><table class="notes"><thead><tr><th class="fixe-g">Élève</th>' +
-      E.epreuves.map(function (p) { return '<th>' + e(p.nom) + '<br><small>/' + p.bareme + ' · coef ' + p.coef + '</small></th>'; }).join('') + '<th>Moy./20</th><th>Rang</th>' + (C ? '<th>Prétest</th><th>Gain</th>' : '<th>Résultat</th>') + '</tr></thead><tbody>' +
+      cols.map(function (j) { var p = E.epreuves[j]; return '<th>' + e(p.nom) + '<br><small>/' + p.bareme + ' · coef ' + p.coef + '</small></th>'; }).join('') + '<th>Moy./20</th><th>Rang</th>' + (C ? '<th>Prétest</th><th>Gain</th>' : '<th>Résultat</th>') + '</tr></thead><tbody>' +
       vus.map(function (l, i) {
         var c = parId[l.eleve.id];
         return '<tr><td class="fixe-g">' + e(l.eleve.prenom + ' ' + l.eleve.nom) + ' <span class="aide">' + e((classeDe(l.eleve.classe_id) || {}).nom) + '</span></td>' +
-          E.epreuves.map(function (p, j) { var v = l.vals[j]; return '<td class="cn"><input class="note-essai" inputmode="decimal" data-el="' + l.eleve.id + '" data-i="' + j + '" value="' + (v === null || v === undefined ? '' : String(v).replace('.', ',')) + '"' + ro + '></td>'; }).join('') +
+          cols.map(function (j) { var v = l.vals[j]; return '<td class="cn"><input class="note-essai" inputmode="decimal" autocomplete="off" data-el="' + l.eleve.id + '" data-i="' + j + '" data-r="' + i + '" value="' + (v === null || v === undefined ? '' : String(v).replace('.', ',')) + '"' + ro + '></td>'; }).join('') +
           '<td class="c"><strong>' + nb(l.g) + '</strong></td><td class="c">' + (l.classe ? rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) + (ui3.esClasse ? ' <span class="aide">(' + rangTexte(l.rang_cl, l.ex_cl, l.eleve.sexe) + ')</span>' : '') : '') + '</td>' +
           (C ? '<td class="c">' + nb(c && c.avant) + '</td><td class="c ' + (c && c.gain > 0 ? 'gain-plus' : c && c.gain < 0 ? 'gain-moins' : '') + '">' + signeGain(c ? c.gain : null) + '</td>'
              : '<td>' + (l.classe ? (l.g >= R.seuil ? '<span class="pastille ok">' + (E.examen === 'Prétest' ? 'Acquis' : 'Admis') + '</span>' : '<span class="pastille ko">' + (E.examen === 'Prétest' ? 'À renforcer' : 'Ajourné') + '</span>') : '') + '</td>') + '</tr>';
@@ -3039,7 +3043,17 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     else if (E.examen === 'Post-test') h = '<div class="alerte att">Ce post-test n\'est relié à aucun prétest : la comparaison est impossible.</div>' + h;
     return h;
   };
-  NO.essais.apres = function () { var s2 = $('#es-classe'); if (s2) s2.onchange = function () { ui3.esClasse = s2.value; if (s2.value) ui3.classe = s2.value; rendre(); }; };
+  document.addEventListener('keydown', function (ev) {
+    var t = ev.target; if (!t.classList || !t.classList.contains('note-essai')) return;
+    if (ev.key !== 'Enter' && ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+    ev.preventDefault();
+    var r2 = Number(t.dataset.r) + (ev.key === 'ArrowUp' ? -1 : 1), j = Number(t.dataset.i);
+    var n = $('input.note-essai[data-r="' + r2 + '"][data-i="' + j + '"]');
+    if (!n && ev.key === 'Enter') { var cs = $$('input.note-essai[data-r="0"]').map(function (x) { return Number(x.dataset.i); }), k = cs.indexOf(j); n = k >= 0 && k < cs.length - 1 ? $('input.note-essai[data-r="0"][data-i="' + cs[k + 1] + '"]') : null; }
+    if (n) { n.focus(); n.select(); } else t.blur();
+  });
+  NO.essais.apres = function () { var se = $('#es-epreuve'); if (se) se.onchange = function () { ui3.esEpreuve = Number(se.value); rendre(); setTimeout(function () { var f = $('input.note-essai'); if (f) f.focus(); }, 50); };
+    var s2 = $('#es-classe'); if (s2) s2.onchange = function () { ui3.esClasse = s2.value; if (s2.value) ui3.classe = s2.value; rendre(); }; };
   function boiteEssai() {
     var pretests = liste(S.epreuves).filter(function (x) { return x.examen === 'Prétest'; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
     ouvrirBoite('<form class="boite large" id="f-essai"><h2>Nouveau test</h2><div class="grille">' +
@@ -4162,7 +4176,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     var t = $('#d-type'); if (t) t.onchange = function () { ui6.doc = t.value; ui6.vals = {}; ui6.apercu = null; rendre(); };
     var r = $('#d-rech'); if (r) r.oninput = function () { ui6.rech = r.value; var p = r.selectionStart; rendre(); var n = $('#d-rech'); n.focus(); n.setSelectionRange(p, p); };
     var bs = $('#d-benef'); if (bs) bs.onchange = function () { ui6.benef = bs.value; ui6.vals = {}; ui6.apercu = null; rendre(); };
-    $$('.d-ch').forEach(function (c) { c.onchange = function () { ui6.vals[c.dataset.k] = c.value; }; });
+    $$('.d-ch').forEach(function (c) { c.onchange = function () { ui6.vals[c.dataset.k] = c.value; if (ui6.apercu) { var a = $('[data-act="d-apercu"]'); if (a) a.click(); } }; });
   };
   function lireDocument(souple) {
     var D = DOCS[ui6.doc], b = D.src === 'AUCUN' ? {} : donneesBenef(D.src, ui6.benef), v = {};
