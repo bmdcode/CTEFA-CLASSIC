@@ -188,6 +188,9 @@ tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surv
   .page-garde .pg-centre { text-align: center; margin-top: 60mm } .page-garde h1 { font-size: 26pt; border: 3px double #000; padding: 10mm; margin: 0 15mm 12mm } .page-garde h2 { font-size: 20pt } .page-garde p { font-size: 14pt }
   .bloc-photo { display:flex; gap:12px; align-items:center; margin:6px 0 10px } .bloc-photo .ph { width:72px; height:90px; border:1px dashed #999; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:11px; color:#888; background:#fafafa; flex:none } .bloc-photo img { width:100%; height:100%; object-fit:cover }
   img.cs-photo { object-fit: cover; border-style: solid }
+  table.vs td, table.vs th { padding: 1px !important; min-width: 0 } table.vs th.jr { font-size: 10px; line-height: 1.1; width: 26px } table.vs .off { background: #e5e7eb !important }
+  input.vs-c { width: 24px; height: 26px; text-align: center; font-weight: 700; text-transform: uppercase; padding: 0; border: 1px solid #ccd } input.vs-c.m-A { background: #fecaca; color: #991b1b } input.vs-c.m-R { background: #fde68a; color: #92400e } input.vs-c:disabled { background: transparent; border-color: transparent }
+  tr.ligne-jc td { background: #f8fafc }
 </style>
 </head>
 <body>
@@ -213,7 +216,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   var CONFIG_INTEGREE = null; /* ex. { apiKey: "...", authDomain: "...", projectId: "...", appId: "..." } */
   var CLE_CONFIG = 'ctefa.firebase', CLE_THEME = 'ctefa.theme', CLE_ECHECS = 'ctefa.echecs';
   var ESPACE = 'ecoles/principale';
-  var VERSION_APP = '3.0 (étape 5)';
+  var VERSION_APP = '3.0 (étape 6)';
   var ASSISTANCE = 'Baye Modou DIOP — 78 295 80 96 / 76 518 55 48';
 
   function lireLocal(k) { try { return localStorage.getItem(k); } catch (x) { return null; } }
@@ -697,9 +700,9 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   /* ===================================================================
    *  7. CADRE DE L'APPLICATION ET NAVIGATION
    * =================================================================== */
-  var TITRES = { accueil: 'Accueil', eleves: 'Élèves', notes: 'Évaluations', finances: 'Finances', documents: 'Documents', personnel: 'Personnel', ecole: 'École', referentiels: 'Référentiels', utilisateurs: 'Utilisateurs', journal: 'Journal', sauvegarde: 'Sauvegarde', aide: 'Aide' };
+  var TITRES = { accueil: 'Accueil', eleves: 'Élèves', notes: 'Évaluations', finances: 'Finances', documents: 'Documents', vie: 'Vie scolaire', personnel: 'Personnel', ecole: 'École', referentiels: 'Référentiels', utilisateurs: 'Utilisateurs', journal: 'Journal', sauvegarde: 'Sauvegarde', aide: 'Aide' };
   var MENU = [
-    ['accueil', null], ['eleves', ['ELEVES', 'LISTES', 'NOTES', 'CAISSE']], ['notes', ['NOTES', 'BULLETINS']], ['finances', ['CAISSE', 'FINANCES']], ['documents', 'DOCUMENTS'], ['personnel', ['PERSONNEL', 'LISTES']], ['ecole', null], ['referentiels', null], ['utilisateurs', 'UTILISATEURS'], ['journal', 'UTILISATEURS'], ['sauvegarde', 'PARAMETRES'], ['aide', null]
+    ['accueil', null], ['eleves', ['ELEVES', 'LISTES', 'NOTES', 'CAISSE']], ['notes', ['NOTES', 'BULLETINS']], ['finances', ['CAISSE', 'FINANCES']], ['documents', 'DOCUMENTS'], ['vie', ['LISTES', 'ELEVES', 'PERSONNEL']], ['personnel', ['PERSONNEL', 'LISTES']], ['ecole', null], ['referentiels', null], ['utilisateurs', 'UTILISATEURS'], ['journal', 'UTILISATEURS'], ['sauvegarde', 'PARAMETRES'], ['aide', null]
   ];
   function vueCourante() { var v = (location.hash.slice(1) || 'accueil').split('/')[0]; return TITRES[v] && autorisee(v) ? v : 'accueil'; }
   function sousVue() { return location.hash.slice(1).split('/')[1] || ''; }
@@ -4396,6 +4399,199 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
       i.click();
     } catch (x) { erreurEcriture(x); }
   });
+
+  /* ===================================================================
+   *  ÉTAPE 6 — VIE SCOLAIRE (repris de ModVieScolaire de CTEFA-CLASSIC V3.5)
+   *   1. Appel des élèves : grille du mois (A = absent, R = retard, vide = présent),
+   *      ligne « jour de classe », taux de présence, récapitulatif.
+   *   2. Pointage du personnel : même grille + observations.
+   *   3. Quantum horaire : prévu, non réalisé, additionnel → réalisé et taux.
+   *   4. Synthèse du mois pour l'école.
+   *  Un document par classe et par mois (« presences/CLASSE_AAAA-MM »), un par
+   *  mois pour le pointage et le quantum : lecture à l'ouverture, une seule
+   *  écriture par « Enregistrer » (économe en quota Firestore).
+   * =================================================================== */
+  var ui7 = { mois: '', classe: '' }, VS = {};   /* VS[id] = document lu (ou null) */
+  function moisCle(nomMois) { var i = NOMS_MOIS.indexOf(nomMois), an = anneeDebut() + (i < 8 ? 1 : 0); return an + '-' + String(i + 1).padStart(2, '0'); }
+  function moisCourantNom() { var m = NOMS_MOIS[new Date().getMonth()]; return moisListe().indexOf(m) >= 0 ? m : moisListe()[0]; }
+  function joursMois(cle) {
+    var an = +cle.slice(0, 4), m = +cle.slice(5, 7) - 1, n = new Date(an, m + 1, 0).getDate(), r = [];
+    for (var d = 1; d <= n; d++) { var w = new Date(an, m, d).getDay(); r.push({ d: d, w: w, lettre: 'DLMMJVS'.charAt(w) }); }
+    return r;
+  }
+  function lireVS(nom, id) {
+    var k = nom + '/' + id; if (VS[k] !== undefined) return Promise.resolve(VS[k]);
+    return col(nom).doc(id).get().then(function (s) { VS[k] = s.exists ? Object.assign({ id: s.id }, s.data()) : null; return VS[k]; });
+  }
+  function ecrireVS(nom, id, data, droit) {
+    var k = nom + '/' + id, ex = VS[k];
+    var p = ex ? modifier(nom, id, data, ex.version, droit) : (creer(nom, data, droit, id), Promise.resolve(true));
+    return p.then(function (ok) { if (ok) { VS[k] = Object.assign({ id: id }, ex || {}, data, meta(), { version: ((ex && ex.version) || 0) + 1 }); toast('Enregistré.', 'ok'); } return ok; });
+  }
+  function joursDeClasse(doc, jours) { var jc = (doc && doc.jours_classe) || {}; return jours.filter(function (j) { return jc[j.d] !== undefined ? jc[j.d] : (j.w !== 0); }); }
+
+  var ONGLETS_VS = { appel: 'Appel des élèves', pointage: 'Pointage du personnel', quantum: 'Quantum horaire', synthese: 'Synthèse du mois' };
+  var VSV = {};
+  VUES.vie = function () {
+    var o = ONGLETS_VS[sousVue()] ? sousVue() : 'appel';
+    if (!ui7.mois) ui7.mois = moisCourantNom();
+    if (!classeDe(ui7.classe)) ui7.classe = ui3.classe && classeDe(ui3.classe) ? ui3.classe : (classesTriees()[0] || {}).id;
+    return '<h2>Vie scolaire</h2><nav class="onglets">' + Object.keys(ONGLETS_VS).map(function (k) { return '<a href="#vie/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_VS[k] + '</a>'; }).join('') + '</nav>' +
+      '<div class="carte pas-imprimer"><div class="carte-corps ligne">' + (o === 'appel' ? '<div><label>Classe</label><select id="vs-classe">' + optClasses(ui7.classe) + '</select></div>' : '') +
+      '<div><label>Mois</label><select id="vs-mois">' + opt(moisListe(), ui7.mois) + '</select></div></div></div><div id="vs-corps"><p class="aide">Chargement…</p></div>';
+  };
+  VUES.vie.apres = function () {
+    var o = ONGLETS_VS[sousVue()] ? sousVue() : 'appel';
+    var c = $('#vs-classe'); if (c) c.onchange = function () { ui7.classe = c.value; rendre(); };
+    var m = $('#vs-mois'); if (m) m.onchange = function () { ui7.mois = m.value; rendre(); };
+    VSV[o]().then(function (h) { var z = $('#vs-corps'); if (z) { z.innerHTML = h; if (VSV[o].apres) VSV[o].apres(); } }).catch(function (x) { var z = $('#vs-corps'); if (z) z.innerHTML = '<div class="alerte ko">' + e(x.message || x) + '</div>'; });
+  };
+
+  /* ---------- grille A / R commune à l'appel et au pointage ---------- */
+  function grilleAR(personnes, doc, jours, avecObs) {
+    var jc = joursDeClasse(doc, jours).map(function (j) { return j.d; }), marques = (doc && doc.marques) || {}, obs = (doc && doc.observations) || {};
+    var tete = '<tr><th class="fixe-g">N° · Nom</th>' + jours.map(function (j) { return '<th class="c jr' + (jc.indexOf(j.d) < 0 ? ' off' : '') + '">' + j.lettre + '<br>' + j.d + '</th>'; }).join('') + '<th class="c">Abs.</th><th class="c">Ret.</th>' + (avecObs ? '<th>Observations</th>' : '') + '</tr>' +
+      '<tr class="ligne-jc"><td class="fixe-g aide">Jour de classe ?</td>' + jours.map(function (j) { return '<td class="c"><input type="checkbox" class="vs-jc" data-d="' + j.d + '"' + (jc.indexOf(j.d) >= 0 ? ' checked' : '') + '></td>'; }).join('') + '<td></td><td></td>' + (avecObs ? '<td></td>' : '') + '</tr>';
+    var corps = personnes.map(function (p, i) {
+      var m = marques[p.id] || {}, a = 0, r = 0; jc.forEach(function (d) { if (m[d] === 'A') a++; if (m[d] === 'R') r++; });
+      return '<tr><td class="fixe-g"><span class="aide">' + (i + 1) + '.</span> ' + e(p.lib) + '</td>' + jours.map(function (j) {
+        var v = m[j.d] || '', off = jc.indexOf(j.d) < 0;
+        return '<td class="c' + (off ? ' off' : '') + '"><input class="vs-c' + (v ? ' m-' + v : '') + '" maxlength="1" data-p="' + p.id + '" data-d="' + j.d + '" data-r="' + i + '" value="' + v + '"' + (off ? ' disabled' : '') + '></td>';
+      }).join('') + '<td class="c"><strong>' + (a || '') + '</strong></td><td class="c">' + (r || '') + '</td>' + (avecObs ? '<td><input class="vs-obs" data-p="' + p.id + '" value="' + e(obs[p.id] || '') + '" style="min-width:180px"></td>' : '') + '</tr>';
+    }).join('');
+    return '<div class="table-defil grille-vs"><table class="notes vs">' + tete + corps + '</table></div>';
+  }
+  function lireGrilleAR() {
+    var marques = {}, jc = {}, obs = {};
+    $$('.vs-jc').forEach(function (c) { jc[c.dataset.d] = c.checked; });
+    $$('.vs-c').forEach(function (i) { var v = i.value.toUpperCase(); if (v === 'A' || v === 'R') (marques[i.dataset.p] = marques[i.dataset.p] || {})[i.dataset.d] = v; });
+    $$('.vs-obs').forEach(function (i) { if (i.value.trim()) obs[i.dataset.p] = i.value.trim(); });
+    return { marques: marques, jours_classe: jc, observations: obs };
+  }
+  function brancherGrilleAR() {
+    $$('.vs-c').forEach(function (i) {
+      i.oninput = function () { var v = i.value.toUpperCase(); if (v && v !== 'A' && v !== 'R') { v = v === 'P' || v === ' ' ? '' : ''; toast('A = absent, R = retard, vide = présent.', 'ko'); } i.value = v; i.className = 'vs-c' + (v ? ' m-' + v : ''); saisieEnCours = true; };
+      i.onkeydown = function (ev) {
+        var r = +i.dataset.r, d = +i.dataset.d, n = null;
+        if (ev.key === 'Enter' || ev.key === 'ArrowDown') n = $('.vs-c[data-r="' + (r + 1) + '"][data-d="' + d + '"]') || (ev.key === 'Enter' ? $$('.vs-c[data-r="0"]').filter(function (x) { return +x.dataset.d > d && !x.disabled; })[0] : null);
+        else if (ev.key === 'ArrowUp') n = $('.vs-c[data-r="' + (r - 1) + '"][data-d="' + d + '"]');
+        else if (ev.key === 'ArrowRight') n = $$('.vs-c[data-r="' + r + '"]').filter(function (x) { return +x.dataset.d > d && !x.disabled; })[0];
+        else if (ev.key === 'ArrowLeft') n = $$('.vs-c[data-r="' + r + '"]').filter(function (x) { return +x.dataset.d < d && !x.disabled; }).pop();
+        else return;
+        ev.preventDefault(); if (n) { n.focus(); n.select(); }
+      };
+      i.ondblclick = function () { var v = { '': 'A', A: 'R', R: '' }[i.value] ; i.value = v; i.oninput(); };
+    });
+    $$('.vs-jc').forEach(function (c) { c.onchange = function () { saisieEnCours = true; $$('.vs-c[data-d="' + c.dataset.d + '"]').forEach(function (i) { i.disabled = !c.checked; i.closest('td').classList.toggle('off', !c.checked); }); }; });
+    $$('.vs-obs').forEach(function (i) { i.oninput = function () { saisieEnCours = true; }; });
+  }
+  function tauxAR(doc, jours, ids) {
+    var jc = joursDeClasse(doc, jours).map(function (j) { return j.d; }), m = (doc && doc.marques) || {}, a = 0, r = 0;
+    ids.forEach(function (id) { jc.forEach(function (d) { var v = (m[id] || {})[d]; if (v === 'A') a++; if (v === 'R') r++; }); });
+    var tot = jc.length * ids.length;
+    return { jours: jc.length, abs: a, ret: r, tot: tot, presence: tot ? arr(100 * (tot - a) / tot, 1) : null, absence: tot ? arr(100 * a / tot, 1) : null };
+  }
+
+  /* ---------- 1. appel ---------- */
+  VSV.appel = function () {
+    var c = classeDe(ui7.classe); if (!c) return Promise.resolve('<p class="aide">Aucune classe.</p>');
+    var cle = moisCle(ui7.mois), id = c.id + '_' + cle, jours = joursMois(cle);
+    var el = elevesActifsDe(c.id).sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom); });
+    if (!el.length) return Promise.resolve(carte('Aucun élève', '<p>La classe ' + e(c.nom) + ' n\'a pas d\'élève actif.</p>'));
+    return lireVS('presences', id).then(function (doc) {
+      var t = tauxAR(doc, jours, el.map(function (x) { return x.id; })), ro = !peut('LISTES') || enMaintenancePourMoi();
+      return carte('Appel · ' + e(c.nom) + ' · ' + e(ui7.mois) + ' ' + cle.slice(0, 4),
+        '<div class="tuiles">' + tuile('Jours de classe', t.jours) + tuile('Absences', t.abs) + tuile('Retards', t.ret) + tuile('Taux de présence', nb(t.presence) + ' %') + '</div>' +
+        '<p class="aide pas-imprimer"><strong>A</strong> = absent, <strong>R</strong> = retard, case vide = présent (double-clic : vide → A → R). Clavier : Entrée = élève suivant (même jour), flèches ← → ↑ ↓. Décochez « Jour de classe » pour un jour férié ou sans classe (les dimanches le sont d\'office).</p>' +
+        grilleAR(el.map(function (x) { return { id: x.id, lib: x.prenom + ' ' + x.nom }; }), doc, jours, false) + (doc ? '<p class="aide">Enregistré par ' + e(doc.modifie_par) + ' ' + ilya(doc.modifie_le) + '.</p>' : ''),
+        (ro ? '' : '<button class="btn plein" data-act="vs-enr" data-col="presences" data-id="' + id + '">✔ Enregistrer l\'appel</button>') + '<button class="btn" data-act="vs-imprimer">🖨 Imprimer (paysage)</button>');
+    });
+  };
+  VSV.appel.apres = brancherGrilleAR;
+
+  /* ---------- 2. pointage du personnel ---------- */
+  VSV.pointage = function () {
+    var cle = moisCle(ui7.mois), jours = joursMois(cle), ag = liste(S.personnel).filter(function (p) { return p.statut !== 'INACTIF'; }).sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom); });
+    if (!ag.length) return Promise.resolve(carte('Aucun agent', '<p>Le registre du personnel est vide.</p>'));
+    return lireVS('pointages', cle).then(function (doc) {
+      var t = tauxAR(doc, jours, ag.map(function (p) { return p.id; })), ro = !peut('LISTES') || enMaintenancePourMoi();
+      return carte('Pointage du personnel · ' + e(ui7.mois) + ' ' + cle.slice(0, 4),
+        '<div class="tuiles">' + tuile('Jours de classe', t.jours) + tuile('Absences', t.abs) + tuile('Retards', t.ret) + tuile('Taux de présence', nb(t.presence) + ' %') + '</div>' +
+        '<p class="aide pas-imprimer"><strong>A</strong> = absent, <strong>R</strong> = retard, vide = présent. Observations : visites de classe, permissions, formations…</p>' +
+        grilleAR(ag.map(function (p) { return { id: p.id, lib: (p.civilite ? p.civilite + ' ' : '') + nomPers(p) }; }), doc, jours, true),
+        (ro ? '' : '<button class="btn plein" data-act="vs-enr" data-col="pointages" data-id="' + cle + '">✔ Enregistrer le pointage</button>') + '<button class="btn" data-act="vs-imprimer">🖨 Imprimer (paysage)</button>');
+    });
+  };
+  VSV.pointage.apres = brancherGrilleAR;
+
+  /* ---------- 3. quantum horaire ---------- */
+  VSV.quantum = function () {
+    var cle = moisCle(ui7.mois), cls = classesTriees();
+    return lireVS('quantum', cle).then(function (doc) {
+      var q = (doc && doc.classes) || {}, ro = !peut('LISTES') || enMaintenancePourMoi() ? ' disabled' : '', tp = 0, tr = 0;
+      var lignes = cls.map(function (c) {
+        var x = q[c.id] || {}, p = +x.prevu || 0, n = +x.non || 0, a = +x.add || 0, r = Math.max(0, p - n + a); tp += p; tr += r;
+        return '<tr data-c="' + c.id + '"><td><strong>' + e(c.nom) + '</strong></td>' + ['prevu', 'non', 'add'].map(function (k) { return '<td class="c"><input class="vs-q" data-k="' + k + '" type="number" min="0" step="0.5" value="' + (x[k] === undefined ? '' : x[k]) + '" style="width:80px"' + ro + '></td>'; }).join('') +
+          '<td class="c"><strong>' + (p ? nb(arr(r, 1)) : '') + '</strong></td><td class="c">' + (p ? nb(arr(100 * r / p, 1)) + ' %' : '') + '</td><td><input class="vs-q" data-k="obs" value="' + e(x.obs || '') + '"' + ro + ' style="min-width:160px"></td></tr>';
+      }).join('');
+      return carte('Quantum horaire · ' + e(ui7.mois) + ' ' + cle.slice(0, 4) + ' (en heures)',
+        '<p class="aide">Temps réalisé = prévu − non réalisé + additionnel. Taux = réalisé ÷ prévu.</p><div class="table-defil"><table><thead><tr><th>Classe</th><th class="c">Prévu</th><th class="c">Non réalisé</th><th class="c">Additionnel</th><th class="c">Réalisé</th><th class="c">Taux</th><th>Observations (causes)</th></tr></thead><tbody>' + lignes +
+        '<tr class="total"><td><strong>ÉCOLE</strong></td><td class="c">' + nb(tp) + '</td><td></td><td></td><td class="c">' + nb(arr(tr, 1)) + '</td><td class="c">' + (tp ? nb(arr(100 * tr / tp, 1)) + ' %' : '') + '</td><td></td></tr></tbody></table></div>',
+        (ro ? '' : '<button class="btn plein" data-act="vs-enr-q" data-id="' + cle + '">✔ Enregistrer</button>') + '<button class="btn" data-act="vs-imprimer">🖨 Imprimer</button>');
+    });
+  };
+  VSV.quantum.apres = function () { $$('.vs-q').forEach(function (i) { i.oninput = function () { saisieEnCours = true; }; }); };
+
+  /* ---------- 4. synthèse du mois ---------- */
+  VSV.synthese = function () {
+    var cle = moisCle(ui7.mois), jours = joursMois(cle), cls = classesTriees();
+    return Promise.all(cls.map(function (c) { return lireVS('presences', c.id + '_' + cle); }).concat([lireVS('pointages', cle), lireVS('quantum', cle)])).then(function (docs) {
+      var tot = { abs: 0, ret: 0, tot: 0 }, q = (docs[cls.length + 1] && docs[cls.length + 1].classes) || {};
+      var lignes = cls.map(function (c, i) {
+        var el = elevesActifsDe(c.id), f = el.filter(function (x) { return x.sexe === 'F'; }).length, t = tauxAR(docs[i], jours, el.map(function (x) { return x.id; })), x = q[c.id] || {}, p = +x.prevu || 0, r = Math.max(0, p - (+x.non || 0) + (+x.add || 0));
+        if (docs[i]) { tot.abs += t.abs; tot.ret += t.ret; tot.tot += t.tot; }
+        return [c.nom, el.length - f, f, el.length, docs[i] ? t.jours : '—', docs[i] ? t.abs : '—', docs[i] ? t.ret : '—', docs[i] ? nb(t.presence) + ' %' : 'appel non fait', p ? nb(arr(100 * r / p, 1)) + ' %' : '—'];
+      });
+      lignes.push([{ html: '<strong>ÉCOLE</strong>' }, '', '', '', '', tot.abs, tot.ret, tot.tot ? nb(arr(100 * (tot.tot - tot.abs) / tot.tot, 1)) + ' %' : '—', '']);
+      var ag = liste(S.personnel).filter(function (p) { return p.statut !== 'INACTIF'; }), tp = tauxAR(docs[cls.length], jours, ag.map(function (p) { return p.id; }));
+      return '<div id="vs-doc"><div class="document">' + enteteDocument('SYNTHÈSE DE LA VIE SCOLAIRE — ' + ui7.mois.toUpperCase() + ' ' + cle.slice(0, 4)) +
+        '<h3>Élèves</h3>' + tableDoc(['Classe', 'G', 'F', 'Total', 'Jours de classe', 'Absences', 'Retards', 'Taux de présence', 'Quantum réalisé'], lignes) +
+        '<h3>Personnel</h3>' + (docs[cls.length] ? tableDoc(['Agents', 'Jours de classe', 'Absences', 'Retards', 'Taux de présence'], [[ag.length, tp.jours, tp.abs, tp.ret, nb(tp.presence) + ' %']]) : '<p class="aide">Pointage du mois non saisi.</p>') + visa() + '</div></div>' +
+        '<p class="pas-imprimer"><button class="btn" data-act="vs-imprimer">🖨 Imprimer</button></p>';
+    });
+  };
+
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    try {
+      if (b.dataset.act === 'vs-enr') { var d = lireGrilleAR(), dr = 'LISTES';
+        if (b.dataset.col === 'presences') d.classe_id = ui7.classe; d.mois = moisCle(ui7.mois);
+        ecrireVS(b.dataset.col, b.dataset.id, d, dr).then(function (ok) { if (ok) { saisieEnCours = false; activite((b.dataset.col === 'presences' ? 'Appel ' + (classeDe(ui7.classe) || {}).nom : 'Pointage du personnel') + ' — ' + ui7.mois + ' enregistré'); rendre(); } }).catch(erreurEcriture); }
+      if (b.dataset.act === 'vs-enr-q') { var q = {};
+        $$('tr[data-c]').forEach(function (tr) { var x = {}; $$('.vs-q', tr).forEach(function (i) { if (i.value !== '') x[i.dataset.k] = i.dataset.k === 'obs' ? i.value.trim() : Number(i.value); }); if (Object.keys(x).length) q[tr.dataset.c] = x; });
+        ecrireVS('quantum', b.dataset.id, { classes: q, mois: b.dataset.id }, 'LISTES').then(function (ok) { if (ok) { saisieEnCours = false; rendre(); } }).catch(erreurEcriture); }
+      if (b.dataset.act === 'vs-imprimer') { var z = $('#vs-doc') || $('#vs-corps'); imprimer(z.querySelector('.document') ? z.innerHTML : '<div class="document">' + enteteDocument('') + z.innerHTML.replace(/<button[^>]*>.*?<\/button>/g, '').replace(/<input[^>]*value="([^"]*)"[^>]*>/g, '$1') + visa() + '</div>', { page: sousVue() === 'quantum' || sousVue() === 'synthese' ? '' : 'paysage' }); }
+    } catch (x) { erreurEcriture(x); }
+  });
+
+  /* ---------- tableau de bord (accueil enrichi) ---------- */
+  var accueilDeBase = VUES.accueil;
+  VUES.accueil = function () {
+    var h = accueilDeBase().replace('<p class="aide">Les finances et les alertes sur les notes s\'ajouteront avec les étapes suivantes.</p>', '');
+    var pers = liste(S.personnel).filter(function (p) { return p.statut !== 'INACTIF'; }), ens = pers.filter(function (p) { return /enseign|instit|ma[iî]tre|professeur|oustaz/i.test((p.fonction || '') + ' ' + (p.civilite || '')); }), ar = pers.filter(function (p) { return p.langue === 'AR'; }), pf = pers.filter(function (p) { return p.sexe === 'F'; }).length;
+    var cl = classesTriees(), actifs = liste(S.eleves).filter(function (x) { return x.statut === 'ACTIF'; }), places = cl.reduce(function (s, c) { return s + (c.effectif_max || 50); }, 0);
+    var blocs = carte('Élèves et classes', '<div class="tuiles">' + tuile('Part des filles', actifs.length ? nb(arr(100 * actifs.filter(function (x) { return x.sexe === 'F'; }).length / actifs.length, 1)) + ' %' : '—') + tuile('Effectif moyen / classe', cl.length ? nb(arr(actifs.length / cl.length, 1)) : '—') +
+      tuile('Places libres', Math.max(0, places - actifs.length)) + tuile('Taux de remplissage', places ? nb(arr(100 * actifs.length / places, 1)) + ' %' : '—') + tuile('Redoublants', actifs.filter(function (x) { return x.redoublant; }).length) + tuile('Sortis cette année', liste(S.eleves).filter(function (x) { return x.statut !== 'ACTIF'; }).length) + '</div>');
+    blocs += carte('Personnel', pers.length ? '<div class="tuiles">' + tuile('Agents', pers.length) + tuile('Enseignants', ens.length) + tuile('Enseignants d\'arabe', ar.length) + tuile('Hommes / Femmes', (pers.length - pf) + ' / ' + pf) + '</div>' : '<p class="aide">Aucun agent dans le registre du personnel.</p>');
+    if ((peut('CAISSE') || peut('FINANCES')) && typeof operations === 'function') {
+      var mc = new Date().toISOString().slice(0, 7), ops = operations().filter(function (o) { return o.type !== 'ARRETE' && o.mode !== 'AVANCE'; }), en = 0, so = 0, enM = 0, soM = 0;
+      ops.forEach(function (o) { var v = o.montant || 0; if (o.sens === 'ENTREE') { en += v; if (String(o.date).slice(0, 7) === mc) enM += v; } else if (o.sens === 'SORTIE') { so += v; if (String(o.date).slice(0, 7) === mc) soM += v; } });
+      var imp = typeof totalDu === 'function' ? actifs.reduce(function (s, x) { return s + totalDu(x, indexMoisCourant()); }, 0) : 0;
+      blocs += carte('Finances', ops.length ? '<div class="tuiles">' + tuile('Entrées du mois', fcfa(enM)) + tuile('Sorties du mois', fcfa(soM)) + tuile('Solde de l\'année', fcfa(en - so)) + tuile('Impayés échus', fcfa(imp)) + '</div>' : '<p class="aide">Journal de caisse vide : aucune opération enregistrée.</p>', '<a class="btn" href="#finances/journal">Journal de caisse</a><a class="btn" href="#finances/impayes">Impayés</a>');
+    }
+    blocs += carte('Vie scolaire', '<p class="aide" style="margin-top:0">Appel des élèves, pointage du personnel et quantum horaire du mois.</p>', '<a class="btn" href="#vie/appel">Faire l\'appel</a><a class="btn" href="#vie/synthese">Synthèse du mois</a>');
+    return h.replace(/(<div class="grille">)/, '<div class="grille">' + blocs + '</div>$1');
+  };
 
   /* ===================================================================
    *  9. ACTIONS

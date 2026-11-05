@@ -74,3 +74,6 @@ Les matières du préscolaire, de l'élémentaire et des Majaalis suivent désor
 
 ## Étape 5 — Documents administratifs
 Menu **Documents** (droit Documents) : 14 documents repris de CTEFA-CLASSIC V3.5 (certificat de scolarité, autorisations d'absence, convocation, exeat, fiche de suivi, attestations de travail / prise / cessation de service, note de service, cartes scolaires, page de garde, cartes professionnelles), accords masculin / féminin automatiques, numéro d'ordre atomique (001/CODE/2026), registre avec réimpression identique et annulation tracée, QR code de vérification ouvrant une page publique. **Republier les règles Firestore** (nouvelle collection `verifications`).
+
+## Étape 6 — Vie scolaire et tableau de bord
+Menu **Vie scolaire** (droit Listes) : appel des élèves par classe et par mois (A / R, jours de classe, taux de présence), pointage du personnel avec observations, quantum horaire (prévu, non réalisé, additionnel → réalisé, taux), synthèse du mois imprimable. Saisie au clavier (Entrée = élève suivant). Accueil enrichi en tableau de bord : élèves et classes, personnel, finances, vie scolaire.
