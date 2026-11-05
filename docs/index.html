@@ -186,6 +186,8 @@ tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surv
   .cs-tete { background: #0f5132; color: #fff; text-align: center; padding: 1.5mm; line-height: 1.2 } .cs-corps { display: flex; gap: 3mm; padding: 2mm 3mm; flex: 1; line-height: 1.35 }
   .cs-photo { width: 20mm; height: 25mm; border: 1px dashed #777; display: flex; align-items: center; justify-content: center; font-size: 7pt; color: #777; flex: none } .cs-pied { text-align: right; padding: 0 3mm 1.5mm; font-size: 7pt }
   .page-garde .pg-centre { text-align: center; margin-top: 60mm } .page-garde h1 { font-size: 26pt; border: 3px double #000; padding: 10mm; margin: 0 15mm 12mm } .page-garde h2 { font-size: 20pt } .page-garde p { font-size: 14pt }
+  .bloc-photo { display:flex; gap:12px; align-items:center; margin:6px 0 10px } .bloc-photo .ph { width:72px; height:90px; border:1px dashed #999; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:11px; color:#888; background:#fafafa; flex:none } .bloc-photo img { width:100%; height:100%; object-fit:cover }
+  img.cs-photo { object-fit: cover; border-style: solid }
 </style>
 </head>
 <body>
@@ -746,7 +748,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   function rendrePlusTard() { clearTimeout(minuteurRendu); minuteurRendu = setTimeout(rendreSiLibre, 120); }
   function rendreSiLibre() {
     var a = document.activeElement;
-    if ($('#voile') || saisieEnCours || (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.closest('#vue'))) { majCadre(); minuteurRendu = setTimeout(rendreSiLibre, 1500); return; }
+    if ($('#voile') || saisieEnCours || (typeof scan !== 'undefined' && scan.actif) || (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.closest('#vue'))) { majCadre(); minuteurRendu = setTimeout(rendreSiLibre, 1500); return; }
     rendre();
   }
   function majCadre() {
@@ -1491,7 +1493,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     ui2.ongletEleve = 'identite';
     var c = classeDe(x.classe_id);
     ouvrirBoite('<div class="boite large"><h2>' + e(nomEleve(x)) + ' <span class="aide">' + e(x.matricule) + ' · ' + e(c ? c.nom : 'sans classe') + ' · ' + (x.statut === 'ACTIF' ? 'Actif' : 'Inactif' + (x.motif_sortie ? ' (' + e(x.motif_sortie) + ')' : '')) + '</span></h2>' +
-      formulaireEleve(x) +
+      blocPhoto('eleves', x, 'ELEVES') + formulaireEleve(x) +
       (peut('ELEVES') && !enMaintenancePourMoi() ? '<div class="carte-pied" style="padding-left:0;padding-right:0">' +
         (x.statut === 'ACTIF' ? '<button class="btn danger" data-act="el-sortie" data-id="' + id + '">Enregistrer une sortie</button>' : '<button class="btn" data-act="el-reactiver" data-id="' + id + '">Réactiver</button>') +
         '<span class="aide">Modifié par ' + e(x.modifie_par) + ' ' + ilya(x.modifie_le) + '</span></div>' : '') + '</div>');
@@ -1784,7 +1786,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     var ro = !peut('PERSONNEL') || enMaintenancePourMoi() ? ' disabled' : '';
     var champ = function (k, lib, attrs) { return '<div class="champ"><label>' + lib + '</label><input name="' + k + '" value="' + e(/date/.test(k) ? dateFr(p[k]) : p[k]) + '"' + (attrs || '') + ro + '></div>'; };
     var cl = classesTriees().map(function (c) { return '<label style="display:flex;gap:6px;align-items:center;color:var(--texte)"><input type="checkbox" name="classe" value="' + c.id + '"' + ((p.classes || []).indexOf(c.id) >= 0 ? ' checked' : '') + ro + '> ' + e(c.nom) + '</label>'; }).join('');
-    ouvrirBoite('<form class="boite large" id="f-agent"' + (p.id ? ' data-id="' + p.id + '" data-version="' + p.version + '"' : '') + '><h2>' + (p.id ? e(nomPers(p)) : 'Nouvel agent') + '</h2>' +
+    ouvrirBoite('<form class="boite large" id="f-agent"' + (p.id ? ' data-id="' + p.id + '" data-version="' + p.version + '"' : '') + '><h2>' + (p.id ? e(nomPers(p)) : 'Nouvel agent') + '</h2>' + blocPhoto('personnel', p, 'PERSONNEL') +
       '<h3 style="margin:6px 0">Identité et fonction</h3><div class="grille">' +
       '<div class="champ"><label>Civilité</label><select name="civilite"' + ro + '>' + opt(['', 'M.', 'Mme', 'Mlle', 'Oustaz', 'Serigne', 'Sokhna'], p.civilite) + '</select></div>' +
       champ('prenom', 'Prénom *', ' required') + champ('nom', 'Nom *', ' required') +
@@ -2625,14 +2627,16 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     var niv = niveauDe(ui3.classe);
     if (ui3.compo > nbPeriodes(niv)) ui3.compo = 1;
     return '<h2>Évaluations</h2><nav class="onglets">' + Object.keys(ONGLETS_NOTES).map(function (k) { return '<a href="#notes/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_NOTES[k] + '</a>'; }).join('') + '</nav>' +
-      (o === 'essais' ? '' : '<div class="carte pas-imprimer"><div class="carte-corps ligne"><div><label>Classe active</label><select id="n-classe">' + optClasses(ui3.classe) + '</select></div>' +
+      (o === 'essais' ? '<div class="carte pas-imprimer"><div class="carte-corps ligne"><div><label>Classe (saisie et affichage des tests)</label><select id="n-classe">' + optClasses(ui3.classe) + '</select></div>' +
+        '<label class="fixe" style="display:flex;gap:6px;align-items:center;color:var(--texte)"><input type="checkbox" id="es-tous"' + (ui3.esTousTests ? ' checked' : '') + '> Afficher les tests de toutes les classes</label></div></div>' : '<div class="carte pas-imprimer"><div class="carte-corps ligne"><div><label>Classe active</label><select id="n-classe">' + optClasses(ui3.classe) + '</select></div>' +
         '<div><label>' + (o === 'saisie' ? 'Composition' : 'Période') + '</label><select id="n-compo">' + periodesOpt(niv, o === 'saisie' ? ui3.compo : ui3.resPeriode, o !== 'saisie') + '</select></div>' +
         (o === 'saisie' ? '<div><label>Matière</label><select id="n-matiere"><option value="">Toutes les matières</option>' + matieresListe(classeDe(ui3.classe).niveau).map(function (m) { return '<option value="' + e(m.cle) + '"' + (m.cle === ui3.matiere ? ' selected' : '') + '>' + e(m.langue + ' · ' + m.matiere) + '</option>'; }).join('') + '</select></div>' : '') +
         '</div></div>') + (notesChargees(ui3.classe) || o === 'essais' ? NO[o]() : '<p class="aide">Chargement des notes…</p>');
   };
   VUES.notes.apres = function () {
     var o = ONGLETS_NOTES[sousVue()] ? sousVue() : 'saisie';
-    var c = $('#n-classe'); if (c) c.onchange = function () { libererVerrou(); ui3.classe = c.value; ui3.matiere = ''; rendre(); };
+    var c = $('#n-classe'); if (c) c.onchange = function () { libererVerrou(); ui3.classe = c.value; ui3.matiere = ''; ui3.esClasse = c.value; rendre(); };
+    var et = $('#es-tous'); if (et) et.onchange = function () { ui3.esTousTests = et.checked; rendre(); };
     var p = $('#n-compo'); if (p) p.onchange = function () { libererVerrou(); if (o === 'saisie') ui3.compo = Number(p.value); else ui3.resPeriode = p.value === 'A' ? 'A' : Number(p.value); rendre(); };
     var m = $('#n-matiere'); if (m) m.onchange = function () { libererVerrou(); ui3.matiere = m.value; rendre(); };
     if (NO[o].apres) NO[o].apres();
@@ -3001,25 +3005,30 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   }
   function signeGain(g) { return g === null ? '' : (g > 0 ? '▲ +' : g < 0 ? '▼ ' : '= ') + nb(g); }
   NO.essais = function () {
-    var essais = liste(S.epreuves).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+    var essais = liste(S.epreuves).filter(function (x) { return ui3.esTousTests || (x.classes || []).indexOf(ui3.classe) >= 0; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
     var E = ui3.essai && S.epreuves[ui3.essai];
     if (!E) return carte('Tests et essais', '<p class="aide" style="margin-top:0">Prétest et post-test (mesure de la progression), essais CFEE / BFEM, tests de niveau : chaque test a ses épreuves, barèmes et coefficients, pour une ou plusieurs classes. ' +
       'Un post-test se rattache à son prétest : l\'application calcule alors le gain de chaque élève.</p>' +
       '<ul class="liste-simple">' + (essais.map(function (x) {
         var lien = x.pretest_id && S.epreuves[x.pretest_id] ? ' · comparé à « ' + e(S.epreuves[x.pretest_id].nom) + ' »' : '';
         return '<li><a href="#" data-act="es-ouvrir" data-id="' + x.id + '"><strong>' + e(x.nom) + '</strong></a> <span class="pastille">' + e(x.examen) + '</span> <span class="aide">' + dateFr(x.date) + ' · ' + (x.classes || []).map(function (id) { return (classeDe(id) || {}).nom; }).join(', ') + lien + '</span></li>';
-      }).join('') || '<li class="aide">Aucun test.</li>') + '</ul>',
+      }).join('') || '<li class="aide">Aucun test pour ' + e((classeDe(ui3.classe) || {}).nom || 'cette classe') + '.</li>') + '</ul>',
       peut('NOTES') ? '<button class="btn plein" data-act="es-nouveau">➕ Nouveau test</button>' : '');
     var R = resultatsEssai(E), ro = !peut('NOTES') || enMaintenancePourMoi() ? ' disabled' : '';
     var C = E.examen === 'Post-test' ? comparaison(E) : null;
     var parId = {}; if (C) C.lignes.forEach(function (l) { parId[l.eleve.id] = l; });
-    var h = carte(e(E.nom) + ' · ' + e(E.examen) + ' · ' + dateFr(E.date), '<div class="table-defil grille-notes"><table class="notes"><thead><tr><th class="fixe-g">Élève</th>' +
+    if (ui3.esClasse === undefined || ui3.esClasse === null) ui3.esClasse = ui3.classe;
+    if (ui3.esClasse && (E.classes || []).indexOf(ui3.esClasse) < 0) ui3.esClasse = (E.classes || []).indexOf(ui3.classe) >= 0 ? ui3.classe : '';
+    var choixCl = (E.classes || []).length >= 1 ? '<div class="ligne pas-imprimer" style="margin-bottom:8px"><div><label>Saisie et affichage par classe</label><select id="es-classe">' + opt(E.classes.map(function (id) { return [id, (classeDe(id) || {}).nom || '?']; }), ui3.esClasse, 'Toutes les classes du test') + '</select></div>' + (ui3.esClasse ? '<div class="aide" style="align-self:end">Rang général · (rang dans la classe)</div>' : '') + '</div>' : '';
+    var vus = R.lignes.filter(function (l) { return !ui3.esClasse || l.eleve.classe_id === ui3.esClasse; });
+    if (ui3.esClasse) classer(vus, 'cl', function (l) { return l.classe ? l.g : null; });
+    var h = carte(e(E.nom) + ' · ' + e(E.examen) + ' · ' + dateFr(E.date), choixCl + '<div class="table-defil grille-notes"><table class="notes"><thead><tr><th class="fixe-g">Élève</th>' +
       E.epreuves.map(function (p) { return '<th>' + e(p.nom) + '<br><small>/' + p.bareme + ' · coef ' + p.coef + '</small></th>'; }).join('') + '<th>Moy./20</th><th>Rang</th>' + (C ? '<th>Prétest</th><th>Gain</th>' : '<th>Résultat</th>') + '</tr></thead><tbody>' +
-      R.lignes.map(function (l, i) {
+      vus.map(function (l, i) {
         var c = parId[l.eleve.id];
         return '<tr><td class="fixe-g">' + e(l.eleve.prenom + ' ' + l.eleve.nom) + ' <span class="aide">' + e((classeDe(l.eleve.classe_id) || {}).nom) + '</span></td>' +
           E.epreuves.map(function (p, j) { var v = l.vals[j]; return '<td class="cn"><input class="note-essai" inputmode="decimal" data-el="' + l.eleve.id + '" data-i="' + j + '" value="' + (v === null || v === undefined ? '' : String(v).replace('.', ',')) + '"' + ro + '></td>'; }).join('') +
-          '<td class="c"><strong>' + nb(l.g) + '</strong></td><td class="c">' + (l.classe ? rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) : '') + '</td>' +
+          '<td class="c"><strong>' + nb(l.g) + '</strong></td><td class="c">' + (l.classe ? rangTexte(l.rang_g, l.ex_g, l.eleve.sexe) + (ui3.esClasse ? ' <span class="aide">(' + rangTexte(l.rang_cl, l.ex_cl, l.eleve.sexe) + ')</span>' : '') : '') + '</td>' +
           (C ? '<td class="c">' + nb(c && c.avant) + '</td><td class="c ' + (c && c.gain > 0 ? 'gain-plus' : c && c.gain < 0 ? 'gain-moins' : '') + '">' + signeGain(c ? c.gain : null) + '</td>'
              : '<td>' + (l.classe ? (l.g >= R.seuil ? '<span class="pastille ok">' + (E.examen === 'Prétest' ? 'Acquis' : 'Admis') + '</span>' : '<span class="pastille ko">' + (E.examen === 'Prétest' ? 'À renforcer' : 'Ajourné') + '</span>') : '') + '</td>') + '</tr>';
       }).join('') + '</tbody></table></div><p class="aide">Seuil : ' + nb(R.seuil) + ' / 20 · ' + R.admis + ' sur ' + R.classes + ' classés (' + nb(R.classes ? arr(100 * R.admis / R.classes, 1) : null) + ' %) · moyenne ' + nb(R.moyenne) + '. Tapez ABS pour un absent.</p>',
@@ -3030,6 +3039,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     else if (E.examen === 'Post-test') h = '<div class="alerte att">Ce post-test n\'est relié à aucun prétest : la comparaison est impossible.</div>' + h;
     return h;
   };
+  NO.essais.apres = function () { var s2 = $('#es-classe'); if (s2) s2.onchange = function () { ui3.esClasse = s2.value; if (s2.value) ui3.classe = s2.value; rendre(); }; };
   function boiteEssai() {
     var pretests = liste(S.epreuves).filter(function (x) { return x.examen === 'Prétest'; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
     ouvrirBoite('<form class="boite large" id="f-essai"><h2>Nouveau test</h2><div class="grille">' +
@@ -3068,9 +3078,9 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     var E = ui3.essai && S.epreuves[ui3.essai];
     if (b.dataset.act === 'es-palmares2' && E) {
       var R = resultatsEssai(E);
-      imprimer('<div class="document">' + enteteBulletin('PALMARÈS — ' + e(E.nom) + ' (' + e(E.examen) + ' du ' + dateFr(E.date) + ')') +
+      imprimer('<div class="document">' + enteteBulletin('PALMARÈS — ' + e(E.nom) + ' (' + e(E.examen) + ' du ' + dateFr(E.date) + ')' + (ui3.esClasse ? ' — ' + e((classeDe(ui3.esClasse) || {}).nom) : '')) +
         tableDoc(['Rang', 'Élève', 'Classe'].concat(E.epreuves.map(function (p) { return p.nom + ' /' + p.bareme; })).concat(['Moyenne /20', 'Résultat']),
-          R.lignes.filter(function (l) { return l.classe; }).sort(function (a, c) { return a.rang_g - c.rang_g; }).map(function (l) {
+          R.lignes.filter(function (l) { return l.classe && (!ui3.esClasse || l.eleve.classe_id === ui3.esClasse); }).sort(function (a, c) { return a.rang_g - c.rang_g; }).map(function (l) {
             return [rangTexte(l.rang_g, l.ex_g, l.eleve.sexe), l.eleve.prenom + ' ' + l.eleve.nom, (classeDe(l.eleve.classe_id) || {}).nom].concat(l.vals.map(function (v) { return v === null ? '' : nb(v); })).concat([nb(l.g), l.g >= R.seuil ? 'Admis' : 'Ajourné']);
           })) + '<p class="doc-texte">' + R.admis + ' sur ' + R.classes + ' (' + nb(R.classes ? arr(100 * R.admis / R.classes, 1) : null) + ' %) · moyenne ' + nb(R.moyenne) + '</p>' + visa() + '</div>');
     } else if (b.dataset.act === 'es-comparer' && E) {
@@ -3272,7 +3282,10 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
         var m = Math.round(Number(t.montants[c.niveau]) * coefProfil(x));
         return '<tr class="optionnel"><td><input type="checkbox" class="g-opt" data-j="' + j + '"></td><td>' + e(t.categorie) + ' <span class="aide">(facultatif)</span></td><td>' +
           (t.periodicite === 'Mensuel' ? '<select class="g-opt-mois" data-j="' + j + '">' + opt(moisListe(), moisListe()[cur]) + '</select>' : '—') + '</td><td class="d">' + fcfa(m) + '</td><td></td><td class="d">' + fcfa(m) + '</td></tr>';
-      }).join('') + '</tbody></table></div>';
+      }).join('') +
+      '<tr class="optionnel"><td><input type="checkbox" class="g-libre"' + (lignes.some(function (l) { return l.reste; }) ? '' : ' checked') + '></td><td><select class="g-libre-cat">' + opt(valeursListe('categories_caisse', []).filter(function (c) { return c.sens === 'ENTREE' && c.categorie !== 'Avance élève'; }).map(function (c) { return c.categorie; }), 'Mensualité') + '</select> <span class="aide">(saisie libre)</span></td>' +
+      '<td><select class="g-libre-mois">' + opt(moisListe(), moisListe()[cur], '—') + '</select></td><td class="d" colspan="3"><input class="g-libre-mt" inputmode="numeric" placeholder="Montant" style="width:110px;text-align:right"></td></tr>' +
+      '</tbody></table></div>' + (lignes.length ? '' : '<p class="aide">Aucune somme due calculée pour cet élève (grille des tarifs vide ou élève exonéré) : utilisez la ligne « saisie libre ».</p>');
     var hist = {}, an = annulees();
     operations().filter(function (o) { return o.eleve_id === x.id && o.type === 'ENCAISSEMENT'; }).forEach(function (o) { (hist[o.piece] = hist[o.piece] || []).push(o); });
     var pieces = Object.keys(hist).sort().reverse();
@@ -3301,7 +3314,8 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
         (al.lignes.map(function (l) { return e(l.categorie + (l.mois ? ' ' + l.mois : '')) + ' : ' + fcfa(l.montant) + (l.montant < l.du ? ' <span class="pastille att">acompte, reste ' + fcfa(l.du - l.montant) + '</span>' : ''); }).join(' · ') || '—') +
         (al.surplus > 0 ? '<br><span class="pastille ok">Surplus ' + fcfa(al.surplus) + ' gardé en avance pour l\'élève</span>' : '') + (al.surplus < 0 ? '' : '');
     };
-    $$('.g-ligne, .g-opt, .g-opt-mois').forEach(function (c) { c.onchange = function () { maj(true); }; });
+    $$('.g-ligne, .g-opt, .g-opt-mois, .g-libre, .g-libre-cat, .g-libre-mois').forEach(function (c) { c.onchange = function () { maj(true); }; });
+    var lmt = $('.g-libre-mt'); if (lmt) lmt.oninput = function () { var cb = $('.g-libre'); if (cb && lmt.value) cb.checked = true; maj(true); };
     f.montant.oninput = function () { maj(false); }; f.mode.onchange = function () { maj(false); };
     maj(true);
     f.onsubmit = function (ev) { ev.preventDefault(); encaisser(f); };
@@ -3314,7 +3328,10 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
       var t = optionnels[Number(cb.dataset.j)], m = Math.round(Number(t.montants[c.niveau]) * coefProfil(x)), mo = $('.g-opt-mois[data-j="' + cb.dataset.j + '"]');
       sel.push({ categorie: t.categorie, mois: mo ? mo.value : '', montant: m, paye: 0, reste: m });
     });
-    return sel.sort(function (a, b) { return (a.mois ? moisListe().indexOf(a.mois) : -1) - (b.mois ? moisListe().indexOf(b.mois) : -1); });
+    var lb = $('.g-libre:checked'), lm = Math.round(Number(String(($('.g-libre-mt') || {}).value || '').replace(/\s/g, '')) || 0);
+    var trie = sel.sort(function (a, b) { return (a.mois ? moisListe().indexOf(a.mois) : -1) - (b.mois ? moisListe().indexOf(b.mois) : -1); });
+    if (lb && lm > 0) trie.push({ categorie: $('.g-libre-cat').value, mois: $('.g-libre-mois').value, montant: lm, paye: 0, reste: lm });
+    return trie;
   }
   /** Répartit le montant versé sur les lignes cochées, de la plus ancienne à la plus récente */
   function repartir(sel, verse, mode) {
@@ -4075,15 +4092,16 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
 
   /* ---------- documents « en lot » (cartes, page de garde, fiche de suivi) ---------- */
   function carteEleve(x, c) {
-    return '<div class="carte-sco"><div class="cs-tete"><strong>' + e(S.ecole.nom) + '</strong><br><small>CARTE SCOLAIRE ' + e(S.ecole.annee) + '</small></div><div class="cs-corps"><div class="cs-photo">PHOTO</div><div>' +
+    return '<div class="carte-sco"><div class="cs-tete"><strong>' + e(S.ecole.nom) + '</strong><br><small>CARTE SCOLAIRE ' + e(S.ecole.annee) + '</small></div><div class="cs-corps">' + photoCarte(x) + '<div>' +
       '<strong>' + e(x.prenom + ' ' + x.nom) + '</strong>' + (x.prenom_ar || x.nom_ar ? '<br><span dir="rtl">' + e((x.prenom_ar || '') + ' ' + (x.nom_ar || '')) + '</span>' : '') + '<br>Classe : ' + e(c.nom) + '<br>Matricule : ' + e(x.matricule) +
       '<br>Né' + (x.sexe === 'F' ? 'e' : '') + ' le ' + e(dateFr(x.date_naiss)) + (x.telephone ? '<br>Tél. parent : ' + e(x.telephone) : '') + '</div></div><div class="cs-pied">' + e(chefEtablissement().qualite) + '</div></div>';
   }
   function cartePro(p) {
-    return '<div class="carte-sco"><div class="cs-tete"><strong>' + e(S.ecole.nom) + '</strong><br><small>CARTE PROFESSIONNELLE ' + e(S.ecole.annee) + '</small></div><div class="cs-corps"><div class="cs-photo">PHOTO</div><div>' +
+    return '<div class="carte-sco"><div class="cs-tete"><strong>' + e(S.ecole.nom) + '</strong><br><small>CARTE PROFESSIONNELLE ' + e(S.ecole.annee) + '</small></div><div class="cs-corps">' + photoCarte(p) + '<div>' +
       '<strong>' + e((p.civilite ? p.civilite + ' ' : '') + nomPers(p)) + '</strong>' + (p.prenom_ar || p.nom_ar ? '<br><span dir="rtl">' + e((p.prenom_ar || '') + ' ' + (p.nom_ar || '')) + '</span>' : '') + '<br>' + e(p.fonction || '') +
       (p.matricule ? '<br>Matricule : ' + e(p.matricule) : '') + (p.telephone ? '<br>Tél. : ' + e(p.telephone) : '') + '</div></div><div class="cs-pied">' + e(chefEtablissement().qualite) + '</div></div>';
   }
+  function photoCarte(x) { return x.photo ? '<img class="cs-photo" src="' + e(x.photo) + '" alt="">' : '<div class="cs-photo">PHOTO</div>'; }
   function grilleCartes(cartes) { var p = []; for (var i = 0; i < cartes.length; i += 10) p.push('<div class="planche-cartes">' + cartes.slice(i, i + 10).join('') + '</div>'); return p.join('<div class="saut"></div>'); }
   function docLot(id, b, v) {
     if (id === 'CARTES_ELEVES') return grilleCartes(elevesActifsDe(b.c.id).sort(function (a, c) { return a.nom.localeCompare(c.nom); }).map(function (x) { return carteEleve(x, b.c); }));
@@ -4183,18 +4201,85 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   };
   DO.registre.apres = function () { var r = $('#r-rech'); if (r) r.oninput = function () { ui6.regRech = r.value; var p = r.selectionStart; rendre(); var n = $('#r-rech'); n.focus(); n.setSelectionRange(p, p); }; };
   DO.verifier = function () {
-    return carte('Vérifier un document', '<p class="aide" style="margin-top:0">Scannez le QR code du document avec l\'appareil photo d\'un téléphone : la page de vérification s\'ouvre, même sans compte. Ou saisissez ici le numéro d\'ordre ou la clé imprimée sous le QR.</p>' +
-      '<form id="f-verif" class="ligne"><div><label>Numéro (ex. 007/EFA/2026) ou clé</label><input name="q" value="' + e(ui6.verif) + '" required></div><div class="fixe"><button class="btn plein">Vérifier</button></div></form><div id="verif-res"></div>');
+    return carte('Vérifier un document', '<p class="aide" style="margin-top:0">Scannez le QR code imprimé sur le document, ou saisissez son numéro d\'ordre.</p>' +
+      '<div class="ligne"><div class="fixe"><button class="btn plein" data-act="scan-demarrer">📷 Scanner avec la caméra</button></div>' +
+      '<div class="fixe"><label class="btn" style="cursor:pointer">🖼 Lire une photo du QR<input type="file" id="scan-photo" accept="image/*" capture="environment" hidden></label></div>' +
+      '<div class="fixe"><button class="btn cache" id="scan-stop" data-act="scan-arreter">⏹ Arrêter</button></div></div>' +
+      '<div id="scan-zone" class="cache" style="margin:10px 0"><video id="scan-video" playsinline muted style="width:100%;max-width:420px;border-radius:8px;background:#000"></video><p class="aide">Placez le QR code dans le cadre…</p></div>' +
+      '<form id="f-verif" class="ligne" style="margin-top:10px"><div><label>Numéro (ex. 007/EFY/2026) ou clé</label><input name="q" value="' + e(ui6.verif) + '"></div><div class="fixe"><button class="btn">Vérifier</button></div></form><div id="verif-res"></div>');
   };
   DO.verifier.apres = function () {
     var f = $('#f-verif'); if (!f) return;
-    f.onsubmit = function (ev) {
-      ev.preventDefault(); ui6.verif = f.q.value.trim(); var q = ui6.verif.toUpperCase().replace(/^.*#VERIFIER\//, '');
-      var d = liste(S.documents_registre).find(function (x) { return x.numero === ui6.verif || x.cle === q; });
-      $('#verif-res').innerHTML = d ? resultatVerif({ numero: d.numero, type: d.titre, beneficiaire: d.beneficiaire, date: d.date, ecole: S.ecole.nom, annee: d.annee, valide: !d.annule, motif: d.motif_annulation }) :
-        '<div class="alerte ko" style="margin-top:10px"><strong>Document introuvable</strong> dans le registre de l\'école. Il peut s\'agir d\'un faux ou d\'un document non numéroté.</div>';
-    };
+    f.onsubmit = function (ev) { ev.preventDefault(); verifierTexte(f.q.value.trim()); };
+    var ph = $('#scan-photo'); if (ph) ph.onchange = function () { if (ph.files[0]) lirePhotoQR(ph.files[0]); };
   };
+  /** Texte lu (lien du QR, clé ou numéro) → résultat */
+  function verifierTexte(t) {
+    ui6.verif = t; if (!t) return;
+    var m = /#verifier\/([A-Za-z0-9]+)/i.exec(t), cle = m ? m[1].toUpperCase() : /^[A-Z0-9]{12}$/i.test(t) ? t.toUpperCase() : '';
+    var z = $('#verif-res'); if (!z) return;
+    var av = m && t.indexOf(location.origin + location.pathname) !== 0 ? '<div class="alerte att" style="margin-top:10px">⚠ Ce QR code renvoie vers une autre adresse que celle de l\'application : un document authentique de l\'école mène toujours à cette application.</div>' : '';
+    var d = liste(S.documents_registre).find(function (x) { return x.numero === t || (cle && x.cle === cle); });
+    if (d) { z.innerHTML = av + resultatVerif({ numero: d.numero, type: d.titre, beneficiaire: d.beneficiaire, date: d.date, ecole: S.ecole.nom, annee: d.annee, valide: !d.annule, motif: d.motif_annulation }); return; }
+    if (!cle) { z.innerHTML = '<div class="alerte ko" style="margin-top:10px"><strong>Document introuvable</strong> dans le registre de l\'école. Il peut s\'agir d\'un faux ou d\'un document non numéroté.</div>'; return; }
+    col('verifications').doc(cle).get().then(function (s) {
+      z.innerHTML = av + (s.exists ? resultatVerif(s.data()) : '<div class="alerte ko" style="margin-top:10px"><strong>✖ Document inconnu.</strong> Ce code ne correspond à aucun document délivré par l\'école.</div>');
+    }).catch(function () { z.innerHTML = '<div class="alerte att">Vérification impossible (connexion internet ?).</div>'; });
+  }
+  /* ---------- lecture du QR : BarcodeDetector du navigateur, sinon jsQR ---------- */
+  var scan = { flux: null, actif: false, det: null }, chargementJsQR = null;
+  function chargerJsQR() {
+    if (window.jsQR) return Promise.resolve();
+    return chargementJsQR = chargementJsQR || new Promise(function (ok, ko) { var s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js'; s.onload = ok; s.onerror = function () { chargementJsQR = null; ko(new Erreur('Lecteur de QR indisponible (connexion internet nécessaire la première fois).')); }; document.head.appendChild(s); });
+  }
+  function preparerDecodeur() {
+    if ('BarcodeDetector' in window) { try { scan.det = new BarcodeDetector({ formats: ['qr_code'] }); return Promise.resolve(); } catch (x) { /* non pris en charge */ } }
+    scan.det = null; return chargerJsQR();
+  }
+  function decoder(source, l, h) {
+    if (scan.det) return scan.det.detect(source).then(function (r) { return r.length ? r[0].rawValue : null; }).catch(function () { return null; });
+    var c = document.createElement('canvas'); c.width = l; c.height = h; var x = c.getContext('2d'); x.drawImage(source, 0, 0, l, h);
+    var r = jsQR(x.getImageData(0, 0, l, h).data, l, h); return Promise.resolve(r ? r.data : null);
+  }
+  function demarrerScan() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return toast('Caméra non disponible sur cet appareil : utilisez « Lire une photo du QR ».', 'ko');
+    preparerDecodeur().then(function () { return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); }).then(function (fl) {
+      scan.flux = fl; scan.actif = true; var v = $('#scan-video'); v.srcObject = fl; v.play();
+      $('#scan-zone').classList.remove('cache'); $('#scan-stop').classList.remove('cache');
+      var boucle = function () {
+        if (!scan.actif) return; var v2 = $('#scan-video'); if (!v2) return arreterScan();
+        if (v2.readyState < 2) return setTimeout(boucle, 200);
+        decoder(v2, v2.videoWidth, v2.videoHeight).then(function (t) {
+          if (t) { arreterScan(); if (navigator.vibrate) navigator.vibrate(120); var i = $('#f-verif input'); if (i) i.value = t; verifierTexte(t); } else setTimeout(boucle, 250);
+        });
+      };
+      boucle();
+    }).catch(function (x) { arreterScan(); toast(x instanceof Erreur ? x.message : 'Accès à la caméra refusé : autorisez-le dans le navigateur, ou utilisez « Lire une photo du QR ».', 'ko'); });
+  }
+  function arreterScan() {
+    scan.actif = false; if (scan.flux) scan.flux.getTracks().forEach(function (t) { t.stop(); }); scan.flux = null;
+    var z = $('#scan-zone'); if (z) z.classList.add('cache'); var s = $('#scan-stop'); if (s) s.classList.add('cache');
+  }
+  function lirePhotoQR(fichier) {
+    preparerDecodeur().then(function () {
+      var img = new Image(), url = URL.createObjectURL(fichier);
+      img.onload = function () {
+        var k = Math.min(1, 1600 / Math.max(img.width, img.height));
+        decoder(img, Math.round(img.width * k), Math.round(img.height * k)).then(function (t) {
+          URL.revokeObjectURL(url);
+          if (!t) return toast('Aucun QR code lisible sur cette photo. Reprenez-la plus près, bien nette.', 'ko');
+          var i = $('#f-verif input'); if (i) i.value = t; verifierTexte(t);
+        });
+      };
+      img.src = url;
+    }).catch(erreurEcriture);
+  }
+  window.addEventListener('hashchange', function () { if (scan.actif) arreterScan(); });
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    if (b.dataset.act === 'scan-demarrer') demarrerScan();
+    if (b.dataset.act === 'scan-arreter') arreterScan();
+  });
   function resultatVerif(v) {
     return '<div class="alerte ' + (v.valide ? 'ok' : 'ko') + '" style="margin-top:10px"><strong style="font-size:1.15em">' + (v.valide ? '✔ Document authentique et valide' : '✖ Document ANNULÉ') + '</strong><br>' +
       e(v.type) + ' N° <strong>' + e(v.numero) + '</strong><br>Bénéficiaire : <strong>' + e(v.beneficiaire) + '</strong><br>Délivré le ' + dateFr(v.date) + ' par ' + e(v.ecole) + ' (année ' + e(v.annee) + ')' + (v.valide ? '' : '<br>Motif : ' + e(v.motif || '')) + '</div>';
@@ -4243,6 +4328,55 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
         case 'd-reg-imprimer': imprimer('<div class="document">' + enteteDocument('REGISTRE DES DOCUMENTS DÉLIVRÉS — ' + S.ecole.annee) + tableDoc(['N°', 'Date', 'Document', 'Bénéficiaire', 'Délivré par', 'État'],
           liste(S.documents_registre).sort(function (a, c) { return (a.n || 0) - (c.n || 0); }).map(function (d) { return [d.numero, dateFr(d.date), d.titre, d.beneficiaire, d.delivre_par, d.annule ? 'Annulé : ' + (d.motif_annulation || '') : 'Valide']; })) + visa() + '</div>'); break;
       }
+    } catch (x) { erreurEcriture(x); }
+  });
+
+  /* ===================================================================
+   *  PHOTOS (élèves et personnel) : réduites à 240 × 300 px, JPEG ~15 Ko,
+   *  rangées dans la fiche ; utilisées par les cartes scolaires / professionnelles.
+   * =================================================================== */
+  function blocPhoto(nom, x, droit) {
+    if (!x || !x.id) return '';
+    var ro = !peut(droit) || enMaintenancePourMoi();
+    return '<div class="bloc-photo"><div class="ph">' + (x.photo ? '<img src="' + e(x.photo) + '" alt="Photo">' : '<span>Pas de photo</span>') + '</div>' + (ro ? '' :
+      '<div style="display:flex;flex-direction:column;gap:6px"><button type="button" class="btn petit" data-act="photo-choisir" data-col="' + nom + '" data-id="' + x.id + '" data-droit="' + droit + '">📷 ' + (x.photo ? 'Changer la photo' : 'Ajouter une photo') + '</button>' +
+      (x.photo ? '<button type="button" class="btn petit danger" data-act="photo-retirer" data-col="' + nom + '" data-id="' + x.id + '" data-droit="' + droit + '">Retirer</button>' : '') + '<span class="aide">Appareil photo ou fichier image</span></div>') + '</div>';
+  }
+  function reduireImage(fichier, l, h) {
+    return new Promise(function (ok, ko) {
+      var r = new FileReader();
+      r.onload = function () {
+        var img = new Image();
+        img.onload = function () {
+          /* recadrage centré au format portrait l × h */
+          var cv = document.createElement('canvas'); cv.width = l; cv.height = h;
+          var k = Math.max(l / img.width, h / img.height), w = img.width * k, hh = img.height * k;
+          var cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, l, h); cx.drawImage(img, (l - w) / 2, (h - hh) / 2, w, hh);
+          ok(cv.toDataURL('image/jpeg', 0.8));
+        };
+        img.onerror = function () { ko(new Erreur('Image illisible.')); }; img.src = r.result;
+      };
+      r.onerror = function () { ko(new Erreur('Fichier illisible.')); }; r.readAsDataURL(fichier);
+    });
+  }
+  function enregistrerPhoto(nom, id, droit, photo) {
+    var cache = nom === 'eleves' ? S.eleves : S.personnel, x = cache[id];
+    return modifier(nom, id, { photo: photo }, x.version, droit).then(function (ok) {
+      if (!ok) return;
+      toast(photo ? 'Photo enregistrée.' : 'Photo retirée.', 'ok');
+      var f = $('#f-eleve[data-id="' + id + '"], #f-agent[data-id="' + id + '"]'); if (f) f.dataset.version = String(Number(f.dataset.version || x.version) + 1);
+      var b = $('.bloc-photo .ph'); if (b) b.innerHTML = photo ? '<img src="' + photo + '" alt="Photo">' : '<span>Pas de photo</span>';
+    });
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act="photo-choisir"], [data-act="photo-retirer"]'); if (!b) return;
+    ev.preventDefault();
+    try {
+      verifierEcriture(b.dataset.droit);
+      if (b.dataset.act === 'photo-retirer') { enregistrerPhoto(b.dataset.col, b.dataset.id, b.dataset.droit, '').catch(erreurEcriture); return; }
+      var i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*';
+      i.onchange = function () { if (!i.files[0]) return; reduireImage(i.files[0], 240, 300).then(function (p) { return enregistrerPhoto(b.dataset.col, b.dataset.id, b.dataset.droit, p); }).catch(erreurEcriture); };
+      i.click();
     } catch (x) { erreurEcriture(x); }
   });
 
