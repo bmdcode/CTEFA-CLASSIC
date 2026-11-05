@@ -77,3 +77,6 @@ Menu **Documents** (droit Documents) : 14 documents repris de CTEFA-CLASSIC V3.5
 
 ## Étape 6 — Vie scolaire et tableau de bord
 Menu **Vie scolaire** (droit Listes) : appel des élèves par classe et par mois (A / R, jours de classe, taux de présence), pointage du personnel avec observations, quantum horaire (prévu, non réalisé, additionnel → réalisé, taux), synthèse du mois imprimable. Saisie au clavier (Entrée = élève suivant). Accueil enrichi en tableau de bord : élèves et classes, personnel, finances, vie scolaire.
+
+## Étapes 7 et 8 — Fin d'année, guides, essai de charge
+Menu **Fin d'année** (droit Migration) : sauvegarde, destination de chaque élève (décision du conseil ou moyenne annuelle), bascule vers la nouvelle année (passages, redoublants, sortants, impayés reportés en arriéré). Les données de l'année close restent dans la base et sont filtrées par année. **Aide** : guides par rôle, questions fréquentes (dont le quota Firebase), essai de charge local.

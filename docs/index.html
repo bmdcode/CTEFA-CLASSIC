@@ -191,6 +191,7 @@ tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surv
   table.vs td, table.vs th { padding: 1px !important; min-width: 0 } table.vs th.jr { font-size: 10px; line-height: 1.1; width: 26px } table.vs .off { background: #e5e7eb !important }
   input.vs-c { width: 24px; height: 26px; text-align: center; font-weight: 700; text-transform: uppercase; padding: 0; border: 1px solid #ccd } input.vs-c.m-A { background: #fecaca; color: #991b1b } input.vs-c.m-R { background: #fde68a; color: #92400e } input.vs-c:disabled { background: transparent; border-color: transparent }
   tr.ligne-jc td { background: #f8fafc }
+  .guides details { border-bottom: 1px solid var(--bord, #ddd); padding: 6px 0 } .guides ol { margin: 6px 0 4px; padding-left: 20px } .faq dt { font-weight: 700; margin-top: 8px } .faq dd { margin: 2px 0 0 }
 </style>
 </head>
 <body>
@@ -216,7 +217,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   var CONFIG_INTEGREE = null; /* ex. { apiKey: "...", authDomain: "...", projectId: "...", appId: "..." } */
   var CLE_CONFIG = 'ctefa.firebase', CLE_THEME = 'ctefa.theme', CLE_ECHECS = 'ctefa.echecs';
   var ESPACE = 'ecoles/principale';
-  var VERSION_APP = '3.0 (étape 6)';
+  var VERSION_APP = '3.0 (étape 8)';
   var ASSISTANCE = 'Baye Modou DIOP — 78 295 80 96 / 76 518 55 48';
 
   function lireLocal(k) { try { return localStorage.getItem(k); } catch (x) { return null; } }
@@ -700,9 +701,9 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   /* ===================================================================
    *  7. CADRE DE L'APPLICATION ET NAVIGATION
    * =================================================================== */
-  var TITRES = { accueil: 'Accueil', eleves: 'Élèves', notes: 'Évaluations', finances: 'Finances', documents: 'Documents', vie: 'Vie scolaire', personnel: 'Personnel', ecole: 'École', referentiels: 'Référentiels', utilisateurs: 'Utilisateurs', journal: 'Journal', sauvegarde: 'Sauvegarde', aide: 'Aide' };
+  var TITRES = { accueil: 'Accueil', eleves: 'Élèves', notes: 'Évaluations', finances: 'Finances', documents: 'Documents', vie: 'Vie scolaire', migration: 'Fin d\'année', personnel: 'Personnel', ecole: 'École', referentiels: 'Référentiels', utilisateurs: 'Utilisateurs', journal: 'Journal', sauvegarde: 'Sauvegarde', aide: 'Aide' };
   var MENU = [
-    ['accueil', null], ['eleves', ['ELEVES', 'LISTES', 'NOTES', 'CAISSE']], ['notes', ['NOTES', 'BULLETINS']], ['finances', ['CAISSE', 'FINANCES']], ['documents', 'DOCUMENTS'], ['vie', ['LISTES', 'ELEVES', 'PERSONNEL']], ['personnel', ['PERSONNEL', 'LISTES']], ['ecole', null], ['referentiels', null], ['utilisateurs', 'UTILISATEURS'], ['journal', 'UTILISATEURS'], ['sauvegarde', 'PARAMETRES'], ['aide', null]
+    ['accueil', null], ['eleves', ['ELEVES', 'LISTES', 'NOTES', 'CAISSE']], ['notes', ['NOTES', 'BULLETINS']], ['finances', ['CAISSE', 'FINANCES']], ['documents', 'DOCUMENTS'], ['vie', ['LISTES', 'ELEVES', 'PERSONNEL']], ['migration', 'MIGRATION'], ['personnel', ['PERSONNEL', 'LISTES']], ['ecole', null], ['referentiels', null], ['utilisateurs', 'UTILISATEURS'], ['journal', 'UTILISATEURS'], ['sauvegarde', 'PARAMETRES'], ['aide', null]
   ];
   function vueCourante() { var v = (location.hash.slice(1) || 'accueil').split('/')[0]; return TITRES[v] && autorisee(v) ? v : 'accueil'; }
   function sousVue() { return location.hash.slice(1).split('/')[1] || ''; }
@@ -2490,7 +2491,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     ecoutesNotes[classeId] = col('notes').where('classe_id', '==', classeId).onSnapshot(function (snap) {
       snap.docChanges().forEach(function (c) {
         if (c.type === 'removed') delete NOTES[classeId][c.doc.id];
-        else { var x = c.doc.data(); x.id = c.doc.id; NOTES[classeId][c.doc.id] = x; }
+        else { var x = c.doc.data(); x.id = c.doc.id; if (x.annee && S.ecole && x.annee !== S.ecole.annee) { delete NOTES[classeId][c.doc.id]; return; } NOTES[classeId][c.doc.id] = x; }
       });
       NOTES[classeId].__charge = true;
       majGrilleDistante(classeId);
@@ -3011,7 +3012,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   }
   function signeGain(g) { return g === null ? '' : (g > 0 ? '▲ +' : g < 0 ? '▼ ' : '= ') + nb(g); }
   NO.essais = function () {
-    var essais = liste(S.epreuves).filter(function (x) { return ui3.esTousTests || (x.classes || []).indexOf(ui3.classe) >= 0; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+    var essais = liste(S.epreuves).filter(function (x) { return !x.annee || x.annee === S.ecole.annee; }).filter(function (x) { return ui3.esTousTests || (x.classes || []).indexOf(ui3.classe) >= 0; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
     var E = ui3.essai && S.epreuves[ui3.essai];
     if (!E) return carte('Tests et essais', '<p class="aide" style="margin-top:0">Prétest et post-test (mesure de la progression), essais CFEE / BFEM, tests de niveau : chaque test a ses épreuves, barèmes et coefficients, pour une ou plusieurs classes. ' +
       'Un post-test se rattache à son prétest : l\'application calcule alors le gain de chaque élève.</p>' +
@@ -4592,6 +4593,152 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     blocs += carte('Vie scolaire', '<p class="aide" style="margin-top:0">Appel des élèves, pointage du personnel et quantum horaire du mois.</p>', '<a class="btn" href="#vie/appel">Faire l\'appel</a><a class="btn" href="#vie/synthese">Synthèse du mois</a>');
     return h.replace(/(<div class="grille">)/, '<div class="grille">' + blocs + '</div>$1');
   };
+
+  /* ===================================================================
+   *  ÉTAPE 7 — FIN D'ANNÉE : PASSAGE DES ÉLÈVES ET NOUVELLE ANNÉE SCOLAIRE
+   *  1. sauvegarde ; 2. destination de chaque élève (décision du conseil, sinon
+   *  proposition d'après la moyenne annuelle) ; 3. bascule : classes mises à jour,
+   *  redoublants marqués, sortants désactivés, impayés reportés en arriéré,
+   *  année de l'école changée. Les notes, la caisse, les tests et les
+   *  documents de l'année close restent dans la base (filtrés par année).
+   * =================================================================== */
+  var ui8 = { choix: {}, dest: {}, nouvelle: '', report: true, charge: null };
+  function anneeSuivante(a) { var y = parseInt(String(a).slice(0, 4), 10) || new Date().getFullYear(); return (y + 1) + '-' + (y + 2); }
+  function suffixeClasse(c) { var m = /\s+([A-Z0-9]+)$/i.exec(c.nom || ''); return m && m[1].toUpperCase() !== String(c.niveau).toUpperCase() ? m[1].toUpperCase() : ''; }
+  function classeCible(c, niveauCode) {
+    var cand = classesTriees().filter(function (k) { return k.niveau === niveauCode; }); if (!cand.length) return '';
+    var s = suffixeClasse(c); return ((s && cand.find(function (k) { return suffixeClasse(k) === s; })) || cand[0]).id;
+  }
+  /** Destination proposée : id de classe, ou 'SORTIE:motif' */
+  function destinationProposee(x, c) {
+    var niv = S.niveaux[c.niveau] || {}, d = S.decisions[idDecision(x.id)], dec = d && d.decision;
+    if (!dec && notesChargees(c.id)) { var R = calculerAnnee(c.id), l = R.lignes.find(function (y) { return y.eleve.id === x.id; }); if (l && l.classe) dec = proposition(l, niv); }
+    if (dec === 'PASSAGE' || dec === 'PASSAGE_COND' || dec === 'ORIENTATION') { var nv = (d && d.niveau_propose) || niv.suivant; return nv ? classeCible(c, nv) || 'SORTIE:Fin de cycle' : 'SORTIE:Fin de cycle'; }
+    if (dec === 'REDOUBLEMENT') return c.id;
+    if (dec === 'FIN_CYCLE') return 'SORTIE:Fin de cycle';
+    if (dec === 'EXCLUSION') return 'SORTIE:Exclusion';
+    return c.id;   /* sans décision ni note : reste (à vérifier) */
+  }
+  VUES.migration = function () {
+    if (!ui8.nouvelle) ui8.nouvelle = anneeSuivante(S.ecole.annee);
+    var cls = classesTriees(), manq = cls.filter(function (c) { return !notesChargees(c.id); });
+    manq.forEach(function (c) { ecouterNotes(c.id); });
+    var sansDec = 0, nbP = 0, nbR = 0, nbS = 0;
+    var blocs = cls.map(function (c) {
+      var el = elevesActifsDe(c.id).sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom); }); if (!el.length) return '';
+      var optsDest = '<option value="' + c.id + '">↺ Redouble / reste en ' + e(c.nom) + '</option>' + cls.filter(function (k) { return k.id !== c.id; }).map(function (k) { return '<option value="' + k.id + '">→ ' + e(k.nom) + '</option>'; }).join('') +
+        ['Fin de cycle', 'Transfert', 'Abandon', 'Exclusion'].map(function (m) { return '<option value="SORTIE:' + m + '">✖ Sortie : ' + m + '</option>'; }).join('');
+      return '<h3 style="margin:14px 0 6px">' + e(c.nom) + ' <span class="aide">(' + el.length + ' élève(s) · niveau suivant : ' + e(nomNiveau((S.niveaux[c.niveau] || {}).suivant) || 'fin de cycle') + ')</span></h3><table><tbody>' + el.map(function (x) {
+        var d = S.decisions[idDecision(x.id)]; if (!d) sansDec++;
+        var v = ui8.dest[x.id] !== undefined ? ui8.dest[x.id] : destinationProposee(x, c); ui8.dest[x.id] = v;
+        if (v === c.id) nbR++; else if (/^SORTIE/.test(v)) nbS++; else nbP++;
+        return '<tr><td style="width:38%">' + e(x.prenom + ' ' + x.nom) + ' <span class="aide">' + e(x.matricule) + '</span></td><td class="aide" style="width:22%">' + (d ? 'Conseil : ' + e(DECISIONS[d.decision] || d.decision) : '<span class="pastille att">sans décision</span>') + '</td>' +
+          '<td><select class="mig-dest" data-id="' + x.id + '">' + optsDest.replace('value="' + v + '"', 'value="' + v + '" selected') + '</select></td></tr>';
+      }).join('') + '</tbody></table>';
+    }).join('');
+    var impayes = typeof totalDu === 'function' && peut('CAISSE');
+    return '<h2>Fin d\'année et nouvelle année scolaire</h2>' +
+      carte('1. Sauvegarde', '<p style="margin-top:0">Avant toute bascule, téléchargez une sauvegarde complète de l\'année ' + e(S.ecole.annee) + '.</p>', '<a class="btn" href="#sauvegarde">Aller à la sauvegarde</a>') +
+      carte('2. Destination de chaque élève', (manq.length ? '<p class="aide">Chargement des notes de ' + manq.length + ' classe(s)…</p>' : '') +
+        '<p class="aide" style="margin-top:0">Proposée d\'après la décision du conseil de classe, sinon d\'après la moyenne annuelle et les seuils du niveau. Vous pouvez tout changer. Un élève sans décision ni note reste dans sa classe : vérifiez-le.</p>' +
+        '<div class="tuiles">' + tuile('Passent', nbP) + tuile('Restent / redoublent', nbR) + tuile('Sortent', nbS) + tuile('Sans décision du conseil', sansDec) + '</div>' + (blocs || '<p class="aide">Aucun élève actif.</p>')) +
+      carte('3. Bascule vers la nouvelle année', '<form id="f-mig"><div class="grille"><div class="champ"><label>Nouvelle année scolaire</label><input name="annee" value="' + e(ui8.nouvelle) + '" pattern="\\d{4}-\\d{4}" required></div>' +
+        (impayes ? '<label style="display:flex;gap:8px;align-items:center;color:var(--texte)"><input type="checkbox" name="report"' + (ui8.report ? ' checked' : '') + '> Reporter les impayés de l\'année en « arriéré » de chaque élève</label>' : '') + '</div>' +
+        '<div class="alerte att">La bascule change la classe de ' + (nbP + nbR) + ' élève(s), désactive ' + nbS + ' sortant(s) et passe l\'école en ' + e(ui8.nouvelle) + '. Les notes, la caisse et les documents de ' + e(S.ecole.annee) + ' restent consultables dans la sauvegarde et dans la base.</div>' +
+        '<div class="champ"><label>Tapez BASCULER pour confirmer</label><input name="ok" autocomplete="off"></div><button class="btn plein">Basculer vers la nouvelle année</button></form>');
+  };
+  VUES.migration.apres = function () {
+    $$('.mig-dest').forEach(function (s) { s.onchange = function () { ui8.dest[s.dataset.id] = s.value; ui8.choix[s.dataset.id] = true; saisieEnCours = true; }; });
+    var f = $('#f-mig'); if (!f) return;
+    f.annee.onchange = function () { ui8.nouvelle = f.annee.value.trim(); };
+    if (f.report) f.report.onchange = function () { ui8.report = f.report.checked; };
+    f.onsubmit = function (ev) {
+      ev.preventDefault();
+      try {
+        verifierEcriture('MIGRATION'); verifierEcriture('ELEVES');
+        var an = f.annee.value.trim(); if (!/^\d{4}-\d{4}$/.test(an) || +an.slice(5) !== +an.slice(0, 4) + 1) throw new Erreur('Année scolaire invalide (ex. ' + anneeSuivante(S.ecole.annee) + ').');
+        if (an === S.ecole.annee) throw new Erreur('C\'est déjà l\'année en cours.');
+        if (f.ok.value.trim().toUpperCase() !== 'BASCULER') throw new Erreur('Tapez BASCULER pour confirmer.');
+        if (!S.enLigne) throw new Erreur('Connexion internet nécessaire pour la bascule.');
+        basculer(an, f.report ? f.report.checked : false, f.querySelector('button'));
+      } catch (x) { erreurEcriture(x); }
+    };
+  };
+  function basculer(an, report, bouton) {
+    var ancienne = S.ecole.annee, ops = [], fin = jour(), n = { p: 0, r: 0, s: 0 };
+    liste(S.eleves).filter(function (x) { return x.statut === 'ACTIF'; }).forEach(function (x) {
+      var c = classeDe(x.classe_id); if (!c) return;
+      var v = ui8.dest[x.id] !== undefined ? ui8.dest[x.id] : destinationProposee(x, c), ch = { classe_precedente: c.nom, annee_precedente: ancienne };
+      if (report) { var du = totalDu(x); if (du > 0) ch.arriere_reporte = du; else ch.arriere_reporte = 0; }
+      if (/^SORTIE:/.test(v)) { Object.assign(ch, { statut: 'INACTIF', motif_sortie: v.slice(7), date_sortie: fin }); n.s++; }
+      else { var dd = S.decisions[idDecision(x.id)]; ch.classe_id = v; ch.redoublant = v === c.id && (ui8.choix[x.id] || (dd && (dd.decision === 'REDOUBLEMENT'))) ? true : false; if (v === c.id) n.r++; else n.p++; }
+      ops.push([col('eleves').doc(x.id), Object.assign(ch, meta(), { version: (x.version || 0) + 1 })]);
+    });
+    bouton.disabled = true; toast('Bascule en cours (' + ops.length + ' élèves)…');
+    var lots = [];
+    for (var i = 0; i < ops.length; i += 400) { var b = db.batch(); ops.slice(i, i + 400).forEach(function (o) { b.update(o[0], o[1]); }); lots.push(suivre(b.commit())); }
+    Promise.all(lots).then(function () {
+      return suivre(docEcole().update({ annee: an, annee_precedente: ancienne, modifie_par: S.profil.identifiant, modifie_le: maintenant(), version: (S.ecole.version || 0) + 1 }));
+    }).then(function () {
+      journal('MIGRATION', ancienne + ' → ' + an + ' : ' + n.p + ' passages, ' + n.r + ' maintiens, ' + n.s + ' sorties'); activite('Nouvelle année ' + an + ' : ' + n.p + ' passages, ' + n.r + ' redoublements, ' + n.s + ' sorties');
+      ui8.dest = {}; ui8.choix = {}; ui8.nouvelle = ''; saisieEnCours = false; Object.keys(NOTES).forEach(function (k) { NOTES[k] = { __charge: true }; }); VS = {};
+      toast('Nouvelle année ' + an + ' ouverte.', 'ok'); location.hash = '#accueil';
+      setTimeout(function () { location.reload(); }, 1500);
+    }).catch(function (x) { bouton.disabled = false; erreurEcriture(x); });
+  }
+
+  /* ===================================================================
+   *  ÉTAPE 8 — GUIDES D'UTILISATION ET ESSAI DE CHARGE
+   * =================================================================== */
+  var GUIDES = [
+    ['Directeur / administrateur', ['Remplir la fiche École (logo, cachet, IA, IEF, code, lieu, signataire).', 'Référentiels : vérifier niveaux et seuils, aligner les matières (V3.5), saisir les tarifs.', 'Créer les comptes (Utilisateurs) : un rôle par personne, un 2e administrateur principal de secours.', 'Publier les règles Firestore (Aide) après chaque mise à jour qui le demande.', 'Chaque trimestre : vérifier les résultats, valider, conseil de classe, éditions.', 'Fin d\'année : Fin d\'année → sauvegarde, destinations, bascule.']],
+    ['Secrétaire', ['Élèves → Nouvelle fiche ou Importer (fichier Excel V3.x reconnu automatiquement).', 'Noms en arabe : bouton ✨ ; corriger si « à vérifier ».', 'Photos : fiche de l\'élève → 📷.', 'Documents : certificat, exeat, convocation… « Numéroter » inscrit au registre avec QR code.', 'Listes et éditions : 13 modèles, par classe ou toute l\'école.']],
+    ['Caissier', ['Finances → Guichet : chercher l\'élève, cocher les mois, saisir le montant versé.', 'Acompte : montant inférieur au total ; surplus : gardé en avance pour l\'élève.', 'Sans tarif : ligne « saisie libre » (nature, mois, montant).', 'Erreur : « Annuler » le reçu (jamais effacé, écriture inverse tracée).', 'Fin de journée : Arrêté de caisse (billetage, écart).']],
+    ['Enseignant', ['Évaluations → Saisie des notes : choisir classe, composition, « Épreuve à saisir ».', 'Clavier : note + Entrée = élève suivant ; en bas, épreuve suivante. ABS = absent.', 'Exporter la grille vierge, la remplir hors ligne, puis Importer.', 'Vie scolaire → Appel : A = absent, R = retard, puis Enregistrer.']]
+  ];
+  var aideDeBase = VUES.aide;
+  VUES.aide = function () {
+    var h = aideDeBase();
+    var guides = carte('Guides d\'utilisation', '<div class="guides">' + GUIDES.map(function (g) { return '<details><summary><strong>' + e(g[0]) + '</strong></summary><ol>' + g[1].map(function (t) { return '<li>' + e(t) + '</li>'; }).join('') + '</ol></details>'; }).join('') + '</div>', '<button class="btn" data-act="guide-imprimer">🖨 Imprimer les guides</button>');
+    var faq = carte('Questions fréquentes', '<dl class="faq">' +
+      '<dt>« Enregistrement refusé : Quota exceeded »</dt><dd>Le quota gratuit quotidien de Firebase (50 000 lectures, 20 000 écritures) est atteint. Il se remet à zéro vers 8 h (Dakar). Évitez les rechargements répétés ; pour un usage réel, passez au plan Blaze avec une alerte de budget.</dd>' +
+      '<dt>« Permission refusée »</dt><dd>Les règles Firestore ne sont pas à jour : copiez-les ci-dessus et publiez-les dans la console Firebase.</dd>' +
+      '<dt>Je ne vois pas la dernière version</dt><dd>Remplacez docs/index.html sur GitHub, attendez une minute, puis Ctrl+F5.</dd>' +
+      '<dt>Hors ligne</dt><dd>Les saisies sont gardées et partent au retour du réseau ; les reçus, documents numérotés et la bascule d\'année exigent internet (numéros uniques).</dd>' +
+      '<dt>Deux personnes modifient la même fiche</dt><dd>La seconde est avertie et choisit de garder ou d\'écraser ; une grille de notes ouverte est réservée à une seule personne.</dd></dl>');
+    var essai = estAdmin() ? carte('Essai de charge (sans toucher à la base)', '<p class="aide" style="margin-top:0">Calcule en mémoire des résultats fictifs pour mesurer la rapidité de cet appareil : aucune donnée n\'est lue ni écrite dans Firebase.</p>' +
+      '<div class="ligne"><div><label>Élèves</label><input id="ch-el" type="number" value="1500" min="10" max="5000"></div><div><label>Classes</label><input id="ch-cl" type="number" value="30" min="1" max="100"></div><div><label>Épreuves par classe</label><input id="ch-ep" type="number" value="20" min="1" max="60"></div></div><div id="ch-res">' + (ui8.charge || '') + '</div>',
+      '<button class="btn plein" data-act="charge-lancer">▶ Lancer l\'essai</button>') : '';
+    return h.replace('<div class="grille">', '<div class="grille">' + guides + faq + essai);
+  };
+  function essaiCharge(nEl, nCl, nEp) {
+    var t0 = performance.now(), parCl = Math.ceil(nEl / nCl), res = [], notes = 0;
+    for (var c = 0; c < nCl; c++) {
+      var lignes = [];
+      for (var i = 0; i < parCl; i++) {
+        var tot = 0, bar = 0;
+        for (var j = 0; j < nEp; j++) { var v = Math.round(Math.random() * 100) / 10; tot += v; bar += 10; notes++; }
+        lignes.push({ g: Math.round(tot / bar * 1000) / 100, classe: true, eleve: { sexe: i % 2 ? 'F' : 'M' } });
+      }
+      classer(lignes, 'g', function (l) { return l.g; });
+      res.push(lignes.length);
+    }
+    var t1 = performance.now();
+    var html = ''; for (var k = 0; k < Math.min(nEl, 2000); k++) html += '<tr><td>' + k + '</td><td>' + (k % 20) + '</td></tr>';
+    var div = document.createElement('div'); div.innerHTML = '<table>' + html + '</table>';
+    var t2 = performance.now();
+    return { notes: notes, calc: Math.round(t1 - t0), aff: Math.round(t2 - t1) };
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    if (b.dataset.act === 'charge-lancer') {
+      var r = essaiCharge(+$('#ch-el').value || 1500, +$('#ch-cl').value || 30, +$('#ch-ep').value || 20), ok = r.calc + r.aff < 3000;
+      ui8.charge = '<div class="alerte ' + (ok ? 'ok' : 'att') + '" style="margin-top:10px">' + r.notes.toLocaleString('fr-FR') + ' notes calculées et classées en <strong>' + r.calc + ' ms</strong> ; affichage d\'une liste de 2 000 lignes en <strong>' + r.aff + ' ms</strong>. ' +
+        (ok ? 'Cet appareil tient largement la charge d\'une école.' : 'Appareil lent : préférez la saisie par classe et par épreuve.') + '</div>';
+      $('#ch-res').innerHTML = ui8.charge;
+    }
+    if (b.dataset.act === 'guide-imprimer') imprimer('<div class="document">' + enteteDocument('GUIDES D\'UTILISATION — CTEFA-CLASSIC WEB') + GUIDES.map(function (g) { return '<h3>' + e(g[0]) + '</h3><ol>' + g[1].map(function (t) { return '<li>' + e(t) + '</li>'; }).join('') + '</ol>'; }).join('') + '</div>');
+  });
 
   /* ===================================================================
    *  9. ACTIONS
