@@ -177,6 +177,15 @@ tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surv
   .document.saut-page { page-break-after: always; } .appel td, .appel th { padding: 2px 3px; font-size: 10px; }
   .barre { display:inline-block; width:110px; height:10px; background:#e5e7eb; border-radius:5px; vertical-align:middle; overflow:hidden } .barre span { display:block; height:100%; background:#2563eb } .barre span.ok { background:#16a34a } .barre span.ko { background:#dc2626 }
   .histo { display:flex; gap:10px; align-items:flex-end; height:170px; padding-top:18px } .histo .col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; position:relative } .histo .b { width:100%; background:#2563eb; border-radius:4px 4px 0 0; min-height:2px } .histo .n { font-weight:700 } .histo small { white-space:nowrap; font-size:11px }
+  .doc-num { text-align: right; font-size: 10pt; margin: 4px 0 } .doc-num.brouillon { color: #b00 } .doc-titre.grand { font-size: 16pt; text-decoration: underline; margin: 22px 0 18px }
+  .doc-para { font-size: 12pt; line-height: 1.7; text-align: justify; text-indent: 1.2cm; margin: 0 0 10px } .doc-amp { font-size: 10pt; margin-top: 14px }
+  .doc-qr { display: flex; gap: 10px; align-items: center; margin-top: 16px; font-size: 8.5pt; border-top: 1px dashed #999; padding-top: 6px } .doc-qr small { word-break: break-all }
+  .doc-cadre { border: 1px solid #000; min-height: 30mm; padding: 6px; font-size: 10pt }
+  .planche-cartes { display: grid; grid-template-columns: 85.6mm 85.6mm; gap: 4mm 6mm; justify-content: center }
+  .carte-sco { width: 85.6mm; height: 54mm; border: 1px solid #333; border-radius: 3mm; overflow: hidden; display: flex; flex-direction: column; font-size: 8pt; color: #000; background: #fff; box-sizing: border-box; page-break-inside: avoid }
+  .cs-tete { background: #0f5132; color: #fff; text-align: center; padding: 1.5mm; line-height: 1.2 } .cs-corps { display: flex; gap: 3mm; padding: 2mm 3mm; flex: 1; line-height: 1.35 }
+  .cs-photo { width: 20mm; height: 25mm; border: 1px dashed #777; display: flex; align-items: center; justify-content: center; font-size: 7pt; color: #777; flex: none } .cs-pied { text-align: right; padding: 0 3mm 1.5mm; font-size: 7pt }
+  .page-garde .pg-centre { text-align: center; margin-top: 60mm } .page-garde h1 { font-size: 26pt; border: 3px double #000; padding: 10mm; margin: 0 15mm 12mm } .page-garde h2 { font-size: 20pt } .page-garde p { font-size: 14pt }
 </style>
 </head>
 <body>
@@ -202,7 +211,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   var CONFIG_INTEGREE = null; /* ex. { apiKey: "...", authDomain: "...", projectId: "...", appId: "..." } */
   var CLE_CONFIG = 'ctefa.firebase', CLE_THEME = 'ctefa.theme', CLE_ECHECS = 'ctefa.echecs';
   var ESPACE = 'ecoles/principale';
-  var VERSION_APP = '3.0 (étape 3)';
+  var VERSION_APP = '3.0 (étape 5)';
   var ASSISTANCE = 'Baye Modou DIOP — 78 295 80 96 / 76 518 55 48';
 
   function lireLocal(k) { try { return localStorage.getItem(k); } catch (x) { return null; } }
@@ -309,7 +318,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
    * =================================================================== */
   var CFG = configuration(), db = null, auth = null, appli = null;
   var S = {   /* données en mémoire, tenues à jour par les écoutes */
-    ecole: null, utilisateurs: {}, eleves: {}, personnel: {}, affectations: {}, decisions: {}, resultats: {}, epreuves: {}, niveaux: {}, classes: {}, matieres: {}, tarifs: {}, listes: {}, caisse: {}, stock: {}, presence: {}, activite: [], journal: [],
+    ecole: null, utilisateurs: {}, eleves: {}, personnel: {}, affectations: {}, decisions: {}, resultats: {}, epreuves: {}, niveaux: {}, classes: {}, matieres: {}, tarifs: {}, listes: {}, caisse: {}, stock: {}, documents_registre: {}, presence: {}, activite: [], journal: [],
     moi: null, profil: null, pret: false, enLigne: navigator.onLine, attente: 0, derniereSync: null, depuisCache: true
   };
   var ecoutes = [], minuteurPresence = null;
@@ -418,6 +427,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
    *  5. CONNEXION ET SESSION
    * =================================================================== */
   function surAuth(u) {
+    var mv = /^#verifier\/([A-Za-z0-9]+)/.exec(location.hash); if (mv) { arreterEcoutes(); return ecranVerification(mv[1], u); }
     arreterEcoutes();
     S.moi = u; S.profil = null; S.pret = false;
     if (!u) { if (!ecranCreation) ecranConnexion(); return; }
@@ -479,6 +489,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
       S.ecole = s.exists ? s.data() : null; majEtat(); rendrePlusTard();
     }));
     ['utilisateurs', 'niveaux', 'classes', 'matieres', 'tarifs', 'listes', 'presence', 'eleves', 'personnel', 'affectations', 'decisions', 'resultats', 'epreuves'].forEach(function (n) { suivreCollection(n, n); });
+    if (peut('DOCUMENTS')) suivreCollection('documents_registre', 'documents_registre');
     if (peut('CAISSE') || peut('FINANCES')) { suivreCollection('caisse', 'caisse'); suivreCollection('stock', 'stock'); }
     suivreCollection('activite', 'activite', col('activite').orderBy('le', 'desc').limit(30));
     if (peut('UTILISATEURS')) suivreCollection('journal_acces', 'journal', col('journal_acces').orderBy('le', 'desc').limit(300));
@@ -684,9 +695,9 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   /* ===================================================================
    *  7. CADRE DE L'APPLICATION ET NAVIGATION
    * =================================================================== */
-  var TITRES = { accueil: 'Accueil', eleves: 'Élèves', notes: 'Évaluations', finances: 'Finances', personnel: 'Personnel', ecole: 'École', referentiels: 'Référentiels', utilisateurs: 'Utilisateurs', journal: 'Journal', sauvegarde: 'Sauvegarde', aide: 'Aide' };
+  var TITRES = { accueil: 'Accueil', eleves: 'Élèves', notes: 'Évaluations', finances: 'Finances', documents: 'Documents', personnel: 'Personnel', ecole: 'École', referentiels: 'Référentiels', utilisateurs: 'Utilisateurs', journal: 'Journal', sauvegarde: 'Sauvegarde', aide: 'Aide' };
   var MENU = [
-    ['accueil', null], ['eleves', ['ELEVES', 'LISTES', 'NOTES', 'CAISSE']], ['notes', ['NOTES', 'BULLETINS']], ['finances', ['CAISSE', 'FINANCES']], ['personnel', ['PERSONNEL', 'LISTES']], ['ecole', null], ['referentiels', null], ['utilisateurs', 'UTILISATEURS'], ['journal', 'UTILISATEURS'], ['sauvegarde', 'PARAMETRES'], ['aide', null]
+    ['accueil', null], ['eleves', ['ELEVES', 'LISTES', 'NOTES', 'CAISSE']], ['notes', ['NOTES', 'BULLETINS']], ['finances', ['CAISSE', 'FINANCES']], ['documents', 'DOCUMENTS'], ['personnel', ['PERSONNEL', 'LISTES']], ['ecole', null], ['referentiels', null], ['utilisateurs', 'UTILISATEURS'], ['journal', 'UTILISATEURS'], ['sauvegarde', 'PARAMETRES'], ['aide', null]
   ];
   function vueCourante() { var v = (location.hash.slice(1) || 'accueil').split('/')[0]; return TITRES[v] && autorisee(v) ? v : 'accueil'; }
   function sousVue() { return location.hash.slice(1).split('/')[1] || ''; }
@@ -3911,6 +3922,331 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   });
 
   /* ===================================================================
+   *  ÉTAPE 5 — DOCUMENTS ADMINISTRATIFS, REGISTRE, QR CODE DE VÉRIFICATION
+   *  (textes repris de CTEFA-CLASSIC V3.5, accords masculin / féminin)
+   *
+   *  - « Numéroter et inscrire au registre » : numéro d'ordre atomique
+   *    (N° 007/CODE/2026), texte figé dans le registre (réimpression identique),
+   *    QR code de vérification.
+   *  - Le QR mène à #verifier/CLE : une page publique (sans connexion) affiche
+   *    le numéro, le type, le bénéficiaire, la date et si le document est valide.
+   *    Seule la fiche « verifications/CLE » est lisible sans compte, et la clé
+   *    (12 caractères aléatoires) ne se devine pas.
+   * =================================================================== */
+  var MOTIFS_EL = ['Maladie', 'Événement familial', 'Voyage', 'Cérémonie religieuse', 'Convocation administrative', 'Autre'];
+  var MOTIFS_PE = ['Raisons de santé', 'Événement familial', 'Convocation administrative', 'Examen / concours', 'Cérémonie religieuse', 'Autre'];
+  var CIVS = ['M.', 'Mme', 'Mlle'];
+  /* champ : [clé, libellé, genre (TXT, DATE, LIBRE, LISTE, MULTI), défaut, choix, obligatoire] */
+  var DOCS = {
+    CERT_SCOL: { src: 'ELEVE', lib: 'Élève — Certificat de scolarité', champs: [['DATE_DEBUT', 'Élève de l\'école depuis le (facultatif)', 'DATE', '=DATE_1ERE'], ['USAGE', 'Destination (facultatif)', 'LIBRE', '', ['Constitution de dossier', 'Allocations familiales', 'Bourse', 'Transfert', 'Voyage']]] },
+    AUT_ABS_ELEVE: { src: 'ELEVE', lib: 'Élève — Autorisation d\'absence', champs: [['DU', 'Absent(e) du', 'DATE', '=TODAY', null, 1], ['AU', 'Jusqu\'au (inclus)', 'DATE', '=TODAY', null, 1], ['MOTIF', 'Motif', 'LIBRE', '', MOTIFS_EL, 1], ['DEMANDEUR', 'À la demande de (parent / tuteur)', 'TXT', '=PARENT', null, 1], ['REPRISE', 'Reprise des cours le (vide = lendemain)', 'DATE', '']] },
+    CONVOC: { src: 'ELEVE', lib: 'Élève — Convocation du parent', champs: [['DEMANDEUR', 'Parent / tuteur convoqué', 'TXT', '=PARENT', null, 1], ['DATE_RDV', 'Date du rendez-vous', 'DATE', '=DEMAIN', null, 1], ['HEURE', 'Heure', 'TXT', '08 h 30', null, 1], ['OBJET', 'Objet', 'LIBRE', '', ['Résultats scolaires', 'Comportement de l\'élève', 'Absences répétées', 'Situation financière', 'Réunion d\'information', 'Autre'], 1]] },
+    EXEAT: { src: 'ELEVE', lib: 'Élève — Certificat de radiation (exeat)', champs: [['DATE_DEBUT', 'A fréquenté l\'école depuis le', 'DATE', '=DATE_1ERE', null, 1], ['DATE_FIN', 'Jusqu\'au', 'DATE', '=DATE_SORTIE', null, 1], ['MOTIF', 'Motif de la radiation', 'LIBRE', '=MOTIF_SORTIE', ['Changement de résidence', 'Transfert dans un autre établissement', 'Abandon', 'Exclusion', 'Fin de cycle'], 1], ['DEMANDEUR', 'À la demande de', 'TXT', '=PARENT'], ['SITUATION', 'Situation financière', 'TXT', '=SITUATION']] },
+    FICHE_SUIVI: { src: 'ELEVE', lib: 'Élève — Fiche de suivi individuel', lot: true, champs: [['OBS', 'Observations du maître (facultatif)', 'MULTI', '']] },
+    AUT_ABS_PERS: { src: 'PERSONNEL', lib: 'Personnel — Autorisation d\'absence', champs: [['CIV', 'Civilité', 'LISTE', '=CIV', CIVS, 1], ['FONCTION', 'Fonction', 'TXT', '=FONCTION', null, 1], ['MATRICULE', 'Matricule (MEN / solde)', 'TXT', '=MATRICULE_PERS'], ['DU', 'Absent(e) du', 'DATE', '=TODAY', null, 1], ['AU', 'Jusqu\'au (inclus)', 'DATE', '=TODAY', null, 1], ['MOTIF', 'Motif', 'LIBRE', '', MOTIFS_PE, 1], ['INTERIM', 'Classe / intérim assuré(e) par (facultatif)', 'TXT', ''], ['REPRISE', 'Reprise de service le (vide = lendemain)', 'DATE', ''], ['AMPLIATION', 'Ampliation (séparer par ;)', 'TXT', '=AMPLIATION']] },
+    ATT_TRAVAIL: { src: 'PERSONNEL', lib: 'Personnel — Attestation de travail', champs: [['CIV', 'Civilité', 'LISTE', '=CIV', CIVS, 1], ['FONCTION', 'Fonction', 'TXT', '=FONCTION', null, 1], ['MATRICULE', 'Matricule (MEN / solde)', 'TXT', '=MATRICULE_PERS'], ['DATE_DEBUT', 'En service dans l\'école depuis le', 'DATE', '=PRISE_SERVICE', null, 1], ['USAGE', 'Destination (facultatif)', 'LIBRE', '', ['Constitution de dossier', 'Banque', 'Concours', 'Administration']]] },
+    CERT_PRISE: { src: 'PERSONNEL', lib: 'Personnel — Attestation de prise de service', champs: [['CIV', 'Civilité', 'LISTE', '=CIV', CIVS, 1], ['FONCTION', 'Fonction', 'TXT', '=FONCTION', null, 1], ['MATRICULE', 'Matricule (MEN / solde)', 'TXT', '=MATRICULE_PERS'], ['ACTE', 'Affecté(e) par (acte, n° et date — facultatif)', 'TXT', ''], ['DATE_EFFET', 'A pris service le', 'DATE', '=TODAY', null, 1], ['AMPLIATION', 'Ampliation (séparer par ;)', 'TXT', '=AMPLIATION']] },
+    CERT_CESSATION: { src: 'PERSONNEL', lib: 'Personnel — Attestation de cessation de service', champs: [['CIV', 'Civilité', 'LISTE', '=CIV', CIVS, 1], ['FONCTION', 'Fonction', 'TXT', '=FONCTION', null, 1], ['MATRICULE', 'Matricule (MEN / solde)', 'TXT', '=MATRICULE_PERS'], ['DATE_EFFET', 'A cessé service le', 'DATE', '=TODAY', null, 1], ['MOTIF', 'Motif', 'LIBRE', '', ['Mutation', 'Départ à la retraite', 'Fin de contrat', 'Mise en disponibilité', 'Démission', 'Autre']], ['AMPLIATION', 'Ampliation (séparer par ;)', 'TXT', '=AMPLIATION']] },
+    NOTE: { src: 'AUCUN', lib: 'Note de service / d\'information / communiqué', champs: [['TYPE', 'Type de document', 'LISTE', 'Note de service', ['Note de service', 'Note d\'information', 'Communiqué'], 1], ['DESTINATAIRES', 'Destinataires', 'LIBRE', 'Tout le personnel', ['Tout le personnel', 'Personnel enseignant', 'Enseignants de langue arabe', 'Parents d\'élèves', 'Membres du CGE'], 1], ['OBJET', 'Objet', 'TXT', '', null, 1], ['TEXTE', 'Texte (Entrée = nouveau paragraphe)', 'MULTI', '', null, 1], ['AMPLIATION', 'Ampliation (séparer par ;)', 'TXT', '=AMPLIATION']] },
+    CARTES_ELEVES: { src: 'CLASSE', lib: 'Classe — Cartes scolaires des élèves', lot: true, champs: [] },
+    PAGE_GARDE: { src: 'CLASSE', lib: 'Classe — Page de garde (cahier de journal, registres…)', lot: true, champs: [['INTITULE', 'Intitulé', 'LIBRE', 'CAHIER DE JOURNAL', ['CAHIER DE JOURNAL', 'REGISTRE D\'APPEL', 'CAHIER DE PRÉPARATION', 'CAHIER DE ROULEMENT', 'CAHIER DE COMPOSITIONS'], 1]] },
+    CARTE_PRO: { src: 'PERSONNEL', lib: 'Personnel — Carte professionnelle', lot: true, champs: [] },
+    CARTES_PRO_TOUS: { src: 'AUCUN', lib: 'Personnel — Cartes professionnelles de tout le personnel', lot: true, champs: [] }
+  };
+  var ui6 = { doc: 'CERT_SCOL', benef: '', rech: '', vals: {}, apercu: null, regRech: '', verif: '' };
+  var JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  function isoPlus(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+  function cleAleatoire(n) { var a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', t = new Uint32Array(n || 12), s = ''; crypto.getRandomValues(t); t.forEach(function (x) { s += a[x % a.length]; }); return s; }
+  function lienVerif(cle) { return location.origin + location.pathname + '#verifier/' + cle; }
+
+  /* ---------- QR code (bibliothèque qrcode-generator, chargée à la demande) ---------- */
+  var chargementQR = null;
+  function chargerQR() {
+    if (window.qrcode) return Promise.resolve();
+    return chargementQR = chargementQR || new Promise(function (ok, ko) {
+      var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+      s.onload = function () { ok(); }; s.onerror = function () { chargementQR = null; ko(new Erreur('QR code indisponible (connexion internet nécessaire la première fois).')); }; document.head.appendChild(s);
+    });
+  }
+  function imageQR(texte, taille) {
+    if (!window.qrcode) return '';
+    var q = qrcode(0, 'M'); q.addData(texte); q.make();
+    return '<img class="qr" alt="QR" style="width:' + (taille || 26) + 'mm;height:' + (taille || 26) + 'mm;image-rendering:pixelated" src="' + q.createDataURL(4, 2) + '">';
+  }
+
+  /* ---------- bénéficiaires ---------- */
+  function beneficiaires(src) {
+    if (src === 'ELEVE') return liste(S.eleves).sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom); }).map(function (x) { return [x.id, x.nom + ' ' + x.prenom + ' — ' + ((classeDe(x.classe_id) || {}).nom || 'sans classe') + ' — ' + x.matricule + (x.statut !== 'ACTIF' ? ' (inactif)' : '')]; });
+    if (src === 'PERSONNEL') return liste(S.personnel).sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom); }).map(function (p) { return [p.id, p.nom + ' ' + p.prenom + ' — ' + (p.fonction || '')]; });
+    if (src === 'CLASSE') return classesTriees().map(function (c) { return [c.id, c.nom + ' — ' + elevesActifsDe(c.id).length + ' élève(s)']; });
+    return [];
+  }
+  function donneesBenef(src, id) {
+    if (src === 'ELEVE') {
+      var x = S.eleves[id]; if (!x) return null; var c = classeDe(x.classe_id), f = x.sexe === 'F';
+      var reste = typeof totalDu === 'function' && peut('CAISSE') ? totalDu(x) : null;
+      return { x: x, NOM_COMPLET: x.prenom + ' ' + x.nom, E: f ? 'e' : '', IL: f ? 'elle' : 'il', NE_LE: dateFr(x.date_naiss), LIEU: x.lieu_naiss || '', MATRICULE: x.matricule || '', CLASSE: c ? c.nom : '', PARENT: x.parent || '',
+        DATE_1ERE: x.date_1ere_inscription || x.date_entree || '', DATE_SORTIE: x.date_sortie || '', MOTIF_SORTIE: x.motif_sortie || '', SITUATION: reste === null ? '' : reste > 0 ? 'reste dû ' + fcfa(reste) : 'à jour', ACTIF: x.statut === 'ACTIF', RESTE: reste };
+    }
+    if (src === 'PERSONNEL') {
+      var p = S.personnel[id]; if (!p) return null;
+      var civ = CIVS.indexOf(p.civilite) >= 0 ? p.civilite : (p.sexe === 'F' ? 'Mme' : 'M.');
+      return { p: p, NOM_COMPLET: nomPers(p), CIV: civ, FONCTION: p.fonction || '', MATRICULE_PERS: p.matricule || '', PRISE_SERVICE: p.date_entree_etablissement || '',
+        CLASSE: (p.classes || []).map(function (i) { return (classeDe(i) || {}).nom; }).filter(Boolean).join(', ') };
+    }
+    if (src === 'CLASSE') { var cl = classeDe(id); return cl ? { c: cl, NOM_COMPLET: cl.nom } : null; }
+    return {};
+  }
+  function valeurDefaut(d, b) {
+    if (!d || d.charAt(0) !== '=') return d || '';
+    var k = d.slice(1);
+    if (k === 'TODAY') return jour(); if (k === 'DEMAIN') return isoPlus(1);
+    if (k === 'AMPLIATION') return 'Archives';
+    return b && b[k] !== undefined ? b[k] : '';
+  }
+  function qualiteSansArticle(q) { return String(q || 'Directeur').replace(/^(le|la|l')\s*/i, ''); }
+  function feminin(q) { return /directrice|principale|la /i.test(q || ''); }
+
+  /* ---------- textes officiels (accord masculin / féminin) ---------- */
+  function composer(id, b, v) {
+    var ch = chefEtablissement(), ecole = '« ' + S.ecole.nom + ' »', annee = S.ecole.annee, qual = ch.qualite || 'Le Directeur';
+    var soussigne = 'Je soussigné' + (feminin(qual) ? 'e' : '') + ', ' + ch.nom + ', ' + qualiteSansArticle(qual) + ' de l\'établissement ' + ecole;
+    var P = [], titre = '', sigG = '', e2 = b.E || '', il = b.IL || 'il', Il = il.charAt(0).toUpperCase() + il.slice(1), d = function (k) { return dateFr(v[k]); };
+    if (b.CIV) { e2 = b.CIV === 'M.' ? '' : 'e'; il = e2 ? 'elle' : 'il'; Il = il.charAt(0).toUpperCase() + il.slice(1); }
+    var nomP = (v.CIV || b.CIV || '') + ' ' + (b.NOM_COMPLET || '');
+    var nbJ = v.DU && v.AU ? Math.round((new Date(v.AU) - new Date(v.DU)) / 864e5) + 1 : 0, jours = nbJ + ' jour' + (nbJ > 1 ? 's' : '');
+    var reprise = v.REPRISE ? d('REPRISE') : (v.AU ? dateFr(new Date(new Date(v.AU).getTime() + 864e5).toISOString().slice(0, 10)) : '');
+    switch (id) {
+      case 'CERT_SCOL':
+        titre = 'CERTIFICAT DE SCOLARITÉ';
+        P.push(soussigne + ', certifie que l\'élève ' + b.NOM_COMPLET + ', né' + e2 + ' le ' + b.NE_LE + (b.LIEU ? ' à ' + b.LIEU : '') + ', matricule ' + b.MATRICULE + ', est régulièrement inscrit' + e2 + ' dans notre établissement en classe de ' + b.CLASSE + ' au titre de l\'année scolaire ' + annee + '.');
+        if (v.DATE_DEBUT) P.push(Il + ' fréquente l\'établissement depuis le ' + d('DATE_DEBUT') + '.');
+        if (v.USAGE) P.push('Ce certificat est délivré pour : ' + v.USAGE + '.');
+        P.push('En foi de quoi, le présent certificat lui est délivré pour servir et valoir ce que de droit.'); break;
+      case 'AUT_ABS_ELEVE':
+        titre = 'AUTORISATION D\'ABSENCE';
+        P.push(qual + ' de l\'établissement ' + ecole + ' autorise l\'élève ' + b.NOM_COMPLET + ', de la classe de ' + b.CLASSE + ', matricule ' + b.MATRICULE + ', à s\'absenter du ' + d('DU') + ' au ' + d('AU') + ' inclus, soit ' + jours + ', pour le motif suivant : ' + v.MOTIF + '.');
+        P.push('Cette autorisation est accordée à la demande de ' + v.DEMANDEUR + ', parent / tuteur de l\'élève.');
+        P.push('L\'élève devra reprendre les cours le ' + reprise + ' et rattraper les leçons et devoirs manqués pendant son absence.'); sigG = 'Le parent / tuteur'; break;
+      case 'CONVOC':
+        titre = 'CONVOCATION';
+        P.push(qual + ' de l\'établissement ' + ecole + ' a l\'honneur d\'inviter ' + v.DEMANDEUR + ', parent / tuteur de l\'élève ' + b.NOM_COMPLET + ' (classe de ' + b.CLASSE + '), à se présenter à la direction de l\'école le ' + (v.DATE_RDV ? JOURS[new Date(v.DATE_RDV).getDay()] + ' ' : '') + d('DATE_RDV') + ' à ' + v.HEURE + '.');
+        P.push('Objet : ' + v.OBJET + '.'); P.push('Sa présence est vivement souhaitée. En cas d\'empêchement, prière d\'en informer la direction.'); break;
+      case 'EXEAT':
+        titre = 'CERTIFICAT DE RADIATION (EXEAT)';
+        P.push(soussigne + ', certifie que l\'élève ' + b.NOM_COMPLET + ', né' + e2 + ' le ' + b.NE_LE + (b.LIEU ? ' à ' + b.LIEU : '') + ', matricule ' + b.MATRICULE + ', a fréquenté notre établissement du ' + d('DATE_DEBUT') + ' au ' + d('DATE_FIN') + ' et était inscrit' + e2 + ' en dernier lieu en classe de ' + b.CLASSE + '.');
+        P.push(Il + ' est radié' + e2 + ' des registres de l\'établissement à compter de cette date' + (v.DEMANDEUR ? ', à la demande de ' + v.DEMANDEUR : '') + '. Motif : ' + v.MOTIF + '.');
+        if (v.SITUATION) P.push('Situation financière : ' + v.SITUATION + '.');
+        P.push('En foi de quoi, le présent certificat lui est délivré pour servir et valoir ce que de droit.'); break;
+      case 'AUT_ABS_PERS':
+        titre = 'AUTORISATION D\'ABSENCE';
+        P.push(qual + ' de l\'établissement ' + ecole + ' autorise ' + nomP + ', ' + v.FONCTION + (v.MATRICULE ? ', matricule ' + v.MATRICULE : '') + ', à s\'absenter de son poste du ' + d('DU') + ' au ' + d('AU') + ' inclus, soit ' + jours + ', pour le motif suivant : ' + v.MOTIF + '.');
+        if (v.INTERIM) P.push('Pendant cette absence, la classe / l\'intérim sera assuré(e) par ' + v.INTERIM + '.');
+        P.push('L\'intéressé' + e2 + ' devra reprendre service le ' + reprise + '.'); sigG = 'L\'intéressé' + e2; break;
+      case 'ATT_TRAVAIL':
+        titre = 'ATTESTATION DE TRAVAIL';
+        P.push(soussigne + ', atteste que ' + nomP + (v.MATRICULE ? ', matricule ' + v.MATRICULE : '') + ', est en service dans notre établissement en qualité de ' + v.FONCTION + ' depuis le ' + d('DATE_DEBUT') + (b.CLASSE ? '. ' + Il + ' y tient la classe de ' + b.CLASSE : '') + '.');
+        if (v.USAGE) P.push('Cette attestation est délivrée pour : ' + v.USAGE + '.');
+        P.push('En foi de quoi, la présente attestation lui est délivrée pour servir et valoir ce que de droit.'); break;
+      case 'CERT_PRISE':
+        titre = 'ATTESTATION DE PRISE DE SERVICE';
+        P.push(soussigne + ', atteste que ' + nomP + ', ' + v.FONCTION + (v.MATRICULE ? ', matricule ' + v.MATRICULE : '') + ', affecté' + e2 + ' à l\'établissement' + (v.ACTE ? ' par ' + v.ACTE : '') + ', a effectivement pris service le ' + d('DATE_EFFET') + '.');
+        P.push('En foi de quoi, la présente attestation est établie pour servir et valoir ce que de droit.'); break;
+      case 'CERT_CESSATION':
+        titre = 'ATTESTATION DE CESSATION DE SERVICE';
+        P.push(soussigne + ', atteste que ' + nomP + ', ' + v.FONCTION + (v.MATRICULE ? ', matricule ' + v.MATRICULE : '') + ', a cessé service dans notre établissement le ' + d('DATE_EFFET') + (v.MOTIF ? '. Motif : ' + v.MOTIF : '') + '.');
+        P.push('En foi de quoi, la présente attestation est établie pour servir et valoir ce que de droit.'); break;
+      case 'NOTE':
+        titre = String(v.TYPE || 'Note de service').toUpperCase();
+        P.push('Destinataires : ' + v.DESTINATAIRES); P.push('Objet : ' + v.OBJET);
+        String(v.TEXTE || '').split(/\n+/).forEach(function (t) { if (t.trim()) P.push(t.trim()); }); break;
+    }
+    return { titre: titre, paras: P, sigGauche: sigG, ampliation: v.AMPLIATION || '' };
+  }
+  function pageDocument(T, numero, cle, dateIso) {
+    var ch = chefEtablissement(), amp = String(T.ampliation || '').split(';').map(function (s) { return s.trim(); }).filter(Boolean);
+    return '<div class="document doc-admin">' + enteteDocument('') + (numero ? '<p class="doc-num">N° ' + e(numero) + '</p>' : '<p class="doc-num brouillon">BROUILLON — non numéroté</p>') +
+      '<h1 class="doc-titre grand">' + e(T.titre) + '</h1>' + T.paras.map(function (p) { return '<p class="doc-para">' + e(p) + '</p>'; }).join('') +
+      '<table class="doc-signatures"><tr><td>' + (T.sigGauche ? e(T.sigGauche) : '') + '</td><td></td><td>' + e((S.ecole.lieu || '') + (S.ecole.lieu ? ', le ' : 'Le ') + dateFr(dateIso || jour())) + '<br><strong>' + e(ch.qualite) + '</strong><br>' +
+      (S.ecole.cachet && S.ecole.cachet_actif && numero ? '<img src="' + e(S.ecole.cachet) + '" alt="" style="max-height:70px;opacity:.85"><br>' : '<div style="height:60px"></div>') + e(ch.nom) + '</td></tr></table>' +
+      (amp.length ? '<p class="doc-amp"><u>Ampliation</u> :<br>' + amp.map(function (a) { return '- ' + e(a); }).join('<br>') + '</p>' : '') +
+      (cle ? '<div class="doc-qr">' + imageQR(lienVerif(cle), 24) + '<span>Vérifier ce document :<br>scannez le code ou ouvrez<br><small>' + e(lienVerif(cle)) + '</small></span></div>' : '') + '</div>';
+  }
+
+  /* ---------- documents « en lot » (cartes, page de garde, fiche de suivi) ---------- */
+  function carteEleve(x, c) {
+    return '<div class="carte-sco"><div class="cs-tete"><strong>' + e(S.ecole.nom) + '</strong><br><small>CARTE SCOLAIRE ' + e(S.ecole.annee) + '</small></div><div class="cs-corps"><div class="cs-photo">PHOTO</div><div>' +
+      '<strong>' + e(x.prenom + ' ' + x.nom) + '</strong>' + (x.prenom_ar || x.nom_ar ? '<br><span dir="rtl">' + e((x.prenom_ar || '') + ' ' + (x.nom_ar || '')) + '</span>' : '') + '<br>Classe : ' + e(c.nom) + '<br>Matricule : ' + e(x.matricule) +
+      '<br>Né' + (x.sexe === 'F' ? 'e' : '') + ' le ' + e(dateFr(x.date_naiss)) + (x.telephone ? '<br>Tél. parent : ' + e(x.telephone) : '') + '</div></div><div class="cs-pied">' + e(chefEtablissement().qualite) + '</div></div>';
+  }
+  function cartePro(p) {
+    return '<div class="carte-sco"><div class="cs-tete"><strong>' + e(S.ecole.nom) + '</strong><br><small>CARTE PROFESSIONNELLE ' + e(S.ecole.annee) + '</small></div><div class="cs-corps"><div class="cs-photo">PHOTO</div><div>' +
+      '<strong>' + e((p.civilite ? p.civilite + ' ' : '') + nomPers(p)) + '</strong>' + (p.prenom_ar || p.nom_ar ? '<br><span dir="rtl">' + e((p.prenom_ar || '') + ' ' + (p.nom_ar || '')) + '</span>' : '') + '<br>' + e(p.fonction || '') +
+      (p.matricule ? '<br>Matricule : ' + e(p.matricule) : '') + (p.telephone ? '<br>Tél. : ' + e(p.telephone) : '') + '</div></div><div class="cs-pied">' + e(chefEtablissement().qualite) + '</div></div>';
+  }
+  function grilleCartes(cartes) { var p = []; for (var i = 0; i < cartes.length; i += 10) p.push('<div class="planche-cartes">' + cartes.slice(i, i + 10).join('') + '</div>'); return p.join('<div class="saut"></div>'); }
+  function docLot(id, b, v) {
+    if (id === 'CARTES_ELEVES') return grilleCartes(elevesActifsDe(b.c.id).sort(function (a, c) { return a.nom.localeCompare(c.nom); }).map(function (x) { return carteEleve(x, b.c); }));
+    if (id === 'CARTE_PRO') return grilleCartes([cartePro(b.p)]);
+    if (id === 'CARTES_PRO_TOUS') return grilleCartes(liste(S.personnel).sort(function (a, c) { return a.nom.localeCompare(c.nom); }).map(cartePro));
+    if (id === 'PAGE_GARDE') {
+      var c = b.c, l = elevesActifsDe(c.id), f = l.filter(function (x) { return x.sexe === 'F'; }).length;
+      return '<div class="document page-garde">' + enteteDocument('') + '<div class="pg-centre"><h1>' + e(v.INTITULE || 'CAHIER DE JOURNAL') + '</h1><h2>Classe : ' + e(c.nom) + '</h2><p>Année scolaire ' + e(S.ecole.annee) + '</p>' +
+        (c.titulaire_fr ? '<p>Maître(sse) : <strong>' + e(c.titulaire_fr) + '</strong></p>' : '') + (c.titulaire_ar ? '<p>Arabe : <strong>' + e(c.titulaire_ar) + '</strong></p>' : '') + '<p>Effectif : ' + l.length + ' (' + (l.length - f) + ' G, ' + f + ' F)</p></div></div>';
+    }
+    if (id === 'FICHE_SUIVI') {
+      var x = b.x, cl = classeDe(x.classe_id), niv = cl ? S.niveaux[cl.niveau] || {} : {}, rows = [];
+      if (cl && notesChargees(cl.id)) { for (var k = 1; k <= nbPeriodes(niv); k++) { var R = calculer(cl.id, k), li = R.lignes.find(function (y) { return y.eleve.id === x.id; }); rows.push([libPeriode(niv, k), li && li.classe ? nb(li.g) + ' / ' + (niv.base || 10) : 'n\'a pas composé', li && li.classe ? rangTexte(li.rang_g, li.ex_g, x.sexe) + ' / ' + R.stats.classes : '', nb(R.stats.moyenne)]); } }
+      else if (cl) ecouterNotes(cl.id);
+      return '<div class="document">' + enteteDocument('FICHE DE SUIVI INDIVIDUEL') + tableDoc(['Élève', 'Matricule', 'Classe', 'Né(e) le', 'Parent', 'Téléphone'], [[x.prenom + ' ' + x.nom, x.matricule, cl ? cl.nom : '', dateFr(x.date_naiss) + (x.lieu_naiss ? ' à ' + x.lieu_naiss : ''), x.parent, x.telephone]]) +
+        '<h3>Résultats</h3>' + (rows.length ? tableDoc(['Période', 'Moyenne', 'Rang', 'Moyenne de la classe'], rows) : '<p class="aide">Résultats en cours de chargement ou aucune note.</p>') +
+        '<h3>Observations</h3><div class="doc-cadre">' + (v.OBS ? e(v.OBS).replace(/\n/g, '<br>') : '<br><br><br><br>') + '</div>' + visa() + '</div>';
+    }
+    return '';
+  }
+
+  /* ---------------------------------------------------------------
+   *  VUE : DOCUMENTS
+   * --------------------------------------------------------------- */
+  var ONGLETS_DOC = { delivrer: 'Délivrer un document', registre: 'Registre', verifier: 'Vérifier un document' };
+  var DO = {};
+  VUES.documents = function () {
+    var o = ONGLETS_DOC[sousVue()] ? sousVue() : 'delivrer';
+    return '<h2>Documents administratifs</h2><nav class="onglets">' + Object.keys(ONGLETS_DOC).map(function (k) { return '<a href="#documents/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_DOC[k] + '</a>'; }).join('') + '</nav>' + DO[o]();
+  };
+  VUES.documents.apres = function () { var o = ONGLETS_DOC[sousVue()] ? sousVue() : 'delivrer'; if (DO[o].apres) DO[o].apres(); };
+
+  DO.delivrer = function () {
+    var D = DOCS[ui6.doc], bl = beneficiaires(D.src);
+    if (D.src !== 'AUCUN' && !bl.some(function (x) { return x[0] === ui6.benef; })) { ui6.benef = bl.length ? bl[0][0] : ''; ui6.vals = {}; }
+    var b = D.src === 'AUCUN' ? {} : donneesBenef(D.src, ui6.benef);
+    var filtre = normal(ui6.rech), blf = filtre ? bl.filter(function (x) { return normal(x[1]).indexOf(filtre) >= 0; }) : bl;
+    var info = '';
+    if (b && D.src === 'ELEVE') { info = e(b.NOM_COMPLET) + ' · ' + e(b.CLASSE) + ' · né' + b.E + ' le ' + e(b.NE_LE) + (b.LIEU ? ' à ' + e(b.LIEU) : '') + ' · parent : ' + e(b.PARENT || '?');
+      if (!b.ACTIF) info += '<br><span class="pastille att">Élève inactif (' + e(b.MOTIF_SORTIE || 'sorti') + ')' + (ui6.doc === 'CERT_SCOL' ? ' : un certificat de scolarité suppose un élève inscrit' : '') + '</span>';
+      if (ui6.doc === 'EXEAT' && b.RESTE > 0) info += '<br><span class="pastille ko">Reste dû ' + fcfa(b.RESTE) + '</span>'; }
+    var champs = D.champs.map(function (c) {
+      var k = c[0], val = ui6.vals[k] !== undefined ? ui6.vals[k] : valeurDefaut(c[3], b), lab = '<label>' + e(c[1]) + (c[5] ? ' *' : '') + '</label>';
+      if (c[2] === 'DATE') return '<div class="champ"><label>' + e(c[1]) + (c[5] ? ' *' : '') + '</label><input type="date" class="d-ch" data-k="' + k + '" value="' + e(val) + '"></div>';
+      if (c[2] === 'LISTE') return '<div class="champ">' + lab + '<select class="d-ch" data-k="' + k + '">' + opt(c[4], val) + '</select></div>';
+      if (c[2] === 'MULTI') return '<div class="champ" style="grid-column:1/-1">' + lab + '<textarea class="d-ch" data-k="' + k + '" rows="6">' + e(val) + '</textarea></div>';
+      return '<div class="champ">' + lab + '<input class="d-ch" data-k="' + k + '" value="' + e(val) + '"' + (c[4] ? ' list="dl-' + k + '"' : '') + '>' + (c[4] ? '<datalist id="dl-' + k + '">' + c[4].map(function (x) { return '<option value="' + e(x) + '">'; }).join('') + '</datalist>' : '') + '</div>';
+    }).join('');
+    var ro = !peut('DOCUMENTS') || enMaintenancePourMoi();
+    return carte('Délivrer un document', '<div class="ligne"><div><label>Document</label><select id="d-type">' + opt(Object.keys(DOCS).map(function (k) { return [k, DOCS[k].lib]; }), ui6.doc) + '</select></div>' +
+      (D.src !== 'AUCUN' ? '<div><label>Rechercher</label><input type="search" id="d-rech" value="' + e(ui6.rech) + '" placeholder="Nom, matricule…"></div><div style="flex:2"><label>' + (D.src === 'ELEVE' ? 'Élève' : D.src === 'CLASSE' ? 'Classe' : 'Agent') + '</label><select id="d-benef">' + opt(blf, ui6.benef) + '</select></div>' : '') + '</div>' +
+      (info ? '<p class="aide">' + info + '</p>' : '') + (champs ? '<div class="grille" style="margin-top:8px">' + champs + '</div>' : ''),
+      '<button class="btn" data-act="d-apercu">👁 Aperçu</button>' + (D.lot ? '<button class="btn plein" data-act="d-imprimer-lot">🖨 Imprimer</button>' :
+        '<button class="btn" data-act="d-brouillon">🖨 Imprimer sans numéro</button>' + (ro ? '' : '<button class="btn plein" data-act="d-numeroter">✔ Numéroter, inscrire au registre et imprimer</button>'))) +
+      '<div class="carte"><div class="carte-corps" id="d-apercu" style="background:#fff;overflow-x:auto">' + (ui6.apercu || '<p class="aide">Cliquez sur « Aperçu ».</p>') + '</div></div>';
+  };
+  DO.delivrer.apres = function () {
+    var t = $('#d-type'); if (t) t.onchange = function () { ui6.doc = t.value; ui6.vals = {}; ui6.apercu = null; rendre(); };
+    var r = $('#d-rech'); if (r) r.oninput = function () { ui6.rech = r.value; var p = r.selectionStart; rendre(); var n = $('#d-rech'); n.focus(); n.setSelectionRange(p, p); };
+    var bs = $('#d-benef'); if (bs) bs.onchange = function () { ui6.benef = bs.value; ui6.vals = {}; ui6.apercu = null; rendre(); };
+    $$('.d-ch').forEach(function (c) { c.onchange = function () { ui6.vals[c.dataset.k] = c.value; }; });
+  };
+  function lireDocument(souple) {
+    var D = DOCS[ui6.doc], b = D.src === 'AUCUN' ? {} : donneesBenef(D.src, ui6.benef), v = {};
+    if (!b) throw new Erreur('Choisissez le bénéficiaire.');
+    D.champs.forEach(function (c) { var el = $('.d-ch[data-k="' + c[0] + '"]'); v[c[0]] = el ? el.value.trim() : valeurDefaut(c[3], b); ui6.vals[c[0]] = v[c[0]];
+      if (c[5] && !v[c[0]] && !souple) throw new Erreur('Champ obligatoire : ' + c[1] + '.'); });
+    if (v.DU && v.AU && v.AU < v.DU) throw new Erreur('La date de fin est avant la date de début.');
+    return { D: D, b: b, v: v };
+  }
+  function enregistrerDocument(L, T) {
+    verifierEcriture('DOCUMENTS');
+    if (!S.enLigne) return Promise.reject(new Erreur('Connexion internet nécessaire : le numéro d\'ordre est attribué par la base.'));
+    var an = anneeDebut(), refC = col('compteurs').doc('document_' + an), cle = cleAleatoire(12), code = S.ecole.code || normal(S.ecole.nom || 'ECOLE').toUpperCase().split(/[^A-Z0-9]+/).filter(function (w) { return w && !/^(DE|DU|LA|LE|LES|D|L|ET)$/.test(w); }).map(function (w) { return w[0]; }).join('').slice(0, 6);
+    return chargerQR().catch(function () {}).then(function () {
+      return suivre(db.runTransaction(function (tx) {
+        return tx.get(refC).then(function (s) {
+          var n = (s.exists ? s.data().valeur : 0) + 1, numero = String(n).padStart(3, '0') + '/' + code + '/' + new Date().getFullYear(), mt = meta(true);
+          tx.set(refC, Object.assign({ valeur: n }, meta(!s.exists)));
+          tx.set(col('documents_registre').doc(cle), Object.assign({ numero: numero, n: n, annee: S.ecole.annee, type: ui6.doc, libelle: L.D.lib, beneficiaire: L.b.NOM_COMPLET || '', beneficiaire_id: ui6.benef || '', source: L.D.src,
+            date: jour(), titre: T.titre, paras: T.paras, sigGauche: T.sigGauche, ampliation: T.ampliation, cle: cle, annule: false, delivre_par: S.profil.nom }, mt));
+          tx.set(col('verifications').doc(cle), { numero: numero, type: T.titre, beneficiaire: L.b.NOM_COMPLET || '', date: jour(), ecole: S.ecole.nom, annee: S.ecole.annee, valide: true, motif: '' });
+          return { numero: numero, cle: cle };
+        });
+      }));
+    });
+  }
+
+  DO.registre = function () {
+    var q = normal(ui6.regRech), l = liste(S.documents_registre).filter(function (d) { return !q || normal([d.numero, d.beneficiaire, d.libelle].join(' ')).indexOf(q) >= 0; }).sort(function (a, b) { return (b.n || 0) - (a.n || 0); });
+    return carte('Registre des documents délivrés · ' + l.length, '<div class="ligne pas-imprimer"><div><label>Rechercher</label><input type="search" id="r-rech" value="' + e(ui6.regRech) + '" placeholder="Numéro, nom…"></div></div>' +
+      '<div class="table-defil"><table><thead><tr><th>N°</th><th>Date</th><th>Document</th><th>Bénéficiaire</th><th class="mm">Délivré par</th><th>État</th><th></th></tr></thead><tbody>' +
+      (l.map(function (d) { return '<tr><td><strong>' + e(d.numero) + '</strong></td><td>' + dateFr(d.date) + '</td><td>' + e(d.titre) + '</td><td>' + e(d.beneficiaire) + '</td><td class="mm aide">' + e(d.delivre_par) + '</td><td>' +
+        (d.annule ? '<span class="pastille ko">annulé</span> <span class="aide">' + e(d.motif_annulation || '') + '</span>' : '<span class="pastille ok">valide</span>') + '</td><td style="white-space:nowrap"><button class="btn petit" data-act="d-reimprimer" data-id="' + d.id + '">Réimprimer</button>' +
+        (!d.annule && peut('DOCUMENTS') ? ' <button class="btn petit danger" data-act="d-annuler" data-id="' + d.id + '">Annuler</button>' : '') + '</td></tr>'; }).join('') || '<tr><td colspan="7" class="aide">Aucun document numéroté.</td></tr>') + '</tbody></table></div>',
+      '<button class="btn" data-act="d-reg-imprimer">🖨 Imprimer le registre</button>');
+  };
+  DO.registre.apres = function () { var r = $('#r-rech'); if (r) r.oninput = function () { ui6.regRech = r.value; var p = r.selectionStart; rendre(); var n = $('#r-rech'); n.focus(); n.setSelectionRange(p, p); }; };
+  DO.verifier = function () {
+    return carte('Vérifier un document', '<p class="aide" style="margin-top:0">Scannez le QR code du document avec l\'appareil photo d\'un téléphone : la page de vérification s\'ouvre, même sans compte. Ou saisissez ici le numéro d\'ordre ou la clé imprimée sous le QR.</p>' +
+      '<form id="f-verif" class="ligne"><div><label>Numéro (ex. 007/EFA/2026) ou clé</label><input name="q" value="' + e(ui6.verif) + '" required></div><div class="fixe"><button class="btn plein">Vérifier</button></div></form><div id="verif-res"></div>');
+  };
+  DO.verifier.apres = function () {
+    var f = $('#f-verif'); if (!f) return;
+    f.onsubmit = function (ev) {
+      ev.preventDefault(); ui6.verif = f.q.value.trim(); var q = ui6.verif.toUpperCase().replace(/^.*#VERIFIER\//, '');
+      var d = liste(S.documents_registre).find(function (x) { return x.numero === ui6.verif || x.cle === q; });
+      $('#verif-res').innerHTML = d ? resultatVerif({ numero: d.numero, type: d.titre, beneficiaire: d.beneficiaire, date: d.date, ecole: S.ecole.nom, annee: d.annee, valide: !d.annule, motif: d.motif_annulation }) :
+        '<div class="alerte ko" style="margin-top:10px"><strong>Document introuvable</strong> dans le registre de l\'école. Il peut s\'agir d\'un faux ou d\'un document non numéroté.</div>';
+    };
+  };
+  function resultatVerif(v) {
+    return '<div class="alerte ' + (v.valide ? 'ok' : 'ko') + '" style="margin-top:10px"><strong style="font-size:1.15em">' + (v.valide ? '✔ Document authentique et valide' : '✖ Document ANNULÉ') + '</strong><br>' +
+      e(v.type) + ' N° <strong>' + e(v.numero) + '</strong><br>Bénéficiaire : <strong>' + e(v.beneficiaire) + '</strong><br>Délivré le ' + dateFr(v.date) + ' par ' + e(v.ecole) + ' (année ' + e(v.annee) + ')' + (v.valide ? '' : '<br>Motif : ' + e(v.motif || '')) + '</div>';
+  }
+  /** Page publique ouverte par le QR code (aucune connexion nécessaire) */
+  function ecranVerification(cle, u) {
+    plein('<div class="boite"><p class="marque">CTEFA-CLASSIC Web · vérification</p><h2>Vérification d\'un document</h2><div id="pv-res"><p class="aide">Recherche…</p></div>' +
+      '<p style="margin-top:14px"><button class="btn" id="pv-app">' + (u ? 'Continuer vers l\'application' : 'Connexion à l\'application') + '</button></p></div>');
+    $('#pv-app').onclick = function () { history.replaceState(null, '', location.pathname); surAuth(u); };
+    col('verifications').doc(String(cle).toUpperCase()).get().then(function (s) {
+      $('#pv-res').innerHTML = s.exists ? resultatVerif(s.data()) : '<div class="alerte ko"><strong>✖ Document inconnu.</strong> Ce code ne correspond à aucun document délivré par l\'école : le document n\'est pas authentique.</div>';
+    }).catch(function () { $('#pv-res').innerHTML = '<div class="alerte att">Vérification impossible pour le moment (connexion internet ?).</div>'; });
+  }
+
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    try {
+      switch (b.dataset.act) {
+        case 'd-apercu': { var L = lireDocument(true); chargerQR().catch(function () {}).then(function () { ui6.apercu = L.D.lot ? docLot(ui6.doc, L.b, L.v) : pageDocument(composer(ui6.doc, L.b, L.v), '', ''); $('#d-apercu').innerHTML = ui6.apercu; }); break; }
+        case 'd-brouillon': { var L2 = lireDocument(); imprimer(pageDocument(composer(ui6.doc, L2.b, L2.v), '', '')); break; }
+        case 'd-imprimer-lot': { var L3 = lireDocument(); imprimer(docLot(ui6.doc, L3.b, L3.v)); break; }
+        case 'd-numeroter': {
+          var L4 = lireDocument(), T = composer(ui6.doc, L4.b, L4.v);
+          if (ui6.doc === 'CERT_SCOL' && L4.b.ACTIF === false && !confirm('Cet élève est inactif. Délivrer quand même un certificat de scolarité ?')) break;
+          b.disabled = true;
+          enregistrerDocument(L4, T).then(function (r) {
+            toast('Document ' + r.numero + ' inscrit au registre.', 'ok'); activite('Document ' + r.numero + ' : ' + T.titre + ' — ' + (L4.b.NOM_COMPLET || ''));
+            ui6.apercu = pageDocument(T, r.numero, r.cle); var z = $('#d-apercu'); if (z) z.innerHTML = ui6.apercu; imprimer(ui6.apercu); b.disabled = false;
+          }).catch(function (x) { erreurEcriture(x); b.disabled = false; });
+          break;
+        }
+        case 'd-reimprimer': { var d = S.documents_registre[b.dataset.id]; chargerQR().catch(function () {}).then(function () { imprimer(pageDocument(d, d.numero, d.cle, d.date).replace('<div class="document doc-admin">', '<div class="document doc-admin">' + (d.annule ? '<p class="annule">DOCUMENT ANNULÉ</p>' : ''))); }); break; }
+        case 'd-annuler': {
+          var d2 = S.documents_registre[b.dataset.id];
+          ouvrirBoite('<form class="boite" id="f-dann"><h2>Annuler le document ' + e(d2.numero) + '</h2><p>' + e(d2.titre) + ' — ' + e(d2.beneficiaire) + '</p><p class="aide">Le document reste au registre, marqué annulé ; son QR code affichera « ANNULÉ ».</p>' +
+            '<div class="champ"><label>Motif</label><input name="motif" required></div><div style="display:flex;gap:8px"><button class="btn danger">Annuler le document</button><button type="button" class="btn" data-act="fermer">Retour</button></div></form>');
+          $('#f-dann').onsubmit = function (e2) {
+            e2.preventDefault(); var m = this.motif.value.trim(); if (m.length < 3) return toast('Indiquez un motif.', 'ko');
+            try { verifierEcriture('DOCUMENTS'); } catch (x) { return erreurEcriture(x); }
+            var bt = db.batch(); bt.update(col('documents_registre').doc(d2.id), Object.assign({ annule: true, motif_annulation: m, version: (d2.version || 0) + 1 }, meta()));
+            bt.update(col('verifications').doc(d2.cle), { valide: false, motif: m });
+            suivre(bt.commit()).then(function () { fermerBoite(); toast('Document ' + d2.numero + ' annulé.', 'ok'); journal('ANNULATION_DOCUMENT', d2.numero + ' : ' + m); }).catch(erreurEcriture);
+          };
+          break;
+        }
+        case 'd-reg-imprimer': imprimer('<div class="document">' + enteteDocument('REGISTRE DES DOCUMENTS DÉLIVRÉS — ' + S.ecole.annee) + tableDoc(['N°', 'Date', 'Document', 'Bénéficiaire', 'Délivré par', 'État'],
+          liste(S.documents_registre).sort(function (a, c) { return (a.n || 0) - (c.n || 0); }).map(function (d) { return [d.numero, dateFr(d.date), d.titre, d.beneficiaire, d.delivre_par, d.annule ? 'Annulé : ' + (d.motif_annulation || '') : 'Valide']; })) + visa() + '</div>'); break;
+      }
+    } catch (x) { erreurEcriture(x); }
+  });
+
+  /* ===================================================================
    *  9. ACTIONS
    * =================================================================== */
   document.addEventListener('click', function (ev) {
@@ -4072,6 +4408,10 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     "      match /journal_acces/{id} {",
     "        allow read: if droit('UTILISATEURS');",
     "        allow create: if membre() || (request.auth != null && request.resource.data.evenement == 'REFUS');",
+    "      }",
+    "      match /verifications/{cle} {",
+    "        allow get: if true;",
+    "        allow create, update: if droit('DOCUMENTS') && libre();",
     "      }",
     "      match /{nom}/{id} {",
     "        allow read: if membre();",

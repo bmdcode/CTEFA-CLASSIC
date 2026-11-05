@@ -40,6 +40,10 @@ service cloud.firestore {
         allow read: if droit('UTILISATEURS');
         allow create: if membre() || (request.auth != null && request.resource.data.evenement == 'REFUS');
       }
+      match /verifications/{cle} {
+        allow get: if true;
+        allow create, update: if droit('DOCUMENTS') && libre();
+      }
       match /{nom}/{id} {
         allow read: if membre();
         allow create, update: if membre() && libre() && peutEcrire(nom);

@@ -71,3 +71,6 @@ Menu **Finances** (droits Caisse / Finances) : guichet d'encaissement (acompte, 
 
 ## Référentiel CTEFA V3.5
 Les matières du préscolaire, de l'élémentaire et des Majaalis suivent désormais CTEFA-CLASSIC V3.5 (doublons retirés, ordre corrigé). Pour une base déjà créée : Référentiels → Matières → « Aligner ce niveau » ou « Aligner tous les niveaux ». Une rubrique en trop qui a déjà des notes n'est jamais supprimée.
+
+## Étape 5 — Documents administratifs
+Menu **Documents** (droit Documents) : 14 documents repris de CTEFA-CLASSIC V3.5 (certificat de scolarité, autorisations d'absence, convocation, exeat, fiche de suivi, attestations de travail / prise / cessation de service, note de service, cartes scolaires, page de garde, cartes professionnelles), accords masculin / féminin automatiques, numéro d'ordre atomique (001/CODE/2026), registre avec réimpression identique et annulation tracée, QR code de vérification ouvrant une page publique. **Republier les règles Firestore** (nouvelle collection `verifications`).
