@@ -44,7 +44,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .nav::-webkit-scrollbar { display: none; }
 .nav a { color: #DCE6F2; text-decoration: none; padding: 9px 10px; white-space: nowrap; border-bottom: 3px solid transparent; font-size: .92rem; }
 .nav a.actif { color: #fff; border-bottom-color: var(--ambre); font-weight: 600; }
-main { max-width: 1180px; margin: 0 auto; padding: 16px; }
+main { max-width: 1600px; margin: 0 auto; padding: 16px 24px; }
 h2 { font-size: 1.25rem; margin: 4px 0 14px; }
 h3 { font-size: 1rem; margin: 0; }
 .carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 12px; margin-bottom: 16px; }
@@ -201,6 +201,26 @@ tr.cliquable { cursor: pointer; } tr.cliquable:hover td { background: var(--surv
   .guides details { border-bottom: 1px solid var(--bord, #ddd); padding: 6px 0 } .guides ol { margin: 6px 0 4px; padding-left: 20px } .faq dt { font-weight: 700; margin-top: 8px } .faq dd { margin: 2px 0 0 }
   .btn-installer { position: fixed; left: 12px; bottom: 12px; z-index: 50; background: #16a34a; color: #fff; border: 0; border-radius: 999px; padding: 10px 16px; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer }
   #bandeau-maj { position: fixed; left: 50%; transform: translateX(-50%); bottom: 12px; z-index: 60; background: #153A62; color: #fff; padding: 10px 14px; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.3); display: flex; gap: 10px; align-items: center }
+
+  .btn-menu { display: none; background: transparent; border: 0; color: #fff; font-size: 1.5rem; line-height: 1; padding: 2px 6px; cursor: pointer; }
+  .nav .ic { margin-right: 6px; }
+  .onglets-select { display: block; width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--bord); background: var(--carte); font-weight: 600; margin-bottom: 12px; }
+  .onglets-cache { display: none !important; }
+  .barre-groupe { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: #eef4ff; border: 1px solid #c7d7f5; border-radius: 10px; padding: 8px 10px; margin: 8px 0; position: sticky; bottom: 0; z-index: 5; }
+  :root[data-theme="dark"] .barre-groupe { background: #1e293b; border-color: #334155; }
+  @media (min-width: 761px) { .nav .ic { display: none; } }
+  @media (max-width: 760px) {
+    .btn-menu { display: block; }
+    .entete-haut { padding: 8px 10px; flex-wrap: nowrap; } .entete h1 { font-size: .98rem; }
+    #b-qui, #b-theme { display: none; }
+    .nav { position: fixed; top: 0; left: 0; bottom: 0; width: 78vw; max-width: 300px; z-index: 40; background: var(--entete); flex-direction: column; overflow-y: auto; padding: 14px 0; gap: 0; transform: translateX(-105%); transition: transform .2s ease; box-shadow: 4px 0 18px rgba(0,0,0,.3); }
+    .nav a { padding: 13px 18px; border-bottom: 1px solid rgba(255,255,255,.08); border-left: 4px solid transparent; font-size: 1rem; }
+    .nav a.actif { border-bottom-color: rgba(255,255,255,.08); border-left-color: var(--ambre); background: rgba(255,255,255,.08); }
+    body.menu-ouvert .nav { transform: none; }
+    .voile-menu { display: none; } body.menu-ouvert .voile-menu { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 30; }
+    main { padding: 10px; } .carte-corps { padding: 12px; } .ligne > div { flex-basis: 100%; }
+  }
+  table.analyse { width: 100%; margin-bottom: 12px } table.analyse td, table.analyse th { padding: 5px 7px }
 </style>
 </head>
 <body>
@@ -720,11 +740,11 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
   function okMenu(m) { return !m || !m[1] || [].concat(m[1]).some(peut); }
 
   function rendreCadre() {
-    $('#racine').innerHTML = '<header class="entete"><div class="entete-haut"><h1 id="titre-ecole"></h1>' +
+    $('#racine').innerHTML = '<header class="entete"><div class="entete-haut"><button class="btn-menu" id="b-menu" aria-label="Menu">☰</button><h1 id="titre-ecole"></h1>' +
       '<button class="etat-sync" id="etat-sync" title="État de la synchronisation"></button>' +
       '<button class="btn-entete" id="b-qui" title="Qui est connecté"></button>' +
       '<button class="btn-entete" id="b-theme" title="Mode clair / sombre">◐</button>' +
-      '<button class="btn-entete" id="b-moi"></button></div><nav class="nav" id="nav"></nav></header>' +
+      '<button class="btn-entete" id="b-moi"></button></div><nav class="nav" id="nav"></nav></header><div class="voile-menu" id="voile-menu"></div>' +
       '<div id="bandeaux"></div><main id="vue"></main><p class="pied">CTEFA-CLASSIC Web ' + VERSION_APP + ' · Assistance : ' + ASSISTANCE + '</p>';
     $('#b-theme').onclick = function () {
       var r = document.documentElement, sombre = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
@@ -764,12 +784,31 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     if ($('#voile') || saisieEnCours || (typeof scan !== 'undefined' && scan.actif) || (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.closest('#vue'))) { majCadre(); minuteurRendu = setTimeout(rendreSiLibre, 1500); return; }
     rendre();
   }
+  var ICONES_MENU = { accueil: '🏠', eleves: '🎒', notes: '📝', finances: '💰', documents: '📄', vie: '🗓', migration: '🎓', personnel: '👩‍🏫', ecole: '🏫', referentiels: '📚', utilisateurs: '👤', journal: '📜', sauvegarde: '💾', aide: '❔' };
+  function basculerMenu(ouvrir) { document.body.classList.toggle('menu-ouvert', ouvrir === undefined ? !document.body.classList.contains('menu-ouvert') : ouvrir); }
+  document.addEventListener('click', function (ev) {
+    if (ev.target.closest('#b-menu')) { basculerMenu(); return; }
+    if (ev.target.closest('#voile-menu') || ev.target.closest('#nav a')) basculerMenu(false);
+  });
+  /** Petits écrans : les onglets d'une page deviennent une liste déroulante « options » */
+  function onglesEnMenu() {
+    if (!window.matchMedia('(max-width: 760px)').matches) return;
+    $$('#vue nav.onglets').forEach(function (nv) {
+      if (nv.dataset.menu) return; nv.dataset.menu = '1';
+      var liens = $$('a', nv); if (liens.length < 3) return;
+      var sel = document.createElement('select'); sel.className = 'onglets-select';
+      liens.forEach(function (a, i) { var o = document.createElement('option'); o.value = i; o.textContent = a.textContent; if (a.classList.contains('actif')) o.selected = true; sel.appendChild(o); });
+      sel.onchange = function () { liens[+sel.value].click(); };
+      nv.parentNode.insertBefore(sel, nv); nv.classList.add('onglets-cache');
+    });
+  }
+  new MutationObserver(function () { onglesEnMenu(); }).observe(document.documentElement, { childList: true, subtree: true });
   function majCadre() {
     if (!$('#nav')) return;
     $('#titre-ecole').textContent = (S.ecole && S.ecole.nom) || 'CTEFA-CLASSIC';
     var v = vueCourante();
     $('#nav').innerHTML = MENU.filter(okMenu).map(function (m) {
-      return '<a href="#' + m[0] + '"' + (m[0] === v ? ' class="actif"' : '') + '>' + TITRES[m[0]] + '</a>';
+      return '<a href="#' + m[0] + '"' + (m[0] === v ? ' class="actif"' : '') + '><span class="ic">' + (ICONES_MENU[m[0]] || '•') + '</span>' + TITRES[m[0]] + '</a>';
     }).join('');
     $('#b-qui').textContent = '👥 ' + connectes().length;
     $('#b-moi').textContent = S.profil.identifiant;
@@ -2640,7 +2679,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     var niv = niveauDe(ui3.classe);
     if (ui3.compo > nbPeriodes(niv)) ui3.compo = 1;
     return '<h2>Évaluations</h2><nav class="onglets">' + Object.keys(ONGLETS_NOTES).map(function (k) { return '<a href="#notes/' + k + '"' + (k === o ? ' class="actif"' : '') + '>' + ONGLETS_NOTES[k] + '</a>'; }).join('') + '</nav>' +
-      (o === 'essais' ? '<div class="carte pas-imprimer"><div class="carte-corps ligne"><div><label>Classe (saisie et affichage des tests)</label><select id="n-classe">' + optClasses(ui3.classe) + '</select></div>' +
+      (o === 'analyses' ? '' : o === 'essais' ? '<div class="carte pas-imprimer"><div class="carte-corps ligne"><div><label>Classe (saisie et affichage des tests)</label><select id="n-classe">' + optClasses(ui3.classe) + '</select></div>' +
         '<label class="fixe" style="display:flex;gap:6px;align-items:center;color:var(--texte)"><input type="checkbox" id="es-tous"' + (ui3.esTousTests ? ' checked' : '') + '> Afficher les tests de toutes les classes</label></div></div>' : '<div class="carte pas-imprimer"><div class="carte-corps ligne"><div><label>Classe active</label><select id="n-classe">' + optClasses(ui3.classe) + '</select></div>' +
         '<div><label>' + (o === 'saisie' ? 'Composition' : 'Période') + '</label><select id="n-compo">' + periodesOpt(niv, o === 'saisie' ? ui3.compo : ui3.resPeriode, o !== 'saisie') + '</select></div>' +
         (o === 'saisie' ? '<div><label>Matière</label><select id="n-matiere"><option value="">Toutes les matières</option>' + matieresListe(classeDe(ui3.classe).niveau).map(function (m) { return '<option value="' + e(m.cle) + '"' + (m.cle === ui3.matiere ? ' selected' : '') + '>' + e(m.langue + ' · ' + m.matiere) + '</option>'; }).join('') + '</select></div>' +
@@ -2672,12 +2711,12 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     if (!ui3.verrou) { prendreVerrou().then(function () { rendre(); }); return '<p class="aide">Ouverture de la grille…</p>'; }
     var ro = ui3.verrou.lecture || enMaintenancePourMoi();
     var R = calculer(c.id, compo);
-    var tete = '<tr><th class="fixe-g">Élève</th>' + rubs.map(function (r) {
+    var tete = '<tr>' + (ro ? '' : '<th class="c"><input type="checkbox" id="n-tout" title="Tout cocher"></th>') + '<th class="fixe-g">Élève</th>' + rubs.map(function (r) {
       return '<th class="rub" title="' + e(r.matiere + ' — ' + r.rubrique) + '"><span class="lg lg-' + r.langue + '">' + r.langue + '</span><br>' + e(abreger(r.matiere)) + '<br><small dir="auto">' + e(r.rubrique) + '</small><br><small>/' + ((r.baremes || [])[compo - 1] || niv.base) + '</small></th>';
     }).join('') + (ui3.matiere ? '' : '<th>Moy.</th><th>Rang</th>') + '</tr>';
     var corps = el.map(function (x, i) {
       var l = R.lignes.find(function (y) { return y.eleve.id === x.id; });
-      return '<tr><td class="fixe-g"><span class="aide">' + (i + 1) + '.</span> ' + e(x.prenom) + ' <strong>' + e(x.nom) + '</strong></td>' + rubs.map(function (r, j) {
+      return '<tr>' + (ro ? '' : '<td class="c"><input type="checkbox" class="n-coche" data-el="' + x.id + '"></td>') + '<td class="fixe-g"><span class="aide">' + (i + 1) + '.</span> ' + e(x.prenom) + ' <strong>' + e(x.nom) + '</strong></td>' + rubs.map(function (r, j) {
         var v = valeurNote(c.id, x.id, compo, r.id);
         return '<td class="cn"><input class="note" inputmode="decimal" autocomplete="off" data-el="' + x.id + '" data-rub="' + r.id + '" data-i="' + i + '" data-j="' + j + '" value="' + (v === null || v === undefined ? '' : String(v).replace('.', ',')) + '"' + (ro ? ' disabled' : '') + '></td>';
       }).join('') + (ui3.matiere ? '' : '<td class="c moy">' + (l && l.classe ? nb(l.g) : '—') + '</td><td class="c">' + (l && l.classe ? rangTexte(l.rang_g, l.ex_g, x.sexe) : '') + '</td>') + '</tr>';
@@ -2688,10 +2727,25 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     return bandeau + carte(e(c.nom) + ' · ' + libPeriode(niv, compo) + ' · ' + saisies + ' / ' + el.length * rubs.length + ' notes',
       '<p class="aide" style="margin-top:0">Saisie au clavier : tapez la note puis <strong>Entrée</strong> pour l\'élève suivant (même épreuve) ; en bas de colonne, Entrée passe à l\'épreuve suivante. Flèches ↑ ↓ pour corriger. Pour aller plus vite, choisissez une seule « Épreuve à saisir ». Chaque note est enregistrée dès que vous quittez la case. Tapez <strong>ABS</strong> pour un absent (compte 0). Une épreuve que personne n\'a passée n\'est pas comptée ; ' +
       'pour un élève qui a composé, une case vide compte 0. Notes au-dessus du barème refusées.</p>' +
+      (ro ? '' : '<div class="barre-groupe"><strong>Élèves cochés (<span id="n-nb">0</span>)</strong> : note <input id="n-gval" inputmode="decimal" style="width:70px" placeholder="ex. 7"> à l\'épreuve <select id="n-grub">' + rubs.map(function (r) { return '<option value="' + r.id + '">' + e(r.langue + ' · ' + abreger(r.matiere) + ' · ' + r.rubrique) + '</option>'; }).join('') + '</select> <button type="button" class="btn petit plein" data-act="n-appliquer">Appliquer aux cochés</button></div>') +
       '<div class="table-defil grille-notes"><table class="notes"><thead>' + tete + '</thead><tbody>' + corps + '</tbody></table></div>',
       '<button class="btn" data-act="n-export">⬇ Exporter la grille (Excel)</button><button class="btn" data-act="n-vierge">⬇ Grille vierge à remplir</button>' + (ro ? '' : '<button class="btn" data-act="n-import">⬆ Importer des notes</button><button class="btn danger" data-act="n-effacer">Effacer les notes de cette grille…</button>') + '<a class="btn" href="#notes/resultats">Voir les résultats</a>');
   };
-  NO.saisie.apres = function () {};
+  NO.saisie.apres = function () {
+    var maj = function () { var n = $$('.n-coche:checked').length, z = $('#n-nb'); if (z) z.textContent = n; };
+    $$('.n-coche').forEach(function (c) { c.onchange = maj; });
+    var t = $('#n-tout'); if (t) t.onchange = function () { $$('.n-coche').forEach(function (c) { c.checked = t.checked; }); maj(); };
+  };
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act="n-appliquer"]'); if (!b) return;
+    var cs = $$('.n-coche:checked'), v = $('#n-gval').value.trim(), rub = $('#n-grub').value;
+    if (!cs.length) return toast('Cochez d\'abord les élèves concernés.', 'ko');
+    if (!v) return toast('Tapez la note à appliquer.', 'ko');
+    var n = 0;
+    cs.forEach(function (c) { var i = $('input.note[data-el="' + c.dataset.el + '"][data-rub="' + rub + '"]'); if (i && !i.disabled) { i.value = v; saisirNote(i); n++; } c.checked = false; });
+    var t = $('#n-tout'); if (t) t.checked = false; $('#n-nb').textContent = '0'; $('#n-gval').value = '';
+    toast(n + ' note(s) « ' + v + ' » appliquée(s).', 'ok');
+  });
   function abreger(m) { return String(m).replace(/\s*\(.*\)$/, '').replace('Langue et Communication', 'Langue & Com.').replace('Découverte du Monde', 'Découverte').replace('Éducation au Développement Durable', 'EDD'); }
   function lireNote(t, bareme) {
     var s = String(t || '').trim().toUpperCase().replace(',', '.');
@@ -3294,11 +3348,20 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     var x = ui4.eleve && S.eleves[ui4.eleve];
     var cherche = '<div class="ligne"><div><label>Élève (nom, prénom, matricule ou téléphone du parent)</label><input type="search" id="g-recherche" value="' + e(ui4.recherche) + '" autocomplete="off" placeholder="Tapez au moins 2 lettres"></div></div>';
     if (!x) {
-      var q = normal(ui4.recherche), res = q.length < 2 ? [] : liste(S.eleves).filter(function (y) { return normal([y.prenom, y.nom, y.matricule, y.telephone, y.parent].join(' ')).indexOf(q) >= 0; }).slice(0, 15);
-      return carte('Guichet d\'encaissement', cherche + '<ul class="liste-simple">' + res.map(function (y) {
-        return '<li><a href="#" data-act="g-choisir" data-id="' + y.id + '"><strong>' + e(y.nom) + '</strong> ' + e(y.prenom) + '</a> <span class="aide">' + e(y.matricule) + ' · ' + e((classeDe(y.classe_id) || {}).nom || 'sans classe') +
-          (y.statut !== 'ACTIF' ? ' · <span class="pastille att">inactif</span>' : '') + ' · reste dû ' + fcfa(totalDu(y, indexMoisCourant())) + '</span></li>';
-      }).join('') + '</ul>' + (q.length >= 2 && !res.length ? '<p class="aide">Aucun élève trouvé.</p>' : ''));
+      if (ui4.gClasse === undefined) ui4.gClasse = (classeDe(ui3.classe) && elevesActifsDe(ui3.classe).length ? ui3.classe : (classesTriees().find(function (c) { return elevesActifsDe(c.id).length; }) || classesTriees()[0] || {}).id) || '';
+      var q = normal(ui4.recherche), cur0 = indexMoisCourant();
+      var res = (q.length >= 2 ? liste(S.eleves).filter(function (y) { return normal([y.prenom, y.nom, y.matricule, y.telephone, y.parent].join(' ')).indexOf(q) >= 0; }) : elevesActifsDe(ui4.gClasse))
+        .sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom); }).slice(0, 200);
+      var cats = valeursListe('categories_caisse', []).filter(function (c) { return c.sens === 'ENTREE' && c.categorie !== 'Avance élève'; }).map(function (c) { return c.categorie; });
+      return carte('Guichet d\'encaissement', '<div class="ligne"><div><label>Classe</label><select id="g-classe">' + optClasses(ui4.gClasse) + '</select></div>' +
+        '<div style="flex:2"><label>ou rechercher dans toute l\'école (nom, matricule, téléphone)</label><input type="search" id="g-recherche" value="' + e(ui4.recherche) + '" autocomplete="off" placeholder="Facultatif"></div></div>' +
+        '<p class="aide">Cliquez sur un nom pour ouvrir son guichet, ou cochez plusieurs élèves pour un <strong>encaissement groupé</strong> (même nature, même mois, même montant : un reçu par élève).</p>' +
+        '<div class="table-defil"><table><thead><tr><th class="c"><input type="checkbox" id="g-tout" title="Tout cocher"></th><th>Élève</th><th class="mm">Matricule</th><th class="mm">Classe</th><th class="d">Reste dû à ce jour</th></tr></thead><tbody>' +
+        (res.map(function (y) { var du = totalDu(y, cur0); return '<tr><td class="c"><input type="checkbox" class="g-coche" data-id="' + y.id + '"></td><td><a href="#" data-act="g-choisir" data-id="' + y.id + '"><strong>' + e(y.nom) + '</strong> ' + e(y.prenom) + '</a>' + (y.statut !== 'ACTIF' ? ' <span class="pastille att">inactif</span>' : '') + '</td>' +
+          '<td class="mm aide">' + e(y.matricule) + '</td><td class="mm">' + e((classeDe(y.classe_id) || {}).nom || '') + '</td><td class="d">' + (du > 0 ? '<strong>' + fcfa(du) + '</strong>' : '<span class="pastille ok">à jour</span>') + '</td></tr>'; }).join('') || '<tr><td colspan="5" class="aide">Aucun élève.</td></tr>') + '</tbody></table></div>' +
+        '<form id="f-groupe" class="barre-groupe"><strong>Cochés (<span id="g-nb">0</span>)</strong> <select name="cat">' + opt(cats, 'Mensualité') + '</select> <select name="mois">' + opt(moisListe(), moisListe()[cur0], '—') + '</select> ' +
+        '<input name="montant" inputmode="numeric" placeholder="Montant / élève" style="width:130px"> <select name="mode">' + opt(Object.keys(MODES_PAIEMENT).filter(function (k) { return k !== 'AVANCE'; }).map(function (k) { return [k, MODES_PAIEMENT[k]]; }), 'ESPECES') + '</select> ' +
+        '<input name="reference" placeholder="Référence" style="width:120px"> <button class="btn petit plein">Encaisser pour les cochés</button></form>');
     }
     var c = classeDe(x.classe_id), lignes = dus(x, 99), av = soldeAvance(x.id), cur = indexMoisCourant();
     var optionnels = liste(S.tarifs).filter(function (t) { return !t.obligatoire && Number((t.montants || {})[c && c.niveau] || 0) > 0; });
@@ -3333,8 +3396,13 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
       }).join('') || '<li class="aide">Aucun paiement.</li>') + '</ul>');
   };
   FI.guichet.apres = function () {
+    var gc = $('#g-classe'); if (gc) gc.onchange = function () { ui4.gClasse = gc.value; ui4.recherche = ''; rendre(); };
+    var majNb = function () { var z = $('#g-nb'); if (z) z.textContent = $$('.g-coche:checked').length; };
+    $$('.g-coche').forEach(function (c) { c.onchange = majNb; });
+    var gt = $('#g-tout'); if (gt) gt.onchange = function () { $$('.g-coche').forEach(function (c) { c.checked = gt.checked; }); majNb(); };
+    var fg = $('#f-groupe'); if (fg) fg.onsubmit = function (ev) { ev.preventDefault(); encaissementGroupe(fg); };
     var r = $('#g-recherche');
-    if (r) { r.oninput = function () { ui4.recherche = r.value; ui4.eleve = null; var p = r.selectionStart; rendre(); var n = $('#g-recherche'); n.focus(); n.setSelectionRange(p, p); }; if (!ui4.eleve) r.focus(); }
+    if (r) { r.oninput = function () { ui4.recherche = r.value; ui4.eleve = null; var p = r.selectionStart; rendre(); var n = $('#g-recherche'); n.focus(); n.setSelectionRange(p, p); }; }
     var f = $('#f-encaisser'); if (!f) return;
     var maj = function (auto) {
       var sel = selectionGuichet(), tot = sel.reduce(function (s, l) { return s + l.reste; }, 0);
@@ -3350,6 +3418,29 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     maj(true);
     f.onsubmit = function (ev) { ev.preventDefault(); encaisser(f); };
   };
+  function encaissementGroupe(f) {
+    try {
+      var ids = $$('.g-coche:checked').map(function (c) { return c.dataset.id; }), v = Math.round(Number(String(f.montant.value).replace(/\s/g, '')) || 0), mode = f.mode.value, ref = f.reference.value.trim();
+      if (!ids.length) throw new Erreur('Cochez au moins un élève.');
+      if (!(v > 0)) throw new Erreur('Indiquez le montant par élève.');
+      if (mode !== 'ESPECES' && !ref) throw new Erreur('Indiquez la référence du paiement ' + MODES_PAIEMENT[mode] + '.');
+      if (!confirm('Encaisser ' + fcfa(v) + ' (' + f.cat.value + (f.mois.value ? ' ' + f.mois.value : '') + ') pour ' + ids.length + ' élève(s), soit ' + fcfa(v * ids.length) + ' ?')) return;
+      var b = f.querySelector('button'); b.disabled = true; var faits = [], d = jour();
+      var suite = function (k) {
+        if (k >= ids.length) {
+          $$('.g-coche, #g-tout').forEach(function (c) { c.checked = false; }); $('#g-nb').textContent = '0'; f.montant.value = ''; f.reference.value = ''; b.disabled = false;
+          toast(faits.length + ' reçu(s) enregistré(s) : ' + fcfa(v * faits.length), 'ok'); activite('Encaissement groupé : ' + faits.length + ' élève(s), ' + f.cat.value + ' ' + f.mois.value + ' · ' + fcfa(v * faits.length));
+          if (faits.length) ouvrirBoite('<div class="boite"><h2>' + faits.length + ' reçu(s)</h2><p>' + faits.map(e).join(', ') + '</p><p style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn plein" data-act="recus-lot" data-pieces="' + e(faits.join(',')) + '">🖨 Imprimer tous les reçus (A4)</button><button class="btn" data-act="fermer">Fermer</button></p></div>');
+          return;
+        }
+        var x = S.eleves[ids[k]], c = classeDe(x.classe_id);
+        enregistrerPiece([{ type: 'ENCAISSEMENT', sens: 'ENTREE', date: d, eleve_id: x.id, eleve: x.prenom + ' ' + x.nom, matricule: x.matricule, classe_id: x.classe_id, classe: c ? c.nom : '', mode: mode, reference: ref, compte: 'Caisse',
+          categorie: f.cat.value, mois: f.mois.value || '', montant: v, acompte: false, libelle: f.cat.value + (f.mois.value ? ' ' + f.mois.value : '') }], 'R')
+          .then(function (n) { faits.push(n); suite(k + 1); }).catch(function (er) { b.disabled = false; erreurEcriture(er); toast(faits.length + ' reçu(s) faits avant l\'erreur.', 'ko'); });
+      };
+      suite(0);
+    } catch (er) { erreurEcriture(er); }
+  }
   function selectionGuichet() {
     var x = S.eleves[ui4.eleve], c = classeDe(x.classe_id), lignes = dus(x, 99), sel = [];
     $$('.g-ligne:checked').forEach(function (cb) { sel.push(lignes[Number(cb.dataset.i)]); });
@@ -3645,6 +3736,7 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
         case 'g-recu': boiteRecu(b.dataset.piece); break;
         case 'g-annuler': boiteAnnulation(b.dataset.piece); break;
         case 'recu-a4': imprimer(recuA4(b.dataset.piece)); break;
+        case 'recus-lot': imprimer(b.dataset.pieces.split(',').map(function (p) { return recuA4(p); }).join('<div class="saut"></div>')); break;
         case 'recu-80': imprimer(ticket(b.dataset.piece), { page: 'ticket80' }); break;
         case 'recu-58': imprimer('<div class="t58">' + ticket(b.dataset.piece) + '</div>', { page: 'ticket58' }); break;
         case 'j-csv': csv([['DATE', 'PIECE', 'TYPE', 'SENS', 'CATEGORIE', 'MOIS', 'LIBELLE', 'ELEVE/TIERS', 'MATRICULE', 'CLASSE', 'MONTANT', 'MODE', 'REFERENCE', 'COMPTE', 'CAISSIER']].concat(filtreJournal().map(function (o) {
@@ -4782,6 +4874,142 @@ var SEMENCE = {"niveaux": [{"code": "PS", "nom": "Petite section", "cycle": "PRE
     var recharge = false;
     navigator.serviceWorker.addEventListener('controllerchange', function () { if (recharge) return; recharge = true; location.reload(); });
   }
+  /* ===================================================================
+   *  ANALYSES DES ÉVALUATIONS : compositions, essais, prétests, post-tests,
+   *  tests de niveau — à l'échelle de la classe, du niveau ou de l'école.
+   *  - synthèses par langue, matière ou rubrique, en garçons / filles / total ;
+   *  - progression A → B : C1 → C2 → C3, prétest → post-test, test de niveau
+   *    → test de niveau (mêmes élèves, mêmes matières), par élève, par classe,
+   *    par niveau et par matière.
+   *  Toutes les moyennes sont ramenées sur 20 pour pouvoir comparer des
+   *  évaluations de barèmes différents.
+   * =================================================================== */
+  ONGLETS_NOTES.analyses = 'Analyses et progressions';
+  var ua = { portee: 'classe', niveau: '', A: '1', B: '', groupe: 'matiere', vue: 'synthese' };
+  function sources() {
+    var s = [['1', 'Composition 1'], ['2', 'Composition 2'], ['3', 'Composition 3'], ['A', 'Moyenne annuelle']];
+    liste(S.epreuves).filter(function (x) { return !x.annee || x.annee === S.ecole.annee; }).sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); })
+      .forEach(function (x) { s.push(['E:' + x.id, (x.type || 'Test') + ' · ' + x.nom + ' · ' + dateFr(x.date)]); });
+    return s;
+  }
+  function libSource(v) { var s = sources().find(function (z) { return z[0] === v; }); return s ? s[1] : v; }
+  function classesPortee() {
+    var c = classeDe(ui3.classe);
+    if (ua.portee === 'ecole') return classesTriees();
+    if (ua.portee === 'niveau') return classesTriees().filter(function (k) { return c && k.niveau === c.niveau; });
+    return c ? [c] : [];
+  }
+  function langueEpreuve(nom) { return /arab|عرب|coran|qur|fiqh|tawh|hadi|sira|ﺔ/i.test(nom) ? 'AR' : 'FR'; }
+  /** Données d'une évaluation, élève par élève : g20 + unités (langue, matière, rubrique) sur 20 */
+  function donneesEval(src, classes) {
+    var out = [];
+    if (/^E:/.test(src)) {
+      var E = S.epreuves[src.slice(2)]; if (!E) return out;
+      var R = resultatsEssai(E);
+      R.lignes.forEach(function (l) {
+        if (!classes.some(function (c) { return c.id === l.eleve.classe_id; }) || !l.classe) return;
+        var u = E.epreuves.map(function (p, i) { var v = l.vals[i]; return { langue: langueEpreuve(p.nom), matiere: p.nom, rubrique: p.nom, v: typeof v === 'number' ? v / p.bareme * 20 : (v === 'ABS' ? 0 : null) }; }).filter(function (z) { return z.v !== null; });
+        out.push({ eleve: l.eleve, classe: classeDe(l.eleve.classe_id), g: l.g, unites: u });
+      });
+      return out;
+    }
+    classes.forEach(function (c) {
+      ecouterNotes(c.id); if (!notesChargees(c.id)) return;
+      var niv = S.niveaux[c.niveau] || {}, base = niv.base || 10, R = src === 'A' ? calculerAnnee(c.id) : calculer(c.id, Number(src));
+      if (src !== 'A' && Number(src) > nbPeriodes(niv)) return;
+      R.lignes.forEach(function (l) {
+        if (!l.classe) return;
+        var u = [];
+        Object.keys(l.langues || {}).forEach(function (lg) { u.push({ niveauU: 'langue', langue: lg, v: l.langues[lg] / base * 20 }); });
+        (l.matieres || []).forEach(function (m) {
+          u.push({ niveauU: 'matiere', langue: m.langue, matiere: m.matiere, v: m.note / base * 20 });
+          (m.rubs || []).forEach(function (z) { u.push({ niveauU: 'rubrique', langue: m.langue, matiere: m.matiere, rubrique: z.r.rubrique, v: z.note / z.bareme * 20 }); });
+        });
+        out.push({ eleve: l.eleve, classe: c, g: arr(l.g / base * 20), unites: u, rang: l.rang_g });
+      });
+    });
+    return out;
+  }
+  function cleUnite(u, groupe) {
+    if (groupe === 'langue') return u.niveauU && u.niveauU !== 'langue' ? null : (u.langue || '?');
+    if (groupe === 'matiere') return u.niveauU && u.niveauU !== 'matiere' ? null : u.langue + ' · ' + u.matiere;
+    return u.niveauU && u.niveauU !== 'rubrique' ? null : u.langue + ' · ' + u.matiere + (u.rubrique && u.rubrique !== u.matiere ? ' · ' + u.rubrique : '');
+  }
+  function stat(vals) { if (!vals.length) return null; var s = vals.reduce(function (a, b) { return a + b; }, 0); return { n: vals.length, m: arr(s / vals.length), ok: vals.filter(function (v) { return v >= 10; }).length, max: arr(Math.max.apply(null, vals)), min: arr(Math.min.apply(null, vals)) }; }
+  function parGroupe(D, groupe) {
+    var g = {}, ordre = [];
+    D.forEach(function (d) { var sx = d.eleve.sexe === 'F' ? 'F' : 'G'; d.unites.forEach(function (u) { var k = cleUnite(u, groupe); if (!k) return; if (!g[k]) { g[k] = { G: [], F: [] }; ordre.push(k); } g[k][sx].push(u.v); }); });
+    return ordre.map(function (k) { return { cle: k, G: stat(g[k].G), F: stat(g[k].F), T: stat(g[k].G.concat(g[k].F)) }; });
+  }
+  function celStat(s) { return s ? '<td class="c">' + nb(s.m) + '</td><td class="c">' + nb(arr(100 * s.ok / s.n, 1)) + ' %</td>' : '<td class="c">—</td><td class="c">—</td>'; }
+  function tableSynthese(D, groupe) {
+    var lignes = parGroupe(D, groupe), tot = { G: stat(D.filter(function (d) { return d.eleve.sexe !== 'F'; }).map(function (d) { return d.g; })), F: stat(D.filter(function (d) { return d.eleve.sexe === 'F'; }).map(function (d) { return d.g; })), T: stat(D.map(function (d) { return d.g; })) };
+    return '<table class="analyse"><thead><tr><th rowspan="2">' + { langue: 'Langue', matiere: 'Matière', rubrique: 'Rubrique' }[groupe] + '</th><th colspan="2" class="c">Garçons</th><th colspan="2" class="c">Filles</th><th colspan="2" class="c">Total</th><th class="c" rowspan="2">Max · Min</th></tr>' +
+      '<tr>' + [1, 2, 3].map(function () { return '<th class="c">Moy./20</th><th class="c">≥ 10</th>'; }).join('') + '</tr></thead><tbody>' +
+      lignes.map(function (l) { return '<tr><td>' + e(l.cle) + '</td>' + celStat(l.G) + celStat(l.F) + celStat(l.T) + '<td class="c">' + (l.T ? nb(l.T.max) + ' · ' + nb(l.T.min) : '') + '</td></tr>'; }).join('') +
+      '<tr class="total"><td><strong>MOYENNE GÉNÉRALE</strong> <span class="aide">(' + (tot.T ? tot.T.n : 0) + ' élèves : ' + (tot.G ? tot.G.n : 0) + ' G, ' + (tot.F ? tot.F.n : 0) + ' F)</span></td>' + celStat(tot.G) + celStat(tot.F) + celStat(tot.T) + '<td class="c">' + (tot.T ? nb(tot.T.max) + ' · ' + nb(tot.T.min) : '') + '</td></tr></tbody></table>';
+  }
+  function tableParClasse(D) {
+    var cls = classesPortee(); if (cls.length < 2) return '';
+    return '<h3>Par classe</h3><table class="analyse"><thead><tr><th>Classe</th><th class="c">Élèves</th><th class="c">Moy. G</th><th class="c">Moy. F</th><th class="c">Moy./20</th><th class="c">≥ 10</th><th class="c">Taux</th></tr></thead><tbody>' + cls.map(function (c) {
+      var d = D.filter(function (x) { return x.classe.id === c.id; }), t = stat(d.map(function (x) { return x.g; })), g = stat(d.filter(function (x) { return x.eleve.sexe !== 'F'; }).map(function (x) { return x.g; })), f = stat(d.filter(function (x) { return x.eleve.sexe === 'F'; }).map(function (x) { return x.g; }));
+      return '<tr><td>' + e(c.nom) + '</td><td class="c">' + d.length + '</td><td class="c">' + (g ? nb(g.m) : '—') + '</td><td class="c">' + (f ? nb(f.m) : '—') + '</td><td class="c"><strong>' + (t ? nb(t.m) : '—') + '</strong></td><td class="c">' + (t ? t.ok : '') + '</td><td>' + (t ? barre(100 * t.ok / t.n, t.ok * 2 >= t.n ? 'ok' : 'ko') + ' ' + nb(arr(100 * t.ok / t.n, 1)) + ' %' : '') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  }
+  function tableEleves(D) {
+    var t = D.slice().sort(function (a, b) { return b.g - a.g; }); classer(t, 'an', function (l) { return l.g; });
+    return '<table class="analyse"><thead><tr><th class="c">Rang</th><th>Élève</th><th>Classe</th><th class="c">Sexe</th><th class="c">Moy./20</th></tr></thead><tbody>' + t.map(function (d) {
+      return '<tr><td class="c">' + d.rang_an + '</td><td>' + e(d.eleve.prenom + ' ' + d.eleve.nom) + '</td><td>' + e(d.classe.nom) + '</td><td class="c">' + (d.eleve.sexe === 'F' ? 'F' : 'G') + '</td><td class="c"><strong>' + nb(d.g) + '</strong></td></tr>'; }).join('') + '</tbody></table>';
+  }
+  function progression(DA, DB, groupe) {
+    var paires = DB.map(function (b) { var a = DA.find(function (x) { return x.eleve.id === b.eleve.id; }); return a ? { eleve: b.eleve, classe: b.classe, a: a.g, b: b.g, gain: arr(b.g - a.g), A: a, B: b } : null; }).filter(Boolean);
+    if (!paires.length) return '<p class="aide">Aucun élève n\'a composé aux deux évaluations : rien à comparer.</p>';
+    var moy = function (l, k) { return l.length ? arr(l.reduce(function (s, x) { return s + x[k]; }, 0) / l.length) : null; };
+    var G = paires.filter(function (p) { return p.eleve.sexe !== 'F'; }), F = paires.filter(function (p) { return p.eleve.sexe === 'F'; });
+    var tete = '<div class="tuiles">' + tuile('Élèves comparés', paires.length) + tuile('Moyenne A → B', nb(moy(paires, 'a')) + ' → ' + nb(moy(paires, 'b'))) + tuile('Gain moyen', (moy(paires, 'gain') > 0 ? '+' : '') + nb(moy(paires, 'gain'))) +
+      tuile('En progrès / stables / en recul', paires.filter(function (p) { return p.gain > 0.25; }).length + ' / ' + paires.filter(function (p) { return Math.abs(p.gain) <= 0.25; }).length + ' / ' + paires.filter(function (p) { return p.gain < -0.25; }).length) + '</div>';
+    var sexe = '<table class="analyse"><thead><tr><th></th><th class="c">Élèves</th><th class="c">A</th><th class="c">B</th><th class="c">Gain</th><th class="c">≥ 10 en A</th><th class="c">≥ 10 en B</th></tr></thead><tbody>' + [['Garçons', G], ['Filles', F], ['Total', paires]].map(function (z) {
+      var l = z[1]; return '<tr><td><strong>' + z[0] + '</strong></td><td class="c">' + l.length + '</td><td class="c">' + nb(moy(l, 'a')) + '</td><td class="c">' + nb(moy(l, 'b')) + '</td><td class="c ' + (moy(l, 'gain') >= 0 ? 'gain-plus' : 'gain-moins') + '">' + (l.length ? (moy(l, 'gain') > 0 ? '+' : '') + nb(moy(l, 'gain')) : '') + '</td><td class="c">' + l.filter(function (p) { return p.a >= 10; }).length + '</td><td class="c">' + l.filter(function (p) { return p.b >= 10; }).length + '</td></tr>'; }).join('') + '</tbody></table>';
+    var cls = classesPortee(), parCl = cls.length > 1 ? '<h3>Par classe</h3><table class="analyse"><thead><tr><th>Classe</th><th class="c">Élèves</th><th class="c">A</th><th class="c">B</th><th class="c">Gain</th></tr></thead><tbody>' + cls.map(function (c) { var l = paires.filter(function (p) { return p.classe.id === c.id; }); return l.length ? '<tr><td>' + e(c.nom) + '</td><td class="c">' + l.length + '</td><td class="c">' + nb(moy(l, 'a')) + '</td><td class="c">' + nb(moy(l, 'b')) + '</td><td class="c ' + (moy(l, 'gain') >= 0 ? 'gain-plus' : 'gain-moins') + '">' + (moy(l, 'gain') > 0 ? '+' : '') + nb(moy(l, 'gain')) + '</td></tr>' : ''; }).join('') + '</tbody></table>' : '';
+    var ga = parGroupe(paires.map(function (p) { return p.A; }), groupe), gb = parGroupe(paires.map(function (p) { return p.B; }), groupe);
+    var parMat = '<h3>Par ' + { langue: 'langue', matiere: 'matière', rubrique: 'rubrique' }[groupe] + ' (mêmes élèves)</h3><table class="analyse"><thead><tr><th></th><th class="c">G : A → B</th><th class="c">F : A → B</th><th class="c">Total : A → B</th><th class="c">Gain</th></tr></thead><tbody>' + gb.map(function (lb) {
+      var la = ga.find(function (x) { return x.cle === lb.cle; }); if (!la) return '';
+      var f = function (s1, s2) { return (s1 ? nb(s1.m) : '—') + ' → ' + (s2 ? nb(s2.m) : '—'); }, gn = la.T && lb.T ? arr(lb.T.m - la.T.m) : null;
+      return '<tr><td>' + e(lb.cle) + '</td><td class="c">' + f(la.G, lb.G) + '</td><td class="c">' + f(la.F, lb.F) + '</td><td class="c">' + f(la.T, lb.T) + '</td><td class="c ' + (gn >= 0 ? 'gain-plus' : 'gain-moins') + '">' + (gn === null ? '' : (gn > 0 ? '+' : '') + nb(gn)) + '</td></tr>';
+    }).join('') + '</tbody></table><p class="aide">Seules les matières présentes dans les deux évaluations (même nom) sont comparées.</p>';
+    var el = '<h3>Par élève</h3><table class="analyse"><thead><tr><th>Élève</th><th>Classe</th><th class="c">A</th><th class="c">B</th><th class="c">Gain</th><th>Évolution</th></tr></thead><tbody>' + paires.sort(function (x, y) { return y.gain - x.gain; }).map(function (p) {
+      return '<tr><td>' + e(p.eleve.prenom + ' ' + p.eleve.nom) + '</td><td>' + e(p.classe.nom) + '</td><td class="c">' + nb(p.a) + '</td><td class="c">' + nb(p.b) + '</td><td class="c ' + (p.gain >= 0 ? 'gain-plus' : 'gain-moins') + '"><strong>' + (p.gain > 0 ? '+' : '') + nb(p.gain) + '</strong></td><td>' + (p.gain > 0.25 ? '↗ progrès' : p.gain < -0.25 ? '↘ recul' : '→ stable') + (p.a < 10 && p.b >= 10 ? ' · <span class="pastille ok">passe la moyenne</span>' : p.a >= 10 && p.b < 10 ? ' · <span class="pastille ko">perd la moyenne</span>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+    return tete + '<div class="grille"><div>' + sexe + '</div><div>' + parCl + '</div></div>' + parMat + el;
+  }
+  NO.analyses = function () {
+    var c = classeDe(ui3.classe), src = sources();
+    if (!src.some(function (z) { return z[0] === ua.A; })) ua.A = '1';
+    var cls = classesPortee(), manque = cls.filter(function (k) { return !notesChargees(k.id); });
+    var ctrl = '<div class="ligne pas-imprimer"><div><label>Classe de référence</label><select id="an-classe">' + optClasses(ui3.classe) + '</select></div>' +
+      '<div><label>Portée</label><select id="an-portee">' + opt([['classe', 'La classe'], ['niveau', 'Le niveau (' + e(c ? nomNiveau(c.niveau) : '') + ', toutes ses classes)'], ['ecole', 'Toute l\'école']], ua.portee) + '</select></div>' +
+      '<div><label>Évaluation A</label><select id="an-A">' + opt(src, ua.A) + '</select></div>' +
+      '<div><label>Comparer avec B (progression)</label><select id="an-B">' + opt(src, ua.B, '— aucune —') + '</select></div>' +
+      '<div><label>Détail par</label><select id="an-groupe">' + opt([['langue', 'Langue'], ['matiere', 'Matière'], ['rubrique', 'Rubrique / épreuve']], ua.groupe) + '</select></div></div>';
+    if (manque.length) return carte('Analyses', ctrl + '<p class="aide">Chargement des notes de ' + manque.length + ' classe(s)…</p>');
+    var DA = donneesEval(ua.A, cls), titre = libSource(ua.A) + (ua.B ? ' → ' + libSource(ua.B) : '') + ' · ' + (ua.portee === 'classe' ? (c ? c.nom : '') : ua.portee === 'niveau' ? 'niveau ' + nomNiveau(c.niveau) : 'école');
+    var corps;
+    if (ua.B) corps = progression(DA, donneesEval(ua.B, cls), ua.groupe);
+    else if (!DA.length) corps = '<p class="aide">Aucun élève n\'a de note pour cette évaluation dans cette portée.</p>';
+    else corps = tableSynthese(DA, ua.groupe) + tableParClasse(DA) + '<h3>Classement</h3>' + tableEleves(DA);
+    return carte('Analyses · ' + e(titre), ctrl + '<p class="aide">Toutes les moyennes sont ramenées sur 20 ; « ≥ 10 » = nombre ou part des élèves ayant au moins la moitié des points.</p><div id="an-doc">' + corps + '</div>',
+      '<button class="btn" data-act="an-imprimer">🖨 Imprimer</button><button class="btn" data-act="an-csv">⬇ Exporter (Excel/CSV)</button>');
+  };
+  NO.analyses.apres = function () {
+    [['#an-portee', 'portee'], ['#an-A', 'A'], ['#an-B', 'B'], ['#an-groupe', 'groupe']].forEach(function (z) { var s = $(z[0]); if (s) s.onchange = function () { ua[z[1]] = s.value; rendre(); }; });
+    var c = $('#an-classe'); if (c) c.onchange = function () { ui3.classe = c.value; rendre(); };
+  };
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act]'); if (!b) return;
+    if (b.dataset.act === 'an-imprimer') imprimer('<div class="document">' + enteteBulletin('ANALYSE · ' + e(libSource(ua.A) + (ua.B ? ' → ' + libSource(ua.B) : ''))) + $('#an-doc').innerHTML.replace(/class="analyse"/g, 'class="doc-table analyse"') + visa() + '</div>', { page: 'paysage' });
+    if (b.dataset.act === 'an-csv') { var lignes = []; $$('#an-doc table').forEach(function (t) { $$('tr', t).forEach(function (r) { lignes.push($$('th,td', r).map(function (x) { return x.textContent.trim(); })); }); lignes.push([]); }); csv(lignes, 'analyse.csv'); }
+  });
+
   /* ===================================================================
    *  9. ACTIONS
    * =================================================================== */
